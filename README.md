@@ -15,15 +15,6 @@
 
 ---
 
-## 👥 The FORGE Team
-| Name | Role | Primary Responsibility |
-| :--- | :--- | :--- |
-| **John Raven S. Unera** | **Fullstack & Integration** | AWS Infrastructure (RDS, Bedrock, S3), Frontend/Backend bridging, and GitHub management. |
-| **Adonis, Kate Russel E.** | **Backend Developer** | Node.js/Express.js server-side logic and Oracle 19c SQL architecture. |
-| **Valdez, Zoe Felicia L.** | **Frontend Developer** | React.js PWA development, Multimodal HCI (Voice, Vision, Haptics). |
-
----
-
 ## 💻 Tech Stack 
 | Category | Tool / Language | Usage |
 | :--- | :--- | :--- |
@@ -87,3 +78,12 @@ UI & Logic:
 **lucide-react**: v0.4xx.x (For clean icons in your HCI 2 dashboard).
 
 **tailwindcss**: v4.x (For rapid styling).
+
+---
+
+## 👥 The FORGE Team
+| Name | Role | Primary Responsibility |
+| :--- | :--- | :--- |
+| **John Raven S. Unera** | **Fullstack & Integration** | AWS Infrastructure (RDS, Bedrock, S3), Frontend/Backend bridging, and GitHub management. |
+| **Adonis, Kate Russel E.** | **Backend Developer** | Node.js/Express.js server-side logic and Oracle 19c SQL architecture. |
+| **Valdez, Zoe Felicia L.** | **Frontend Developer** | React.js PWA development, Multimodal HCI (Voice, Vision, Haptics). |
