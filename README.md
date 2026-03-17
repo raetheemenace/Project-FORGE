@@ -46,11 +46,44 @@
 
 ## 📦 Dependencies & Installation
 
-### Prerequisites
-* **Node.js** (LTS Version)
-* **GitHub Account** (For team version control)
-* **Oracle Thin Mode** (Required for Node-Oracle connectivity without instant client)
+### Prerequisites to Install
+| Software| Version | Command to Verify |
+| :--- | :--- | :--- |
+| **Node.js** | **v24.14.0 (LTS)** | node -v |
+| **npm** | **v11.9.0** | npm -v |
+| **git** | **v2.48+** | git --version |
 
-### Backend Installation (`/backend`)
-```bash
-npm install express oracledb @aws-sdk/client-s3 @aws-sdk/client-bedrock-runtime dotenv cors
+**Backend Installation** (`/backend`)
+cd to /backend, then run "npm init -y" then install these specific versions:
+
+**express**: v5.1.0 (The current stable standard with native async support).
+
+**oracledb**: v6.10.x (Essential for your Oracle 19c connection).
+
+**dotenv**: v16.4.x (For your .env secrets).
+
+AWS Integration:
+
+**@aws-sdk/client-bedrock-runtime**: v3.7xx.x (For the lab equipment AI scanning).
+
+**@aws-sdk/client-s3**: v3.7xx.x (For storing images of equipment).
+
+Development Tools:
+
+**nodemon**: v3.1.x (To auto-restart your server).
+
+**cors**: v2.8.x (To allow your React frontend to talk to your Node server).
+
+**Frontend Installation** (`/frontend`)
+Project Setup:
+**vite**: v8.0.x * react & react-dom: v19.0.x
+
+**@vitejs/plugin-react**: v6.x
+
+UI & Logic:
+
+**axios**: v1.7.x (To send data to your backend).
+
+**lucide-react**: v0.4xx.x (For clean icons in your HCI 2 dashboard).
+
+**tailwindcss**: v4.x (For rapid styling).
