@@ -1,121 +1,57 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useEffect, useState } from 'react';
+import axios from 'axios';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [dbStatus, setDbStatus] = useState('Checking...');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // This calls the backend health check we set up earlier
+    axios.get('/api/health')
+      .then(res => setDbStatus(res.data.database || 'Connected'))
+      .catch(() => setDbStatus('Connection Failed'));
+  }, []);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-6 font-sans">
+      {/* Header */}
+      <div className="text-center mb-12">
+        <h1 className="text-6xl font-black tracking-tighter bg-gradient-to-r from-orange-500 to-red-600 bg-clip-text text-transparent uppercase italic">
+          Project Forge
+        </h1>
+        <p className="text-zinc-500 mt-2 tracking-widest uppercase text-xs">Full-Stack Development Environment</p>
+      </div>
+
+      {/* Connection Card */}
+      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
+        <div className="flex items-center justify-between mb-6">
+          <span className="text-sm font-medium text-zinc-400">System Status</span>
+          <div className="flex items-center gap-2">
+            <div className={`w-3 h-3 rounded-full animate-pulse ${dbStatus === 'Connection Failed' ? 'bg-red-500' : 'bg-green-500'}`}></div>
+            <span className="text-xs font-mono">{dbStatus}</span>
+          </div>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
+
+        <div className="space-y-4">
+          <button 
+            className="w-full py-4 bg-zinc-100 text-zinc-950 font-bold rounded-xl hover:bg-orange-500 hover:text-white transition-all duration-300 active:scale-95 cursor-pointer"
+            onClick={() => alert('Initiating AWS Bedrock Forge...')}
+          >
+            START FORGING
+          </button>
+          
+          <p className="text-[10px] text-center text-zinc-600 uppercase tracking-tighter">
+            Connected to Oracle 19c & AWS Bedrock SDK v3
           </p>
         </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      </div>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {/* Footer Branding */}
+      <footer className="mt-12 opacity-20 hover:opacity-100 transition-opacity">
+        <p className="text-xs font-mono">DEBUGGIN SHENANIGANS // 2026</p>
+      </footer>
+    </div>
+  );
 }
 
-export default App
+export default App;
