@@ -1,0 +1,21 @@
+{
+  "name": "project-forge",
+  "version": "1.0.0",
+  "description": "**Courses:** Information Management, HCI 2 and Platform Technologies.\r **Institution:** Technological Institute of the Philippines - Manila",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/raetheemenace/Project-FORGE.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/raetheemenace/Project-FORGE/issues"
+  },
+  "homepage": "https://github.com/raetheemenace/Project-FORGE#readme"
+}
