@@ -1,56 +1,78 @@
-import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { getStoredUser, getToken } from './services/authService.js';
+
+// Public pages
+import LandingPage    from './pages/LandingPage.jsx';
+import SignIn         from './pages/SignIn.jsx';
+import SignUp         from './pages/SignUp.jsx';
+import OfflinePage    from './pages/OfflinePage.jsx';
+
+// Student pages
+import Dashboard         from './pages/Dashboard.jsx';
+import BorrowStep1       from './pages/borrow/BorrowStep1.jsx';
+import BorrowStep2       from './pages/borrow/BorrowStep2.jsx';
+import BorrowStep3       from './pages/borrow/BorrowStep3.jsx';
+import BorrowStep4       from './pages/borrow/BorrowStep4.jsx';
+import LogUpdated        from './pages/LogUpdated.jsx';
+import MyTransactions    from './pages/MyTransactions.jsx';
+import ReportMaintenance from './pages/ReportMaintenance.jsx';
+
+// Admin pages
+import AdminDashboard       from './pages/admin/AdminDashboard.jsx';
+import EquipmentManagement  from './pages/admin/EquipmentManagement.jsx';
+import TransactionOversight from './pages/admin/TransactionOversight.jsx';
+import MaintenanceTickets   from './pages/admin/MaintenanceTickets.jsx';
+import UserManagement       from './pages/admin/UserManagement.jsx';
+import LabRoomManagement    from './pages/admin/LabRoomManagement.jsx';
+import SystemReports        from './pages/admin/SystemReports.jsx';
+
+// Auth guard — redirects to /signin if no token
+const RequireAuth = ({ children }) => {
+  if (!getToken()) return <Navigate to="/signin" replace />;
+  return children;
+};
+
+// Admin guard — requires LAB_ADMIN role
+const RequireAdmin = ({ children }) => {
+  const user = getStoredUser();
+  if (!getToken()) return <Navigate to="/signin" replace />;
+  if (user?.role !== 'LAB_ADMIN') return <Navigate to="/dashboard" replace />;
+  return children;
+};
 
 function App() {
-  const [dbStatus, setDbStatus] = useState('Checking...');
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    // This calls the backend health check we set up earlier
-    axios.get('/api/health')
-      .then(res => setDbStatus(res.data.database || 'Connected'))
-      .catch(() => setDbStatus('Connection Failed'));
-  }, []);
-
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center p-6 font-sans">
-      {/* Header */}
-      <div className="text-center mb-12">
-        <h1 className="text-6xl font-black tracking-tighter bg-gradient-to-r from-orange-500 to-red-600 bg-clip-text text-transparent uppercase italic">
-          Project Forge
-        </h1>
-        <p className="text-zinc-500 mt-2 tracking-widest uppercase text-xs">Full-Stack Development Environment</p>
-      </div>
+    <BrowserRouter>
+      <Routes>
+        {/* Public */}
+        <Route path="/"        element={<LandingPage />} />
+        <Route path="/signin"  element={<SignIn />} />
+        <Route path="/signup"  element={<SignUp />} />
+        <Route path="/offline" element={<OfflinePage />} />
 
-      {/* Connection Card */}
-      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-8 shadow-2xl">
-        <div className="flex items-center justify-between mb-6">
-          <span className="text-sm font-medium text-zinc-400">System Status</span>
-          <div className="flex items-center gap-2">
-            <div className={`w-3 h-3 rounded-full animate-pulse ${dbStatus === 'Connection Failed' ? 'bg-red-500' : 'bg-green-500'}`}></div>
-            <span className="text-xs font-mono">{dbStatus}</span>
-          </div>
-        </div>
+        {/* Student */}
+        <Route path="/dashboard"    element={<RequireAuth><Dashboard /></RequireAuth>} />
+        <Route path="/borrow/step1" element={<RequireAuth><BorrowStep1 /></RequireAuth>} />
+        <Route path="/borrow/step2" element={<RequireAuth><BorrowStep2 /></RequireAuth>} />
+        <Route path="/borrow/step3" element={<RequireAuth><BorrowStep3 /></RequireAuth>} />
+        <Route path="/borrow/step4" element={<RequireAuth><BorrowStep4 /></RequireAuth>} />
+        <Route path="/borrow/confirmed" element={<RequireAuth><LogUpdated /></RequireAuth>} />
+        <Route path="/transactions" element={<RequireAuth><MyTransactions /></RequireAuth>} />
+        <Route path="/maintenance"  element={<RequireAuth><ReportMaintenance /></RequireAuth>} />
 
-        <div className="space-y-4">
-          <button 
-            className="w-full py-4 bg-zinc-100 text-zinc-950 font-bold rounded-xl hover:bg-orange-500 hover:text-white transition-all duration-300 active:scale-95 cursor-pointer"
-            onClick={() => alert('Initiating AWS Bedrock Forge...')}
-          >
-            START FORGING
-          </button>
-          
-          <p className="text-[10px] text-center text-zinc-600 uppercase tracking-tighter">
-            Connected to Oracle 19c & AWS Bedrock SDK v3
-          </p>
-        </div>
-      </div>
+        {/* Admin */}
+        <Route path="/admin"              element={<RequireAdmin><AdminDashboard /></RequireAdmin>} />
+        <Route path="/admin/equipment"    element={<RequireAdmin><EquipmentManagement /></RequireAdmin>} />
+        <Route path="/admin/transactions" element={<RequireAdmin><TransactionOversight /></RequireAdmin>} />
+        <Route path="/admin/tickets"      element={<RequireAdmin><MaintenanceTickets /></RequireAdmin>} />
+        <Route path="/admin/users"        element={<RequireAdmin><UserManagement /></RequireAdmin>} />
+        <Route path="/admin/rooms"        element={<RequireAdmin><LabRoomManagement /></RequireAdmin>} />
+        <Route path="/admin/reports"      element={<RequireAdmin><SystemReports /></RequireAdmin>} />
 
-      {/* Footer Branding */}
-      <footer className="mt-12 opacity-20 hover:opacity-100 transition-opacity">
-        <p className="text-xs font-mono">DEBUGGIN SHENANIGANS // 2026</p>
-      </footer>
-    </div>
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
