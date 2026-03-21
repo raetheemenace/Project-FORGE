@@ -15,10 +15,25 @@ const BorrowStep1 = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#001254] font-sans">
+    <div className="min-h-screen bg-[#F8FAFC] text-[#001254] font-sans relative overflow-hidden">
       
-      {/* NAVIGATION */}
-      <nav className="bg-white px-10 py-5 flex justify-between items-center shadow-sm border-b border-gray-100 sticky top-0 z-50">
+      {/* --- DYNAMIC BACKGROUND ELEMENTS --- */}
+      
+      {/* 1. Animated Gradient Blobs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[800px] h-[800px] bg-[#22B8CF]/10 rounded-full blur-[120px] animate-pulse pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[700px] h-[700px] bg-[#001254]/5 rounded-full blur-[100px] animate-bounce duration-[15s] pointer-events-none"></div>
+
+      {/* 2. Technical Lab Grid Overlay */}
+      <div className="absolute inset-0 opacity-[0.04] pointer-events-none" 
+           style={{ 
+             backgroundImage: `linear-gradient(#001254 1px, transparent 1px), linear-gradient(90deg, #001254 1px, transparent 1px)`,
+             backgroundSize: '40px 40px' 
+           }}>
+      </div>
+    
+      
+      {/* --- CONTENT LAYER --- */}
+      <nav className="bg-white/80 backdrop-blur-md px-10 py-5 flex justify-between items-center shadow-sm border-b border-gray-100 sticky top-0 z-50">
         <div className="flex items-center space-x-5">
           <div className="bg-[#22B8CF] p-2.5 rounded-xl shadow-lg shadow-[#22B8CF]/20">
             <FlaskConical size={26} className="text-white" />
@@ -46,16 +61,16 @@ const BorrowStep1 = () => {
       </nav>
 
       {/* MAIN CONTENT */}
-      <main className="max-w-6xl mx-auto p-12 text-center space-y-12">
+      <main className="max-w-6xl mx-auto p-12 text-center space-y-12 relative z-10">
         <div className="space-y-4">
           <div className="flex justify-center gap-2 mb-4">
-             <div className="w-8 h-2 rounded-full bg-[#22B8CF]"></div>
-             <div className="w-8 h-2 rounded-full bg-gray-200"></div>
-             <div className="w-8 h-2 rounded-full bg-gray-200"></div>
-             <div className="w-8 h-2 rounded-full bg-gray-200"></div>
+              <div className="w-8 h-2 rounded-full bg-[#22B8CF] shadow-[0_0_10px_#22B8CF]"></div>
+              <div className="w-8 h-2 rounded-full bg-gray-200"></div>
+              <div className="w-8 h-2 rounded-full bg-gray-200"></div>
+              <div className="w-8 h-2 rounded-full bg-gray-200"></div>
           </div>
-          <h2 className="text-5xl font-black tracking-tight text-[#001254]">Select Department Stockroom</h2>
-          <p className="text-gray-500 text-xl font-medium">Choose the department you'd like to borrow from.</p>
+          <h2 className="text-6xl font-black tracking-tight text-[#001254]">Select Department Stockroom</h2>
+          <p className="text-gray-500 text-xl font-medium tracking-wide">Choose the department you'd like to borrow from.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
@@ -83,10 +98,10 @@ const BorrowStep1 = () => {
         </div>
 
         <div className="flex justify-center items-center gap-6 mt-16">
-          <div className="flex items-center gap-3 px-6 py-3 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-2xl font-bold text-sm">
+          <div className="flex items-center gap-3 px-6 py-3 bg-white/50 backdrop-blur-sm text-emerald-700 border border-emerald-100 rounded-2xl font-bold text-sm shadow-sm">
             <Volume2 size={18} /> Voice Feedback Active
           </div>
-          <div className="flex items-center gap-3 px-6 py-3 bg-amber-50 text-amber-700 border border-amber-100 rounded-2xl font-bold text-sm">
+          <div className="flex items-center gap-3 px-6 py-3 bg-white/50 backdrop-blur-sm text-amber-700 border border-amber-100 rounded-2xl font-bold text-sm shadow-sm">
             <Mic size={18} /> Voice Input Available
           </div>
         </div>
@@ -108,34 +123,41 @@ const BorrowStep1 = () => {
           </div>
         </div>
       )}
+
+      {/* Styles for the slow spin animation */}
+      <style>{`
+        @keyframes spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spin-slow 12s linear infinite;
+        }
+      `}</style>
     </div>
   );
 };
 
 const DepartmentCard = ({ title, desc, icon, variant, onClick }) => {
   const styles = {
-    'pastel-cyan': 'bg-white hover:bg-[#B2EBF2] text-[#006064]',
-    'pastel-yellow': 'bg-white hover:bg-[#FEF08A] text-[#854D0E]',
-    'pastel-pink': 'bg-white hover:bg-[#FBCFE8] text-[#9D174D]'
-  };
-
-  const iconStyles = {
-    'pastel-cyan': 'bg-[#E0F7FA]',
-    'pastel-yellow': 'bg-[#FEF9C3]',
-    'pastel-pink': 'bg-[#FCE7F3]'
+    'pastel-cyan': 'bg-white hover:bg-white text-[#006064]',
+    'pastel-yellow': 'bg-white hover:bg-white text-[#854D0E]',
+    'pastel-pink': 'bg-white hover:bg-whitetext-[#9D174D]'
   };
 
   return (
     <div 
       onClick={onClick}
-      className={`group p-10 rounded-[3.5rem] transition-all duration-500 cursor-pointer shadow-sm hover:shadow-2xl hover:-translate-y-3 flex flex-col items-center text-center ${styles[variant]}`}
+      className={`group p-10 backdrop-blur-md rounded-[3.5rem] transition-all duration-500 cursor-pointer shadow-sm hover:shadow-2xl hover:-translate-y-3 flex flex-col items-center text-center border border-white/50 ${styles[variant]}`}
     >
-      <div className={`mb-8 w-24 h-24 flex items-center justify-center rounded-[2rem] transition-all duration-500 group-hover:scale-110 shadow-lg ${iconStyles[variant]}`}>
+      <div className="mb-8 w-24 h-24 flex items-center justify-center transition-all duration-500 group-hover:scale-110">
         {icon}
       </div>
+      
       <h3 className="text-3xl font-black mb-4 tracking-tight">{title}</h3>
       <p className="text-base font-medium opacity-70 leading-relaxed mb-6 px-4">{desc}</p>
-      <div className="w-12 h-12 bg-gray-50 group-hover:bg-white rounded-full flex items-center justify-center transition-colors">
+      
+      <div className="w-12 h-12 bg-gray-50/50 group-hover:bg-white rounded-full flex items-center justify-center transition-colors">
         <ArrowRight className="group-hover:translate-x-1 transition-transform" />
       </div>
     </div>
