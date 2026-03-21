@@ -15,3 +15,6 @@ build/
 *.log
 *.dmp
 .DS_Store
+
+#Documentation and Tasks
+.kiro/
