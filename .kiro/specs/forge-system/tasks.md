@@ -1,14 +1,10 @@
 # Implementation Plan
 
 - [x] 1. Set up project infrastructure and database schema
-
-
-
-
-
-  - Create Oracle DB schema with all tables (FORGE_USERS, FORGE_EQUIPMENT, FORGE_TRANSACTIONS, FORGE_TXN_ITEMS, FORGE_MAINTENANCE, FORGE_SCAN_LOG, FORGE_LAB_ROOMS, FORGE_EQUIPMENT_EVENTS, FORGE_ADMIN_ACTIONS, FORGE_MAINTENANCE_TICKETS, FORGE_ANALYTICS_DAILY)
-  - Configure Oracle connection pool in backend/db/pool.js
+  - Create PostgreSQL schema with all tables (FORGE_USERS, FORGE_EQUIPMENT, FORGE_TRANSACTIONS, FORGE_TXN_ITEMS, FORGE_MAINTENANCE, FORGE_SCAN_LOG, FORGE_LAB_ROOMS, FORGE_EQUIPMENT_EVENTS, FORGE_ADMIN_ACTIONS, FORGE_MAINTENANCE_TICKETS, FORGE_ANALYTICS_DAILY)
+  - Configure PostgreSQL connection pool in backend/db/pool.js using pg driver
   - Set up JWT secret and AWS credentials in backend .env
+  - Configure AWS RDS PostgreSQL connection string in .env
   - Install fast-check for property-based testing
   - _Requirements: 12.1, 16.3_
 
@@ -83,7 +79,7 @@
 - [x] 4. Implement transaction ID generator
   - [x] 4.1 Create transaction ID utility
     - Write backend/utils/txnId.js with TXN-YYYYMMDD-NNN format generation
-    - Query Oracle for daily sequence number
+    - Query PostgreSQL for daily sequence number
     - _Requirements: 12.3_
   
   - [x] 4.2 Write property test for transaction ID format
@@ -375,10 +371,11 @@
     - Set environment variables for DB and AWS credentials
     - _Requirements: 16.2_
   
-  - [ ] 25.3 Configure Amazon RDS Oracle instance
-    - Create Oracle 19c RDS instance
-    - Run schema creation scripts
-    - Update backend connection string
+  - [ ] 25.3 Configure Amazon RDS PostgreSQL instance
+    - Create PostgreSQL 17.6-R2 RDS instance (db.t3.micro Free Tier)
+    - Run schema creation scripts from backend/db/schema.sql
+    - Update backend .env with RDS connection string
+    - Configure security groups for backend access
     - _Requirements: 16.3_
   
   - [ ] 25.4 Configure AWS Bedrock access
