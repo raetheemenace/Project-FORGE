@@ -35,49 +35,106 @@
 
 ---
 
-## 📦 Dependencies & Installation
+## 📦 Quick Start
 
-### Prerequisites to Install
-| Software| Version | Command to Verify |
-| :--- | :--- | :--- |
-| **Node.js** | **v24.14.0 (LTS)** | node -v |
-| **npm** | **v11.9.0** | npm -v |
-| **git** | **v2.48+** | git --version |
+### 🚀 For Professors and Teammates Testing the Project
 
-**Backend Installation** (`/backend`)
-cd to /backend, then run "npm init -y" then install these specific versions:
+**See the complete setup guide:** [`QUICK_START_GUIDE.md`](QUICK_START_GUIDE.md)
 
-**express**: v5.1.0 (The current stable standard with native async support).
+**Quick Setup (5 minutes):**
 
-**oracledb**: v6.10.x (Essential for your Oracle 19c connection).
+1. **Install Prerequisites:**
+   - Node.js v24.14.0 LTS: https://nodejs.org/
+   - PostgreSQL 17.6+: https://www.postgresql.org/download/
+   - Git v2.48+: https://git-scm.com/
 
-**dotenv**: v16.4.x (For your .env secrets).
+2. **Clone and Install:**
+   ```bash
+   git clone https://github.com/raetheemenace/Project-FORGE.git
+   cd Project-FORGE
+   git checkout testbranch
+   
+   # Install dependencies
+   cd backend && npm install
+   cd ../frontend && npm install
+   ```
 
-AWS Integration:
+3. **Setup Database:**
+   ```bash
+   # Create database
+   psql -U postgres
+   CREATE DATABASE forge;
+   \q
+   
+   # Run schema
+   psql -U postgres -d forge -f backend/db/schema.sql
+   ```
 
-**@aws-sdk/client-bedrock-runtime**: v3.7xx.x (For the lab equipment AI scanning).
+4. **Configure Environment:**
+   ```bash
+   cd backend
+   cp ../.env.example .env
+   # Edit .env with your PostgreSQL credentials
+   ```
 
-**@aws-sdk/client-s3**: v3.7xx.x (For storing images of equipment).
+5. **Run the Application:**
+   ```bash
+   # Terminal 1 - Backend
+   cd backend && npm run dev
+   
+   # Terminal 2 - Frontend
+   cd frontend && npm run dev
+   ```
 
-Development Tools:
+6. **Test:** Open http://localhost:5173
 
-**nodemon**: v3.1.x (To auto-restart your server).
+### 📚 Documentation
 
-**cors**: v2.8.x (To allow your React frontend to talk to your Node server).
+- **Quick Start Guide:** [`QUICK_START_GUIDE.md`](QUICK_START_GUIDE.md) - For testing and evaluation
+- **Detailed Setup:** [`SETUP_INSTRUCTIONS.md`](SETUP_INSTRUCTIONS.md) - For development
+- **Setup Checklist:** [`SETUP_CHECKLIST.md`](SETUP_CHECKLIST.md) - AWS deployment guide
+- **Backend Setup:** [`backend/SETUP.md`](backend/SETUP.md) - Backend infrastructure
+- **Database Guide:** [`backend/db/README.md`](backend/db/README.md) - Database details
+- **PostgreSQL Setup:** [`docs/POSTGRESQL_SETUP.md`](docs/POSTGRESQL_SETUP.md) - Database deployment
 
-**Frontend Installation** (`/frontend`)
-Project Setup:
-**vite**: v8.0.x * react & react-dom: v19.0.x
+### 🧪 Running Tests
 
-**@vitejs/plugin-react**: v6.x
+```bash
+# Backend tests
+cd backend && npm test
 
-UI & Logic:
+# Frontend tests
+cd frontend && npm test
+```
 
-**axios**: v1.7.x (To send data to your backend).
+## 📦 Dependencies
 
-**lucide-react**: v0.4xx.x (For clean icons in your HCI 2 dashboard).
+### Backend (`/backend`)
+- **express** v5.1.0 - REST API server
+- **pg** v8.x - PostgreSQL database driver
+- **jsonwebtoken** v9.0.2 - JWT authentication
+- **bcrypt** v5.1.1 - Password hashing
+- **@aws-sdk/client-bedrock-runtime** v3.1010.0 - AI model integration
+- **@aws-sdk/client-s3** v3.1010.0 - Image storage
+- **cors** v2.8.6 - Cross-origin resource sharing
+- **dotenv** v17.3.1 - Environment configuration
+- **nodemon** v3.1.14 - Development auto-restart
+- **vitest** v2.1.8 - Testing framework
+- **fast-check** v3.24.2 - Property-based testing
+- **supertest** v7.0.0 - API testing
 
-**tailwindcss**: v4.x (For rapid styling).
+### Frontend (`/frontend`)
+- **react** & **react-dom** v19.2.4 - UI framework
+- **react-router-dom** v7.1.3 - Client-side routing
+- **vite** v8.0.0 - Build tool and dev server
+- **@vitejs/plugin-react** v6.0.0 - React support for Vite
+- **axios** v1.13.6 - HTTP client
+- **tailwindcss** v4.2.1 - Utility-first CSS
+- **lucide-react** v0.577.0 - Icon library
+- **vitest** v2.1.8 - Testing framework
+- **@testing-library/react** v16.1.0 - Component testing
+- **fast-check** v3.24.2 - Property-based testing
+- **jsdom** v25.0.1 - DOM environment for tests
 
 ---
 
