@@ -12,13 +12,13 @@ Full-stack cloud-native application with separate frontend and backend services.
 
 - **Runtime:** Node.js v24.14.0 (LTS)
 - **Framework:** Express.js v5.1.0 (CommonJS modules)
-- **Database:** Oracle 19c via oracledb v6.10.x driver
+- **Database:** PostgreSQL 17.6-R2 via pg driver
 - **AWS Services:**
   - AWS Bedrock (Claude 3 models for image identification)
   - AWS S3 (equipment image storage)
 - **Key Dependencies:**
   - `express` v5.1.0 - REST API server
-  - `oracledb` v6.10.x - Oracle database connectivity
+  - `pg` v8.x - PostgreSQL database connectivity
   - `@aws-sdk/client-bedrock-runtime` v3.7xx.x - AI model invocation
   - `@aws-sdk/client-s3` v3.7xx.x - S3 storage operations
   - `cors` v2.8.x - Cross-origin resource sharing
@@ -40,7 +40,7 @@ Full-stack cloud-native application with separate frontend and backend services.
 
 ## AWS Infrastructure
 
-- **Amazon RDS:** Oracle 19c instance (db.t3.micro Free Tier)
+- **Amazon RDS:** PostgreSQL 17.6-R2 instance (db.t3.micro Free Tier)
 - **Amazon S3:** High-resolution equipment image storage
 - **AWS Bedrock:** Claude 3 Haiku/Sonnet for equipment identification
 - **AWS Amplify/Beanstalk:** Hosting for PWA and backend services
@@ -70,9 +70,11 @@ npm run lint            # Run ESLint
 ## Environment Configuration
 
 Backend requires `.env` file with:
-- `DB_USER` - Oracle database username
-- `DB_PASSWORD` - Oracle database password
-- `DB_CONNECTION_STRING` - Oracle RDS connection string
+- `DB_USER` - PostgreSQL database username
+- `DB_PASSWORD` - PostgreSQL database password
+- `DB_CONNECTION_STRING` - PostgreSQL RDS endpoint
+- `DB_PORT` - Database port (default: 5432)
+- `DB_NAME` - Database name (default: forge)
 - `AWS_REGION` - AWS region for Bedrock/S3
 - `PORT` - Server port (default: 5000)
 

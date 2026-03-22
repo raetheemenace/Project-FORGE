@@ -1,52 +1,81 @@
 # Implementation Plan
 
-- [ ] 1. Set up project infrastructure and database schema
+- [x] 1. Set up project infrastructure and database schema
+
+
+
+
+
   - Create Oracle DB schema with all tables (FORGE_USERS, FORGE_EQUIPMENT, FORGE_TRANSACTIONS, FORGE_TXN_ITEMS, FORGE_MAINTENANCE, FORGE_SCAN_LOG, FORGE_LAB_ROOMS, FORGE_EQUIPMENT_EVENTS, FORGE_ADMIN_ACTIONS, FORGE_MAINTENANCE_TICKETS, FORGE_ANALYTICS_DAILY)
   - Configure Oracle connection pool in backend/db/pool.js
   - Set up JWT secret and AWS credentials in backend .env
   - Install fast-check for property-based testing
   - _Requirements: 12.1, 16.3_
 
-- [ ] 2. Implement authentication system
-  - [ ] 2.1 Create JWT middleware for token verification
+
+- [x] 2. Implement authentication system
+
+
+  - [x] 2.1 Create JWT middleware for token verification
+
+
+
+
+
     - Write backend/middleware/auth.js with JWT decode and role extraction
     - _Requirements: 1.7_
   
-  - [ ] 2.2 Implement sign in and sign up endpoints
+  - [x] 2.2 Implement sign in and sign up endpoints
+
+
     - Create POST /api/auth/signin endpoint with credential validation
     - Create POST /api/auth/signup endpoint with Student ID validation
     - Generate JWT tokens with role information
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.7_
   
-  - [ ] 2.3 Write property test for Student ID validation
+  - [x] 2.3 Write property test for Student ID validation
+
+
     - **Property 1: Student ID format rejection**
     - **Validates: Requirements 1.4**
   
-  - [ ] 2.4 Write property test for JWT role round trip
+
+  - [x] 2.4 Write property test for JWT role round trip
+
     - **Property 2: JWT role round trip**
     - **Validates: Requirements 1.6**
   
-  - [ ] 2.5 Write property test for empty field form rejection
+  - [x] 2.5 Write property test for empty field form rejection
+
+
     - **Property 3: Empty field form rejection**
     - **Validates: Requirements 1.5**
   
-  - [ ] 2.6 Create frontend auth service and hooks
+  - [x] 2.6 Create frontend auth service and hooks
+
+
     - Implement frontend/src/services/authService.js with sign in/sign up API calls
     - Create frontend/src/hooks/useAuth.js for JWT state management
     - _Requirements: 1.1, 1.2, 1.3, 1.6_
 
-- [ ] 3. Build frontend authentication pages
-  - [ ] 3.1 Create Sign In page
+- [x] 3. Build frontend authentication pages
+
+
+
+  - [x] 3.1 Create Sign In page
+
     - Implement frontend/src/pages/SignIn.jsx with form validation
     - Handle invalid credentials error display
     - _Requirements: 1.1, 1.2, 1.5_
   
-  - [ ] 3.2 Create Sign Up page
+  - [x] 3.2 Create Sign Up page
+
     - Implement frontend/src/pages/SignUp.jsx with Student ID validation
     - Display validation errors inline
     - _Requirements: 1.3, 1.4, 1.5_
   
-  - [ ] 3.3 Create Landing Page
+  - [x] 3.3 Create Landing Page
+
     - Implement frontend/src/pages/LandingPage.jsx with feature sections and workflow steps
     - Add navigation to Sign In and Sign Up
     - _Requirements: 2.1, 2.2, 2.3, 2.4_
