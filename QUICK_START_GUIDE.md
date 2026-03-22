@@ -6,6 +6,21 @@ This guide will help you quickly set up and test the FORGE project on your local
 
 ---
 
+## 🔄 Database Migration Update
+
+**We've migrated from Oracle 19c to PostgreSQL 17.6-R2**
+
+This change provides:
+- ✅ **No licensing costs** - PostgreSQL is free forever
+- ✅ **AWS Free Tier** - db.t3.micro free for 12 months
+- ✅ **Better compatibility** - Improved Node.js driver support
+- ✅ **Same reliability** - Full ACID compliance maintained
+- ✅ **Easier setup** - Available in all AWS regions
+
+**For Professors:** All database requirements are still met - ACID compliance, transaction management, and enterprise-grade features remain unchanged.
+
+---
+
 ## 📋 Prerequisites (Install These First)
 
 ### Required Software

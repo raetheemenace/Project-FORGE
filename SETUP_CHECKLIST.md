@@ -1,5 +1,7 @@
 # FORGE Setup Checklist
 
+**Database Migration Notice:** We've migrated from Oracle to PostgreSQL 17.6-R2 for better compatibility and cost-effectiveness.
+
 Use this checklist to set up your FORGE development environment.
 
 ## ✅ Completed (Already Done)
