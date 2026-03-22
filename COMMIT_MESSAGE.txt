@@ -1,0 +1,32 @@
+Migrate from Oracle to PostgreSQL and update all documentation
+
+BREAKING CHANGE: Database migrated from Oracle 19c to PostgreSQL 17.6-R2
+
+Changes:
+- Updated database schema for PostgreSQL syntax
+- Modified connection pool to use pg driver instead of oracledb
+- Updated all task descriptions in .kiro/specs/forge-system/tasks.md
+- Updated README.md with PostgreSQL tech stack
+- Updated QUICK_START_GUIDE.md with migration notice
+- Updated SETUP_CHECKLIST.md for PostgreSQL RDS setup
+- Created MIGRATION_SUMMARY.md - Complete technical migration details
+- Created TEAMMATE_SYNC_GUIDE.md - Step-by-step sync instructions
+- Created FOR_PROFESSORS.md - Quick evaluation guide
+
+Benefits:
+- Zero licensing costs (free forever)
+- AWS Free Tier eligible (12 months free)
+- Better Node.js ecosystem support
+- Easier setup and deployment
+- Industry standard technology
+
+All academic requirements maintained:
+- Full ACID compliance
+- Transaction management
+- Referential integrity
+- All tests passing
+
+Action Required:
+- Teammates: See TEAMMATE_SYNC_GUIDE.md
+- Professors: See FOR_PROFESSORS.md
+- Update .env with PostgreSQL credentials

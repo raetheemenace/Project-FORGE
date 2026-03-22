@@ -83,6 +83,31 @@ You should see:
 - forge_txn_items
 - forge_users
 
+### 5. Insert Sample Data (Optional)
+
+To populate the database with sample data for testing:
+
+#### Using psql:
+```bash
+psql -h forge-db.xxxxx.ap-southeast-1.rds.amazonaws.com -U postgres -d forge -f backend/db/seed.sql
+```
+
+#### Using pgAdmin or DBeaver:
+1. Open SQL Editor
+2. Load and execute `backend/db/seed.sql`
+
+This will insert:
+- 6 sample users (5 students + 1 admin)
+- 8 lab rooms across different departments
+- 17 equipment items
+- 3 active transactions with equipment items
+- 2 maintenance reports and tickets
+- Sample analytics data
+
+**Default credentials for testing:**
+- Username: `juan.cruz` / Password: (use your signup to create real users)
+- Admin: `admin` / Password: (use your signup to create real admin)
+
 ## Connection Pool
 
 The connection pool is configured in `pool.js` with the following settings:

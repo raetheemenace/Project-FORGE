@@ -167,7 +167,7 @@ export default function Dashboard() {
   const quickActions = [
     { label: 'Borrow an Item', desc: 'AI-powered scanning & checkout', icon: ScanLine, path: '/borrow' },
     { label: 'My Transactions', desc: 'View, return & track records', icon: Package, path: '/transactions', badge: activeTransactions.length },
-    { label: 'Report Maintenance', desc: 'QR scan to flag issues', icon: QrCode, path: '/report' },
+    { label: 'Report Maintenance', desc: 'QR scan to flag issues', icon: QrCode, path: '/report-maintenance' },
   ];
 
   return (

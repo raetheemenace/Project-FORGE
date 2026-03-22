@@ -1,0 +1,4 @@
+equipment_id,name,department,status
+EQ-1001,Oscilloscope Tektronix TDS2024C,Computer Engineering,AVAILABLE
+EQ-1002,Function Generator Agilent 33220A,Computer Engineering,AVAILABLE
+EQ-1003,Digital Multimeter Fluke 87V,Computer Engineering,AVAILABLE
