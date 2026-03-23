@@ -18,12 +18,14 @@ const adminTicketRoutes = require('./routes/admin/tickets');
 const adminUserRoutes = require('./routes/admin/users');
 const adminRoomRoutes = require('./routes/admin/rooms');
 const adminSystemReportsRoutes = require('./routes/admin/systemReports');
+const adminQRCodeRoutes = require('./routes/admin/qrcode');
 
 const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Increased limit for image uploads
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Initialize database connection pool
 db.initialize()
@@ -81,6 +83,7 @@ app.use('/api/admin/tickets', adminTicketRoutes);
 app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/rooms', adminRoomRoutes);
 app.use('/api/admin/system-reports', adminSystemReportsRoutes);
+app.use('/api/admin/qrcode', adminQRCodeRoutes);
 
 // AWS Bedrock integration for AI equipment scanner
 const { BedrockRuntimeClient, InvokeModelCommand } = require("@aws-sdk/client-bedrock-runtime");

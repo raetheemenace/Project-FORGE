@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useClock } from '../hooks/useClock.js';
+import { useTTS } from '../hooks/useTTS.js';
 import logo from '../assets/logo_landingpage.png';
 import {
   ScanLine,
@@ -22,6 +23,8 @@ import {
   Menu,
   X,
   AlertTriangle,
+  Volume2,
+  VolumeX,
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -101,6 +104,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const currentTime = useClock();
+  const { ttsEnabled, toggleTTS, speak } = useTTS(false);
 
   const [pulse, setPulse] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -167,7 +171,7 @@ export default function Dashboard() {
   const quickActions = [
     { label: 'Borrow an Item', desc: 'AI-powered scanning & checkout', icon: ScanLine, path: '/borrow' },
     { label: 'My Transactions', desc: 'View, return & track records', icon: Package, path: '/transactions', badge: activeTransactions.length },
-    { label: 'Report Maintenance', desc: 'QR scan to flag issues', icon: QrCode, path: '/report' },
+    { label: 'Report Maintenance', desc: 'QR scan to flag issues', icon: QrCode, path: '/report-maintenance' },
   ];
 
   return (
@@ -201,6 +205,19 @@ export default function Dashboard() {
                 <p className="text-[#001254]/90" style={{ fontSize: '0.8rem' }}>{displayName}</p>
                 <p className="text-[#001254]/40" style={{ fontSize: '0.65rem' }}>{displayProgram}</p>
               </div>
+
+              {/* TTS Toggle */}
+              <button
+                onClick={toggleTTS}
+                className="p-2 hover:bg-[#001254]/8 rounded-lg transition-colors"
+                title={ttsEnabled ? 'Disable voice feedback' : 'Enable voice feedback'}
+              >
+                {ttsEnabled ? (
+                  <Volume2 className="w-4 h-4 text-[#0B4EA2]" />
+                ) : (
+                  <VolumeX className="w-4 h-4 text-[#001254]/40" />
+                )}
+              </button>
 
               {/* Hamburger */}
               <div className="relative" ref={menuRef}>
@@ -335,7 +352,7 @@ export default function Dashboard() {
           <motion.button
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
             whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-            onClick={() => navigate('/report')}
+            onClick={() => navigate('/report-maintenance')}
             className="bg-white border-2 border-[#001254]/10 text-[#001254] rounded-xl p-6 flex items-center gap-5 hover:border-[#0B4EA2]/30 transition-all group text-left"
           >
             <div className="w-14 h-14 rounded-xl bg-[#F2F0DB] flex items-center justify-center flex-shrink-0 group-hover:bg-[#F2F0DB]/80 transition-colors">

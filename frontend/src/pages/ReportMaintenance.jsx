@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, QrCode, CheckCircle2, AlertTriangle, LayoutDashboard } from 'lucide-react';
+import { ArrowLeft, QrCode, CheckCircle2, AlertTriangle, LayoutDashboard, Camera, X } from 'lucide-react';
 import axios from 'axios';
 import logo from '../assets/logo_landingpage.png';
+import { useQRScanner } from '../hooks/useQRScanner';
 
 const SEVERITIES = ['Low', 'Medium', 'High', 'Critical'];
 
@@ -23,27 +24,81 @@ export default function ReportMaintenance() {
   const [description, setDescription] = useState('');
   const [errors, setErrors] = useState({});
 
-  // QR simulation state (req 10.1, 10.2)
+  // QR scanning state (req 10.1, 10.2, 10.7, 10.8)
   const [scanning, setScanning] = useState(false);
+  const [scanError, setScanError] = useState('');
   const scanTimeoutRef = useRef(null);
+
+  // QR scanner hook with success/error callbacks
+  const { startScanner, stopScanner } = useQRScanner(
+    // onScanSuccess - auto-fill Equipment ID (req 10.2)
+    (equipmentId) => {
+      setEquipmentId(equipmentId);
+      setScanning(false);
+      setScanError('');
+      stopScanner();
+      if (errors.equipmentId) setErrors((prev) => ({ ...prev, equipmentId: '' }));
+      // Clear timeout if scan succeeded
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+        scanTimeoutRef.current = null;
+      }
+    },
+    // onScanError - handle invalid QR codes (req 10.3, 10.8)
+    (error) => {
+      setScanError(error);
+      setScanning(false);
+      stopScanner();
+      // Clear timeout if scan failed
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+        scanTimeoutRef.current = null;
+      }
+    }
+  );
+
+  // Cleanup scanner on unmount
+  useEffect(() => {
+    return () => {
+      stopScanner();
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+      }
+    };
+  }, [stopScanner]);
+
+  // Start QR scanner with 5-second timeout (req 10.8)
+  const handleStartScan = () => {
+    setScanError('');
+    setScanning(true);
+    
+    // Start the scanner
+    startScanner('qr-reader');
+    
+    // Set 5-second timeout for failed scans (req 10.8)
+    scanTimeoutRef.current = setTimeout(() => {
+      setScanError('QR scan timeout. Please try again or enter Equipment ID manually.');
+      setScanning(false);
+      stopScanner();
+    }, 5000);
+  };
+
+  // Stop scanning
+  const handleStopScan = () => {
+    setScanning(false);
+    setScanError('');
+    stopScanner();
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = null;
+    }
+  };
 
   // Submission state
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submittedEquipmentId, setSubmittedEquipmentId] = useState('');
-
-  // Simulate QR scan — auto-fills Equipment ID (req 10.2)
-  const handleSimulateScan = () => {
-    setScanning(true);
-    clearTimeout(scanTimeoutRef.current);
-    scanTimeoutRef.current = setTimeout(() => {
-      const mockId = `EQ-${Math.floor(1000 + Math.random() * 9000)}`;
-      setEquipmentId(mockId);
-      setScanning(false);
-      if (errors.equipmentId) setErrors((prev) => ({ ...prev, equipmentId: '' }));
-    }, 1200);
-  };
 
   const validate = () => {
     const next = {};
@@ -209,7 +264,7 @@ export default function ReportMaintenance() {
         </motion.div>
 
         <form onSubmit={handleSubmit} noValidate className="space-y-5">
-          {/* QR Scanner section (req 10.1, 10.2) */}
+          {/* QR Scanner section (req 10.1, 10.2, 10.7) */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -221,25 +276,49 @@ export default function ReportMaintenance() {
             </p>
 
             {/* QR scan area */}
-            <div className="flex flex-col items-center gap-3 py-4 rounded-xl border-2 border-dashed border-[#001254]/15 bg-[#EFEFE9]/60">
-              <div
-                className={`w-16 h-16 rounded-xl flex items-center justify-center transition-colors ${
-                  scanning ? 'bg-[#0B4EA2]/10 animate-pulse' : 'bg-[#001254]/6'
-                }`}
-              >
-                <QrCode className="w-8 h-8 text-[#001254]/40" />
-              </div>
-              <p className="text-xs text-[#001254]/45 text-center max-w-[200px]">
-                {scanning ? 'Scanning…' : 'Point camera at equipment QR code'}
-              </p>
-              <button
-                type="button"
-                onClick={handleSimulateScan}
-                disabled={scanning}
-                className="px-4 py-2 rounded-lg bg-[#0B4EA2] text-white text-xs font-semibold hover:bg-[#0a3f8a] disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.97]"
-              >
-                {scanning ? 'Scanning…' : 'Scan QR Code'}
-              </button>
+            <div className="flex flex-col items-center gap-3 py-4 rounded-xl border-2 border-dashed border-[#001254]/15 bg-[#EFEFE9]/60 relative overflow-hidden">
+              {scanning ? (
+                <div className="w-full">
+                  {/* QR scanner container */}
+                  <div id="qr-reader" className="w-full"></div>
+                  <div className="flex justify-center mt-3">
+                    <button
+                      type="button"
+                      onClick={handleStopScan}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition-all active:scale-[0.97]"
+                    >
+                      <X className="w-4 h-4" />
+                      Cancel Scan
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="w-16 h-16 rounded-xl flex items-center justify-center bg-[#001254]/6">
+                    <QrCode className="w-8 h-8 text-[#001254]/40" />
+                  </div>
+                  <p className="text-xs text-[#001254]/45 text-center max-w-[200px]">
+                    Point camera at equipment QR code
+                  </p>
+                  
+                  {/* Scan error message (req 10.8) */}
+                  {scanError && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      {scanError}
+                    </div>
+                  )}
+                  
+                  <button
+                    type="button"
+                    onClick={handleStartScan}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0B4EA2] text-white text-xs font-semibold hover:bg-[#0a3f8a] transition-all active:scale-[0.97]"
+                  >
+                    <Camera className="w-4 h-4" />
+                    Scan QR Code
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Equipment ID field — auto-filled from scan (req 10.2, 10.3) */}
