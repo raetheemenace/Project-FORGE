@@ -121,7 +121,7 @@ export default function Badge({ status, size = 'md', showIcon = true }) {
       className={`inline-flex items-center font-medium rounded-full border whitespace-nowrap ${bg} ${text} ${border} ${sizeClass}`}
     >
       {showIcon && Icon && (
-        <Icon className={`${iconClass} ${spin ? 'animate-spin' : ''} flex-shrink-0`} />
+        <Icon className={`${iconClass} ${spin ? 'animate-spin' : ''} shrink-0`} />
       )}
       {label}
     </span>

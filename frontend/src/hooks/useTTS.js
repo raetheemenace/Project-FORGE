@@ -35,7 +35,7 @@ export function useTTS(initialEnabled = false) {
       setSpeaking(true);
 
       try {
-        const token = localStorage.getItem('forge_token');
+        const token = localStorage.getItem('token');
         const response = await axios.post(
           `${API_BASE}/api/tts/synthesize`,
           { text },

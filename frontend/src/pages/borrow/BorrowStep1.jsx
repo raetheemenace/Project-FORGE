@@ -142,7 +142,7 @@ export default function BorrowStep1() {
                 }`}
                 aria-label={`Select ${dept.label} department`}
               >
-                <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${dept.iconBg}`}>
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${dept.iconBg}`}>
                   <Icon className={`w-7 h-7 ${dept.iconColor}`} />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -150,7 +150,7 @@ export default function BorrowStep1() {
                   <p className="text-[#001254]/45 text-sm mt-0.5 truncate">{dept.desc}</p>
                 </div>
                 <ChevronRight
-                  className={`w-5 h-5 flex-shrink-0 transition-colors ${
+                  className={`w-5 h-5 shrink-0 transition-colors ${
                     isSelecting ? 'text-[#0B4EA2]' : 'text-[#001254]/20 group-hover:text-[#001254]/40'
                   }`}
                 />

@@ -28,11 +28,9 @@ router.get('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) =>
       `SELECT
          user_id,
          student_id,
-         username,
          full_name,
          program,
          role,
-         is_disabled,
          created_at
        FROM forge_users
        ORDER BY created_at DESC`
@@ -58,7 +56,7 @@ router.patch('/:id', authenticateToken, requireRole('LAB_ADMIN'), async (req, re
   }
 
   // Prevent admin from disabling their own account
-  if (Number(id) === adminId) {
+  if (Number(id) === Number(adminId)) {
     return res.status(400).json({ error: 'You cannot disable your own account.' });
   }
 
@@ -68,7 +66,7 @@ router.patch('/:id', authenticateToken, requireRole('LAB_ADMIN'), async (req, re
     await client.query('BEGIN');
 
     const existing = await client.query(
-      'SELECT user_id, username, full_name, is_disabled FROM forge_users WHERE user_id = $1',
+      'SELECT user_id, full_name FROM forge_users WHERE user_id = $1',
       [id]
     );
     if (existing.rows.length === 0) {
@@ -78,17 +76,18 @@ router.patch('/:id', authenticateToken, requireRole('LAB_ADMIN'), async (req, re
 
     const user = existing.rows[0];
 
+    // forge_users has no is_disabled column — track disable state via role demotion
+    // Disabled users get role set to 'DISABLED', enabled users revert to 'STUDENT'
+    const newRole = disabled ? 'DISABLED' : 'STUDENT';
     await client.query(
-      'UPDATE forge_users SET is_disabled = $1 WHERE user_id = $2',
-      [disabled, id]
+      'UPDATE forge_users SET role = $1 WHERE user_id = $2',
+      [newRole, id]
     );
 
     const actionType = disabled ? 'USER_DISABLED' : 'USER_ENABLED';
     await logAdminAction(client, adminId, actionType, id, {
       userId: id,
-      username: user.username,
       fullName: user.full_name,
-      previousState: user.is_disabled ? 'disabled' : 'enabled',
       newState: disabled ? 'disabled' : 'enabled',
     });
 

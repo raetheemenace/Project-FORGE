@@ -26,7 +26,7 @@ const CONDITION_COLORS = {
 function DetailRow({ label, value }) {
   return (
     <div className="flex items-start justify-between gap-4 py-2.5 border-b border-[#001254]/6 last:border-0">
-      <span className="text-xs font-medium text-[#001254]/45 uppercase tracking-wide flex-shrink-0 w-24">
+      <span className="text-xs font-medium text-[#001254]/45 uppercase tracking-wide shrink-0 w-24">
         {label}
       </span>
       <span className="text-sm text-[#001254] text-right">{value}</span>
@@ -218,7 +218,7 @@ export default function BorrowStep4() {
                   transition={{ delay: 0.12 + i * 0.04 }}
                   className="flex items-center gap-3 px-5 py-3"
                 >
-                  <span className="w-6 h-6 rounded-full bg-[#0B4EA2]/10 text-[#0B4EA2] text-xs font-bold flex items-center justify-center flex-shrink-0">
+                  <span className="w-6 h-6 rounded-full bg-[#0B4EA2]/10 text-[#0B4EA2] text-xs font-bold flex items-center justify-center shrink-0">
                     {i + 1}
                   </span>
                   <div className="flex-1 min-w-0">
@@ -228,7 +228,7 @@ export default function BorrowStep4() {
                     )}
                   </div>
                   <span
-                    className={`text-xs px-2 py-0.5 rounded-full border font-medium flex-shrink-0 ${
+                    className={`text-xs px-2 py-0.5 rounded-full border font-medium shrink-0 ${
                       CONDITION_COLORS[item.condition] ?? 'bg-gray-100 text-gray-600 border-gray-200'
                     }`}
                   >
@@ -249,13 +249,13 @@ export default function BorrowStep4() {
               exit={{ opacity: 0, y: -8 }}
               className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3"
             >
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-red-700">{submitError}</p>
               </div>
               <button
                 onClick={handleConfirm}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-xs font-medium transition-colors flex-shrink-0"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-xs font-medium transition-colors shrink-0"
                 aria-label="Retry submission"
               >
                 <RefreshCw className="w-3.5 h-3.5" /> Retry

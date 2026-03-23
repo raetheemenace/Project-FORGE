@@ -32,7 +32,7 @@ export default function WebHeader({ logo, user, onLogout, navItems = [] }) {
           <div className="flex items-center gap-3">
             {logo && <img src={logo} alt="FORGE" className="h-9 opacity-80" />}
             {navItems.length > 0 && (
-              <div className="hidden md:block h-5 w-[1px] bg-[#001254]/20" />
+              <div className="hidden md:block h-5 w-px bg-[#001254]/20" />
             )}
           </div>
 

@@ -310,7 +310,7 @@ export default function MaintenanceTickets() {
                 <ChevronLeft className="w-4 h-4 text-[#001254]/50" />
               </button>
               <img src={logo} alt="FORGE" className="h-9 opacity-80" />
-              <div className="hidden md:block h-5 w-[1px] bg-[#001254]/20" />
+              <div className="hidden md:block h-5 w-px bg-[#001254]/20" />
               <div className="hidden md:flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-[#0B4EA2]/60" />
                 <span className="text-[#001254]/50 tracking-widest uppercase" style={{ fontSize: '0.6rem' }}>
@@ -369,13 +369,13 @@ export default function MaintenanceTickets() {
         {/* Banners */}
         {successMsg && (
           <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3" style={{ fontSize: '0.85rem' }}>
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
             {successMsg}
           </div>
         )}
         {error && (
           <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3" style={{ fontSize: '0.85rem' }}>
-            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <AlertTriangle className="w-4 h-4 shrink-0" />
             {error}
             <button onClick={() => setError(null)} className="ml-auto p-0.5 hover:bg-red-100 rounded">
               <X className="w-3.5 h-3.5" />

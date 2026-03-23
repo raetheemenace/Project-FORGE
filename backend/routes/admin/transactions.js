@@ -24,7 +24,7 @@ async function logAdminAction(dbClient, adminId, actionType, targetId, details) 
 
 // ---------------------------------------------------------------------------
 // GET /api/admin/transactions
-// Query params: status, department, student (username/name), dateFrom, dateTo
+// Query params: status, department, student (name search), dateFrom, dateTo
 // ---------------------------------------------------------------------------
 router.get('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) => {
   const { status, department, student, dateFrom, dateTo } = req.query;
@@ -34,28 +34,27 @@ router.get('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) =>
   let idx = 1;
 
   if (status) {
-    conditions.push(`t.status = $${idx++}`);
+    conditions.push('t.status = $' + idx++);
     params.push(status);
   }
   if (department) {
-    conditions.push(`t.department = $${idx++}`);
+    conditions.push('t.department = $' + idx++);
     params.push(department);
   }
   if (student) {
-    conditions.push(`(u.username ILIKE $${idx} OR u.full_name ILIKE $${idx})`);
-    params.push(`%${student}%`);
-    idx++;
+    conditions.push('u.full_name ILIKE $' + idx++);
+    params.push('%' + student + '%');
   }
   if (dateFrom) {
-    conditions.push(`t.txn_date >= $${idx++}`);
+    conditions.push('t.txn_date >= $' + idx++);
     params.push(dateFrom);
   }
   if (dateTo) {
-    conditions.push(`t.txn_date <= $${idx++}`);
+    conditions.push('t.txn_date <= $' + idx++);
     params.push(dateTo);
   }
 
-  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
 
   try {
     const result = await db.query(
@@ -70,7 +69,6 @@ router.get('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) =>
          t.status,
          t.created_at,
          u.user_id,
-         u.username,
          u.full_name,
          u.student_id,
          COALESCE(
@@ -91,7 +89,7 @@ router.get('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) =>
        ${where}
        GROUP BY t.txn_id, t.department, t.course, t.time_slot, t.txn_date,
                 t.lab_room, t.adviser, t.status, t.created_at,
-                u.user_id, u.username, u.full_name, u.student_id
+                u.user_id, u.full_name, u.student_id
        ORDER BY t.txn_date DESC, t.created_at DESC`,
       params
     );

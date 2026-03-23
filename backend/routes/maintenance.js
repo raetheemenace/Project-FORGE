@@ -7,10 +7,10 @@ const VALID_SEVERITIES = ['Low', 'Medium', 'High', 'Critical'];
 
 /** Map severity → priority for forge_maintenance_tickets */
 const SEVERITY_TO_PRIORITY = {
-  Low: 'LOW',
-  Medium: 'MEDIUM',
-  High: 'HIGH',
-  Critical: 'CRITICAL',
+  Low: 'Low',
+  Medium: 'Medium',
+  High: 'High',
+  Critical: 'Critical',
 };
 
 /**

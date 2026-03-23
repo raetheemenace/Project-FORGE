@@ -352,7 +352,7 @@ export default function BorrowStep3() {
               </div>
               <button
                 onClick={handleAddToCart}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0B4EA2] text-white text-sm font-semibold hover:bg-[#0a3f8a] active:scale-95 transition-all flex-shrink-0"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0B4EA2] text-white text-sm font-semibold hover:bg-[#0a3f8a] active:scale-95 transition-all shrink-0"
                 aria-label={`Add ${scanResult.name} to cart`}
               >
                 <Plus className="w-4 h-4" /> Add to Cart
@@ -369,13 +369,13 @@ export default function BorrowStep3() {
               exit={{ opacity: 0, y: -8 }}
               className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3"
             >
-              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-red-700">{scanError}</p>
               </div>
               <button
                 onClick={handleScan}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-xs font-medium transition-colors flex-shrink-0"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-xs font-medium transition-colors shrink-0"
                 aria-label="Retry scan"
               >
                 <RefreshCw className="w-3.5 h-3.5" /> Retry
@@ -503,7 +503,7 @@ export default function BorrowStep3() {
                     transition={{ delay: i * 0.04 }}
                     className="flex items-center gap-3 px-4 py-3"
                   >
-                    <span className="w-5 h-5 rounded-full bg-[#0B4EA2]/10 text-[#0B4EA2] text-xs font-bold flex items-center justify-center flex-shrink-0">
+                    <span className="w-5 h-5 rounded-full bg-[#0B4EA2]/10 text-[#0B4EA2] text-xs font-bold flex items-center justify-center shrink-0">
                       {i + 1}
                     </span>
                     <div className="flex-1 min-w-0">

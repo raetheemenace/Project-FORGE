@@ -191,7 +191,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between h-[72px]">
             <div className="flex items-center gap-3">
               <img src={logo} alt="FORGE" className="h-9 opacity-80" />
-              <div className="hidden md:block h-5 w-[1px] bg-[#001254]/20" />
+              <div className="hidden md:block h-5 w-px bg-[#001254]/20" />
               <span className="hidden md:block text-[#001254]/70 font-semibold tracking-wide text-lg">
                 Resource Dashboard
               </span>
@@ -255,7 +255,7 @@ export default function Dashboard() {
                           onClick={() => { setMenuOpen(false); navigate(action.path); }}
                           className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 transition-colors text-left"
                         >
-                          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
                             <action.icon className="w-4 h-4 text-white/70" />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -263,7 +263,7 @@ export default function Dashboard() {
                             <p className="text-white/35 truncate" style={{ fontSize: '0.65rem' }}>{action.desc}</p>
                           </div>
                           {action.badge > 0 && (
-                            <span className="w-5 h-5 bg-[#0B4EA2] text-white rounded-full flex items-center justify-center flex-shrink-0" style={{ fontSize: '0.6rem' }}>
+                            <span className="w-5 h-5 bg-[#0B4EA2] text-white rounded-full flex items-center justify-center shrink-0" style={{ fontSize: '0.6rem' }}>
                               {action.badge}
                             </span>
                           )}
@@ -302,7 +302,7 @@ export default function Dashboard() {
         {/* Error banner */}
         {error && (
           <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3" style={{ fontSize: '0.85rem' }}>
-            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <AlertTriangle className="w-4 h-4 shrink-0" />
             {error}
           </div>
         )}
@@ -316,7 +316,7 @@ export default function Dashboard() {
             onClick={() => navigate('/borrow')}
             className="bg-[#001254] text-white rounded-xl p-6 flex items-center gap-5 hover:bg-[#001254]/95 transition-all group text-left"
           >
-            <div className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0 group-hover:bg-white/15 transition-colors">
+            <div className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-white/15 transition-colors">
               <ScanLine className="w-7 h-7 text-white/80" />
             </div>
             <div className="flex-1">
@@ -333,7 +333,7 @@ export default function Dashboard() {
             onClick={() => navigate('/transactions')}
             className="bg-white border-2 border-[#0B4EA2]/15 text-[#001254] rounded-xl p-6 flex items-center gap-5 hover:border-[#0B4EA2]/30 hover:shadow-md transition-all group text-left relative overflow-hidden"
           >
-            <div className="w-14 h-14 rounded-xl bg-[#0B4EA2]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[#0B4EA2]/15 transition-colors">
+            <div className="w-14 h-14 rounded-xl bg-[#0B4EA2]/10 flex items-center justify-center shrink-0 group-hover:bg-[#0B4EA2]/15 transition-colors">
               <Package className="w-7 h-7 text-[#0B4EA2]/70" />
             </div>
             <div className="flex-1">
@@ -355,7 +355,7 @@ export default function Dashboard() {
             onClick={() => navigate('/report-maintenance')}
             className="bg-white border-2 border-[#001254]/10 text-[#001254] rounded-xl p-6 flex items-center gap-5 hover:border-[#0B4EA2]/30 transition-all group text-left"
           >
-            <div className="w-14 h-14 rounded-xl bg-[#F2F0DB] flex items-center justify-center flex-shrink-0 group-hover:bg-[#F2F0DB]/80 transition-colors">
+            <div className="w-14 h-14 rounded-xl bg-[#F2F0DB] flex items-center justify-center shrink-0 group-hover:bg-[#F2F0DB]/80 transition-colors">
               <QrCode className="w-7 h-7 text-[#001254]/60" />
             </div>
             <div className="flex-1">

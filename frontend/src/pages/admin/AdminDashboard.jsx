@@ -24,7 +24,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 function StatCard({ icon: Icon, label, value, color, loading }) {
   return (
     <div className="bg-white rounded-xl border border-[#001254]/10 p-6 flex items-center gap-5">
-      <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+      <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
         <Icon className="w-7 h-7" />
       </div>
       <div>
@@ -121,7 +121,7 @@ export default function AdminDashboard() {
           <div className="flex items-center justify-between h-[72px]">
             <div className="flex items-center gap-3">
               <img src={logo} alt="FORGE" className="h-9 opacity-80" />
-              <div className="hidden md:block h-5 w-[1px] bg-[#001254]/20" />
+              <div className="hidden md:block h-5 w-px bg-[#001254]/20" />
               <div className="hidden md:flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-[#0B4EA2]/60" />
                 <span className="text-[#001254]/50 tracking-widest uppercase" style={{ fontSize: '0.6rem' }}>
@@ -170,7 +170,7 @@ export default function AdminDashboard() {
         {/* Error banner */}
         {error && (
           <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3" style={{ fontSize: '0.85rem' }}>
-            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <AlertTriangle className="w-4 h-4 shrink-0" />
             {error}
           </div>
         )}
@@ -188,7 +188,7 @@ export default function AdminDashboard() {
             onClick={() => navigate('/admin/equipment')}
             className="bg-white rounded-xl border border-[#001254]/10 p-5 flex items-center gap-4 hover:border-[#0B4EA2]/30 transition-colors text-left"
           >
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
               <Package className="w-5 h-5" />
             </div>
             <div>
@@ -200,7 +200,7 @@ export default function AdminDashboard() {
             onClick={() => navigate('/admin/transactions')}
             className="bg-white rounded-xl border border-[#001254]/10 p-5 flex items-center gap-4 hover:border-[#0B4EA2]/30 transition-colors text-left"
           >
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
               <ClipboardList className="w-5 h-5" />
             </div>
             <div>
@@ -212,7 +212,7 @@ export default function AdminDashboard() {
             onClick={() => navigate('/admin/users')}
             className="bg-white rounded-xl border border-[#001254]/10 p-5 flex items-center gap-4 hover:border-[#0B4EA2]/30 transition-colors text-left"
           >
-            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
               <Users className="w-5 h-5" />
             </div>
             <div>
@@ -224,7 +224,7 @@ export default function AdminDashboard() {
             onClick={() => navigate('/admin/rooms')}
             className="bg-white rounded-xl border border-[#001254]/10 p-5 flex items-center gap-4 hover:border-[#0B4EA2]/30 transition-colors text-left"
           >
-            <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
               <DoorOpen className="w-5 h-5" />
             </div>
             <div>
@@ -247,13 +247,13 @@ export default function AdminDashboard() {
               <div className="space-y-2">
                 {stats.openTickets > 0 && (
                   <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-3 py-2" style={{ fontSize: '0.82rem' }}>
-                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
                     {stats.openTickets} open maintenance ticket{stats.openTickets !== 1 ? 's' : ''} require attention.
                   </div>
                 )}
                 {stats.activeTransactions > 0 && (
                   <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg px-3 py-2" style={{ fontSize: '0.82rem' }}>
-                    <Activity className="w-4 h-4 flex-shrink-0" />
+                    <Activity className="w-4 h-4 shrink-0" />
                     {stats.activeTransactions} active transaction{stats.activeTransactions !== 1 ? 's' : ''} currently in progress.
                   </div>
                 )}
