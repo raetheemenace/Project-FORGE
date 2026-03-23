@@ -61,10 +61,10 @@ export default function SignUp() {
       />
 
       {/* Corner decorations - hidden on mobile */}
-      <div className="hidden sm:block absolute top-6 left-6 w-16 h-16 border-l-2 border-t-2 border-[#001254]/10" />
-      <div className="hidden sm:block absolute top-6 right-6 w-16 h-16 border-r-2 border-t-2 border-[#001254]/10" />
-      <div className="hidden sm:block absolute bottom-6 left-6 w-16 h-16 border-l-2 border-b-2 border-[#001254]/10" />
-      <div className="hidden sm:block absolute bottom-6 right-6 w-16 h-16 border-r-2 border-b-2 border-[#001254]/10" />
+      <div className="hidden sm:block absolute top-6 left-6 w-16 h-[72px] border-l-2 border-t-2 border-[#001254]/10" />
+      <div className="hidden sm:block absolute top-6 right-6 w-16 h-[72px] border-r-2 border-t-2 border-[#001254]/10" />
+      <div className="hidden sm:block absolute bottom-6 left-6 w-16 h-[72px] border-l-2 border-b-2 border-[#001254]/10" />
+      <div className="hidden sm:block absolute bottom-6 right-6 w-16 h-[72px] border-r-2 border-b-2 border-[#001254]/10" />
 
       {/* Glassmorphism Navigation Bar */}
       <nav className="fixed top-2 sm:top-4 left-1/2 -translate-x-1/2 z-50 px-3 sm:px-6 py-2 sm:py-3 rounded-full bg-white/40 backdrop-blur-md border border-white/60 shadow-lg">

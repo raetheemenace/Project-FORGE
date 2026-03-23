@@ -80,7 +80,7 @@ export default function BorrowStep1() {
           borderBottom: '1px solid rgba(0,18,84,0.08)',
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-2xl mx-auto px-4 h-[72px] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/dashboard')}
@@ -89,7 +89,8 @@ export default function BorrowStep1() {
             >
               <ArrowLeft className="w-4 h-4 text-[#001254]/60" />
             </button>
-            <img src={logo} alt="FORGE" className="h-5 opacity-70" />
+            <img src={logo} alt="FORGE" className="h-8 opacity-70" />
+            <span className="text-[#001254]/70 font-semibold text-lg">Borrow an Item</span>
           </div>
 
           <div className="flex items-center gap-3">

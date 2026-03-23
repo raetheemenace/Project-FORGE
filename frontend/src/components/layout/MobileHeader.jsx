@@ -20,7 +20,7 @@ export default function MobileHeader({ onBack, logo, stepIndicator, ttsButton })
         borderBottom: '1px solid rgba(0,18,84,0.08)',
       }}
     >
-      <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="max-w-2xl mx-auto px-4 h-[72px] flex items-center justify-between">
         {/* Left: back button + logo */}
         <div className="flex items-center gap-3">
           {onBack && (
@@ -32,7 +32,7 @@ export default function MobileHeader({ onBack, logo, stepIndicator, ttsButton })
               <ArrowLeft className="w-4 h-4 text-[#001254]/60" />
             </button>
           )}
-          {logo && <img src={logo} alt="FORGE" className="h-5 opacity-70" />}
+          {logo && <img src={logo} alt="FORGE" className="h-8 opacity-70" />}
         </div>
 
         {/* Right: step indicator + TTS toggle */}
