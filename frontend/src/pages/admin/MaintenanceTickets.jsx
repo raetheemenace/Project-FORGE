@@ -37,6 +37,13 @@ const SEVERITY_STYLES = {
   Critical: 'bg-red-50 text-red-700 border-red-200',
 };
 
+const PRIORITY_STYLES = {
+  LOW:      'bg-slate-50 text-slate-600 border-slate-200',
+  MEDIUM:   'bg-blue-50 text-blue-700 border-blue-200',
+  HIGH:     'bg-orange-50 text-orange-700 border-orange-200',
+  CRITICAL: 'bg-red-50 text-red-700 border-red-200',
+};
+
 // Valid forward transitions
 const NEXT_STATUS = {
   OPEN:        'IN_PROGRESS',
@@ -61,6 +68,15 @@ function SeverityBadge({ severity }) {
   );
 }
 
+function PriorityBadge({ priority }) {
+  if (!priority) return <span className="text-[#001254]/30 italic text-xs">No priority</span>;
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${PRIORITY_STYLES[priority] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+      {priority}
+    </span>
+  );
+}
+
 function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.4)' }}>
@@ -80,7 +96,7 @@ function Modal({ title, onClose, children }) {
 function ExpandedTicket({ ticket }) {
   return (
     <tr>
-      <td colSpan={7} className="px-5 pb-4 pt-0 bg-[#001254]/2">
+      <td colSpan={8} className="px-5 pb-4 pt-0 bg-[#001254]/2">
         <div className="rounded-xl border border-[#001254]/8 bg-white p-4 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
@@ -120,11 +136,22 @@ export default function MaintenanceTickets() {
   const { user, signOut } = useAuth();
 
   const [tickets, setTickets] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
   const [expandedId, setExpandedId] = useState(null);
+
+  // Filter state
+  const [filters, setFilters] = useState({
+    status: '',
+    severity: '',
+    assigned_to: '',
+    date_from: '',
+    date_to: '',
+    search: '',
+  });
 
   // Create ticket modal
   const [showCreate, setShowCreate] = useState(false);
@@ -141,17 +168,58 @@ export default function MaintenanceTickets() {
   const fetchTickets = useCallback(() => {
     setLoading(true);
     setError(null);
+
+    // Build query params from filters
+    const params = new URLSearchParams();
+    if (filters.status) params.append('status', filters.status);
+    if (filters.severity) params.append('severity', filters.severity);
+    if (filters.assigned_to) params.append('assigned_to', filters.assigned_to);
+    if (filters.date_from) params.append('date_from', filters.date_from);
+    if (filters.date_to) params.append('date_to', filters.date_to);
+    if (filters.search) params.append('search', filters.search);
+
+    const queryString = params.toString();
+    const url = `${API_URL}/admin/tickets${queryString ? `?${queryString}` : ''}`;
+
     axios
-      .get(`${API_URL}/admin/tickets`, { headers: { Authorization: `Bearer ${token()}` } })
-      .then((res) => setTickets(res.data.tickets || []))
+      .get(url, { headers: { Authorization: `Bearer ${token()}` } })
+      .then((res) => {
+        const fetchedTickets = res.data.tickets || [];
+        // Sort by priority (Critical > High > Medium > Low > null) then by date
+        const priorityOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+        const sorted = fetchedTickets.sort((a, b) => {
+          const aPriority = a.priority ? priorityOrder[a.priority] : 999;
+          const bPriority = b.priority ? priorityOrder[b.priority] : 999;
+          if (aPriority !== bPriority) return aPriority - bPriority;
+          return new Date(b.created_at) - new Date(a.created_at);
+        });
+        setTickets(sorted);
+      })
       .catch((err) => {
         if (err.response?.status === 403) setError('Access denied. Lab Admin role required.');
         else setError('Could not load tickets.');
       })
       .finally(() => setLoading(false));
+  }, [filters]);
+
+  const fetchUsers = useCallback(() => {
+    axios
+      .get(`${API_URL}/admin/users`, { headers: { Authorization: `Bearer ${token()}` } })
+      .then((res) => setUsers(res.data.users || []))
+      .catch((err) => {
+        console.error('Failed to fetch users:', err);
+      });
   }, []);
 
-  useEffect(() => { fetchTickets(); }, [fetchTickets]);
+  useEffect(() => { 
+    fetchTickets(); 
+    fetchUsers();
+  }, [fetchTickets, fetchUsers]);
+
+  // Real-time filtering: refetch when filters change
+  useEffect(() => {
+    fetchTickets();
+  }, [filters, fetchTickets]);
 
   const flash = (msg) => {
     setSuccessMsg(msg);
@@ -315,6 +383,111 @@ export default function MaintenanceTickets() {
           </div>
         )}
 
+        {/* Filters */}
+        <div className="bg-white rounded-xl border border-[#001254]/10 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {/* Search */}
+            <div className="lg:col-span-3">
+              <label className="block text-[#001254]/60 mb-1.5" style={{ fontSize: '0.75rem' }}>
+                Search by Equipment ID or Description
+              </label>
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+                placeholder="e.g. EQ-7167 or 'gas leak'"
+                className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.85rem' }}
+              />
+            </div>
+
+            {/* Status filter */}
+            <div>
+              <label className="block text-[#001254]/60 mb-1.5" style={{ fontSize: '0.75rem' }}>Status</label>
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
+                className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.85rem' }}
+              >
+                <option value="">All Statuses</option>
+                {STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+              </select>
+            </div>
+
+            {/* Severity filter */}
+            <div>
+              <label className="block text-[#001254]/60 mb-1.5" style={{ fontSize: '0.75rem' }}>Severity</label>
+              <select
+                value={filters.severity}
+                onChange={(e) => setFilters((f) => ({ ...f, severity: e.target.value }))}
+                className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.85rem' }}
+              >
+                <option value="">All Severities</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Critical">Critical</option>
+              </select>
+            </div>
+
+            {/* Assigned user filter */}
+            <div>
+              <label className="block text-[#001254]/60 mb-1.5" style={{ fontSize: '0.75rem' }}>Assigned To</label>
+              <select
+                value={filters.assigned_to}
+                onChange={(e) => setFilters((f) => ({ ...f, assigned_to: e.target.value }))}
+                className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.85rem' }}
+              >
+                <option value="">All Assignees</option>
+                <option value="unassigned">Unassigned</option>
+                {users.map((u) => (
+                  <option key={u.user_id} value={u.user_id}>
+                    {u.full_name} (@{u.username})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Date from */}
+            <div>
+              <label className="block text-[#001254]/60 mb-1.5" style={{ fontSize: '0.75rem' }}>Date From</label>
+              <input
+                type="date"
+                value={filters.date_from}
+                onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value }))}
+                className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.85rem' }}
+              />
+            </div>
+
+            {/* Date to */}
+            <div>
+              <label className="block text-[#001254]/60 mb-1.5" style={{ fontSize: '0.75rem' }}>Date To</label>
+              <input
+                type="date"
+                value={filters.date_to}
+                onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value }))}
+                className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.85rem' }}
+              />
+            </div>
+
+            {/* Clear filters button */}
+            <div className="flex items-end">
+              <button
+                onClick={() => setFilters({ status: '', severity: '', assigned_to: '', date_from: '', date_to: '', search: '' })}
+                className="w-full px-3 py-2 border border-[#001254]/15 text-[#001254]/60 rounded-lg hover:bg-[#001254]/5 transition-colors"
+                style={{ fontSize: '0.85rem' }}
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Tickets table */}
         <div className="bg-white rounded-xl border border-[#001254]/10 overflow-hidden">
           {loading ? (
@@ -338,7 +511,7 @@ export default function MaintenanceTickets() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[#001254]/8">
-                    {['ID', 'Equipment', 'Severity', 'Reporter', 'Assignee', 'Status', 'Actions'].map((h) => (
+                    {['ID', 'Equipment', 'Severity', 'Priority', 'Reporter', 'Assignee', 'Status', 'Actions'].map((h) => (
                       <th key={h} className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest whitespace-nowrap" style={{ fontSize: '0.65rem' }}>
                         {h}
                       </th>
@@ -362,6 +535,7 @@ export default function MaintenanceTickets() {
                           <p className="text-[#001254]/40 font-mono" style={{ fontSize: '0.7rem' }}>{ticket.equipment_id}</p>
                         </td>
                         <td className="px-5 py-3.5"><SeverityBadge severity={ticket.severity} /></td>
+                        <td className="px-5 py-3.5"><PriorityBadge priority={ticket.priority} /></td>
                         <td className="px-5 py-3.5 text-[#001254]/60 whitespace-nowrap" style={{ fontSize: '0.82rem' }}>
                           {ticket.reporter_name || '—'}
                         </td>
@@ -434,15 +608,20 @@ export default function MaintenanceTickets() {
               </select>
             </div>
             <div>
-              <label className="block text-[#001254]/60 mb-1" style={{ fontSize: '0.78rem' }}>Assign To (User ID)</label>
-              <input
-                type="number"
+              <label className="block text-[#001254]/60 mb-1" style={{ fontSize: '0.78rem' }}>Assign To</label>
+              <select
                 value={createForm.assigned_to}
                 onChange={(e) => setCreateForm((f) => ({ ...f, assigned_to: e.target.value }))}
-                className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
+                className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
                 style={{ fontSize: '0.88rem' }}
-                placeholder="Optional user ID"
-              />
+              >
+                <option value="">— Unassigned —</option>
+                {users.map((u) => (
+                  <option key={u.user_id} value={u.user_id}>
+                    {u.full_name} (@{u.username}) - {u.role}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="flex gap-3">
               <button
@@ -487,9 +666,12 @@ export default function MaintenanceTickets() {
                 className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
                 style={{ fontSize: '0.88rem' }}
               >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>{s.replace('_', ' ')}</option>
-                ))}
+                <option value={updateModal.status}>{updateModal.status.replace('_', ' ')} (current)</option>
+                {NEXT_STATUS[updateModal.status] && (
+                  <option value={NEXT_STATUS[updateModal.status]}>
+                    {NEXT_STATUS[updateModal.status].replace('_', ' ')} (next)
+                  </option>
+                )}
               </select>
             </div>
             <div>
@@ -505,15 +687,20 @@ export default function MaintenanceTickets() {
               </select>
             </div>
             <div>
-              <label className="block text-[#001254]/60 mb-1" style={{ fontSize: '0.78rem' }}>Assign To (User ID)</label>
-              <input
-                type="number"
+              <label className="block text-[#001254]/60 mb-1" style={{ fontSize: '0.78rem' }}>Assign To</label>
+              <select
                 value={updateForm.assigned_to}
                 onChange={(e) => setUpdateForm((f) => ({ ...f, assigned_to: e.target.value }))}
-                className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
+                className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
                 style={{ fontSize: '0.88rem' }}
-                placeholder="Optional user ID"
-              />
+              >
+                <option value="">— Unassigned —</option>
+                {users.map((u) => (
+                  <option key={u.user_id} value={u.user_id}>
+                    {u.full_name} (@{u.username}) - {u.role}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-[#001254]/60 mb-1" style={{ fontSize: '0.78rem' }}>Resolution Notes</label>

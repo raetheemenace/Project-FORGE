@@ -1,0 +1,8 @@
+node_modules/
+.env
+.env.local
+*.test.js
+vitest.config.js
+.git/
+.gitignore
+*.md

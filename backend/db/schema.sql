@@ -4,9 +4,9 @@
 -- Users table
 CREATE TABLE forge_users (
     user_id       SERIAL PRIMARY KEY,
-    student_id    CHAR(7),           -- 7-digit numeric student ID
-    username      VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
+    student_id    CHAR(7) UNIQUE NOT NULL,  -- 7-digit numeric student ID (primary identifier)
+    username      VARCHAR(100) UNIQUE,      -- Optional (for backward compatibility)
+    password_hash VARCHAR(255),             -- Optional (for backward compatibility)
     full_name     VARCHAR(200) NOT NULL,
     program       VARCHAR(200),
     role          VARCHAR(20) DEFAULT 'STUDENT' CHECK (role IN ('STUDENT', 'LAB_ADMIN')),

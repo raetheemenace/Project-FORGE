@@ -16,6 +16,8 @@ import {
   ChevronLeft,
   ImagePlus,
   CheckCircle2,
+  QrCode,
+  Download,
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -163,6 +165,7 @@ export default function EquipmentManagement() {
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(null);   // equipment object
   const [showDelete, setShowDelete] = useState(null); // equipment object
+  const [showQRCode, setShowQRCode] = useState(null); // { equipmentId, equipmentName, qrCode }
   const [actionLoading, setActionLoading] = useState(false);
 
   const token = () => localStorage.getItem('token');
@@ -233,6 +236,39 @@ export default function EquipmentManagement() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleGenerateQRCode = async (equipmentId, equipmentName) => {
+    setActionLoading(true);
+    setError(null);
+    try {
+      const response = await axios.get(`${API_URL}/admin/qrcode/${equipmentId}`, {
+        headers: { Authorization: `Bearer ${token()}` },
+      });
+      setShowQRCode({
+        equipmentId: response.data.equipmentId,
+        equipmentName: response.data.equipmentName,
+        qrCode: response.data.qrCode
+      });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to generate QR code.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDownloadQRCode = () => {
+    if (!showQRCode?.qrCode) return;
+    
+    // Create a temporary link element to trigger download
+    const link = document.createElement('a');
+    link.href = showQRCode.qrCode;
+    link.download = `QR-${showQRCode.equipmentId}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    flash('QR code downloaded successfully.');
   };
 
   const displayName = user?.fullName || user?.username || 'Admin';
@@ -361,6 +397,13 @@ export default function EquipmentManagement() {
                       <td className="px-5 py-3.5">
                         <div className="flex items-center justify-end gap-1">
                           <button
+                            onClick={() => handleGenerateQRCode(eq.equipment_id, eq.name)}
+                            className="p-1.5 hover:bg-[#0B4EA2]/8 rounded-lg transition-colors"
+                            title="Generate QR Code"
+                          >
+                            <QrCode className="w-3.5 h-3.5 text-[#0B4EA2]" />
+                          </button>
+                          <button
                             onClick={() => setShowEdit(eq)}
                             className="p-1.5 hover:bg-[#0B4EA2]/8 rounded-lg transition-colors"
                             title="Edit"
@@ -432,6 +475,52 @@ export default function EquipmentManagement() {
               >
                 {actionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Dispose
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* QR Code modal */}
+      {showQRCode && (
+        <Modal title="Equipment QR Code" onClose={() => setShowQRCode(null)}>
+          <div className="space-y-4">
+            <div className="text-center">
+              <p className="text-[#001254] font-semibold mb-1" style={{ fontSize: '0.9rem' }}>
+                {showQRCode.equipmentName}
+              </p>
+              <p className="text-[#001254]/50 font-mono" style={{ fontSize: '0.75rem' }}>
+                {showQRCode.equipmentId}
+              </p>
+            </div>
+            
+            <div className="flex justify-center bg-white p-4 rounded-xl border border-[#001254]/10">
+              <img 
+                src={showQRCode.qrCode} 
+                alt={`QR Code for ${showQRCode.equipmentId}`}
+                className="w-64 h-64"
+              />
+            </div>
+
+            <div className="text-center text-[#001254]/50" style={{ fontSize: '0.75rem' }}>
+              Scan this QR code to identify equipment or report maintenance issues
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowQRCode(null)}
+                className="flex-1 border border-[#001254]/15 text-[#001254]/60 rounded-xl py-2.5 hover:bg-[#001254]/5 transition-colors"
+                style={{ fontSize: '0.85rem' }}
+              >
+                Close
+              </button>
+              <button
+                onClick={handleDownloadQRCode}
+                className="flex-1 bg-[#0B4EA2] text-white rounded-xl py-2.5 hover:bg-[#0B4EA2]/90 transition-colors flex items-center justify-center gap-2"
+                style={{ fontSize: '0.85rem' }}
+              >
+                <Download className="w-4 h-4" />
+                Download PNG
               </button>
             </div>
           </div>
