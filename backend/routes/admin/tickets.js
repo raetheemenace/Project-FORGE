@@ -32,9 +32,55 @@ async function logAdminAction(dbClient, adminId, actionType, targetId, details) 
 
 // ---------------------------------------------------------------------------
 // GET /api/admin/tickets — list all tickets with report + assignee info
+// Query params: status, severity, assigned_to, date_from, date_to, search
 // ---------------------------------------------------------------------------
 router.get('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) => {
   try {
+    const { status, severity, assigned_to, date_from, date_to, search } = req.query;
+
+    // Build dynamic WHERE clause
+    const conditions = [];
+    const params = [];
+    let paramIndex = 1;
+
+    if (status) {
+      conditions.push('t.status = $' + paramIndex);
+      params.push(status);
+      paramIndex++;
+    }
+
+    if (severity) {
+      conditions.push('m.severity = $' + paramIndex);
+      params.push(severity);
+      paramIndex++;
+    }
+
+    if (assigned_to) {
+      conditions.push('t.assigned_to = $' + paramIndex);
+      params.push(Number(assigned_to));
+      paramIndex++;
+    }
+
+    if (date_from) {
+      conditions.push('t.created_at >= $' + paramIndex);
+      params.push(date_from);
+      paramIndex++;
+    }
+
+    if (date_to) {
+      conditions.push('t.created_at <= $' + paramIndex);
+      params.push(date_to);
+      paramIndex++;
+    }
+
+    if (search) {
+      conditions.push('(m.equipment_id ILIKE $' + paramIndex + ' OR m.description ILIKE $' + paramIndex + ')');
+      params.push('%' + search + '%');
+      paramIndex++;
+    }
+
+    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
     const result = await db.query(
       `SELECT
          t.ticket_id,
@@ -60,7 +106,9 @@ router.get('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) =>
        JOIN forge_users reporter      ON reporter.user_id = m.user_id
        LEFT JOIN forge_users assignee ON assignee.user_id = t.assigned_to
        LEFT JOIN forge_equipment e    ON e.equipment_id   = m.equipment_id
-       ORDER BY t.created_at DESC`
+       ${whereClause}
+       ORDER BY t.created_at DESC`,
+      params
     );
     return res.json({ tickets: result.rows });
   } catch (err) {

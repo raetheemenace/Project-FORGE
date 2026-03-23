@@ -96,12 +96,18 @@ describe('Property 6: Transaction ID uniqueness', () => {
   it('same sequence number on two different dates produces different IDs', () => {
     fc.assert(
       fc.property(
-        fc.date({ min: new Date('2020-01-01'), max: new Date('2099-12-30') }),
+        validDateArb,
         validSeqArb,
         (date1, seq) => {
           // date2 is always one day after date1
           const date2 = new Date(date1);
           date2.setDate(date2.getDate() + 1);
+          
+          // Skip if date2 becomes invalid (e.g., overflow)
+          if (isNaN(date2.getTime())) {
+            return true;
+          }
+          
           const id1 = generateTxnId(date1, seq);
           const id2 = generateTxnId(date2, seq);
           expect(id1).not.toBe(id2);

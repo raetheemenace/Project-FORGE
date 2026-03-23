@@ -81,9 +81,29 @@ If you cannot identify any lab equipment, set name to "Unknown Equipment", condi
     }
   } catch (bedrockErr) {
     console.error('Bedrock error:', bedrockErr);
-    // Log the failed attempt then return 502
-    await logScan({ userId, bedrockResponse: String(bedrockErr), predictedName: null, confidenceScore: 0, equipmentId: null });
-    return res.status(502).json({ error: 'AI Scanner is temporarily unavailable. Please retry.' });
+    
+    // Handle specific AWS errors
+    let errorMessage = 'AI Scanner is temporarily unavailable. Please retry.';
+    let statusCode = 502;
+    
+    if (bedrockErr.name === 'ThrottlingException') {
+      errorMessage = 'Too many scan requests. Please wait 30 seconds and try again.';
+      statusCode = 429;
+    } else if (bedrockErr.name === 'ValidationException') {
+      errorMessage = 'Invalid image format. Please try a different image.';
+      statusCode = 400;
+    }
+    
+    // Log the failed attempt
+    await logScan({ 
+      userId, 
+      bedrockResponse: JSON.stringify({ error: bedrockErr.message }), 
+      predictedName: null, 
+      confidenceScore: 0, 
+      equipmentId: null 
+    });
+    
+    return res.status(statusCode).json({ error: errorMessage });
   }
 
   // Resolve equipment_id from DB if Bedrock returned one

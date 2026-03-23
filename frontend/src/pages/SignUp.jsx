@@ -27,7 +27,7 @@ export default function SignUp() {
     const errs = {};
     if (!formData.fullName.trim()) errs.fullName = 'Full name is required';
     if (!formData.studentId.trim()) errs.studentId = 'Student ID is required';
-    else if (!/^\d{8}$/.test(formData.studentId)) errs.studentId = 'Must be 8 digits';
+    else if (!/^\d{7,8}$/.test(formData.studentId)) errs.studentId = 'Must be 7-8 digits';
     if (!formData.program.trim()) errs.program = 'Program is required';
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -138,7 +138,7 @@ export default function SignUp() {
                 name="studentId"
                 value={formData.studentId}
                 onChange={handleChange}
-                placeholder="20210001"
+                placeholder="2024001"
                 maxLength={8}
                 className="w-full px-4 py-3 bg-[#f7f7f3] border border-[#001254]/10 rounded-lg focus:outline-none focus:border-[#0B4EA2] focus:ring-1 focus:ring-[#0B4EA2]/30 transition-all placeholder:text-[#001254]/25"
               />
