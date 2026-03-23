@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, QrCode, CheckCircle2, AlertTriangle, LayoutDashboard, Camera, X } from 'lucide-react';
+import { ArrowLeft, QrCode, CheckCircle2, AlertTriangle, LayoutDashboard, Camera, X, Mic, MicOff } from 'lucide-react';
 import axios from 'axios';
 import logo from '../assets/logo_landingpage.png';
 import { useQRScanner } from '../hooks/useQRScanner';
+import { useSTT } from '../hooks/useSTT';
 
 const SEVERITIES = ['Low', 'Medium', 'High', 'Critical'];
 
@@ -94,6 +95,20 @@ export default function ReportMaintenance() {
     }
   };
 
+  // STT for description field
+  const { sttActive, listen, stop: stopSTT, error: sttError } = useSTT();
+
+  const handleMicClick = () => {
+    if (sttActive) {
+      stopSTT();
+      return;
+    }
+    listen((text) => {
+      setDescription((prev) => prev ? `${prev} ${text}` : text);
+      if (errors.description) setErrors((prev) => ({ ...prev, description: '' }));
+    });
+  };
+
   // Submission state
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -155,7 +170,7 @@ export default function ReportMaintenance() {
             borderBottom: '1px solid rgba(0,18,84,0.08)',
           }}
         >
-          <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
+          <div className="max-w-2xl mx-auto px-4 h-[72px] flex items-center gap-3">
             <button
               onClick={() => navigate('/dashboard')}
               className="p-2 hover:bg-[#001254]/8 rounded-lg transition-colors"
@@ -163,7 +178,8 @@ export default function ReportMaintenance() {
             >
               <ArrowLeft className="w-4 h-4 text-[#001254]/60" />
             </button>
-            <img src={logo} alt="FORGE" className="h-5 opacity-70" />
+            <img src={logo} alt="FORGE" className="h-8 opacity-70" />
+            <span className="text-[#001254]/70 font-semibold text-lg">Report Maintenance</span>
           </div>
         </header>
 
@@ -243,7 +259,7 @@ export default function ReportMaintenance() {
           borderBottom: '1px solid rgba(0,18,84,0.08)',
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center gap-3">
+        <div className="max-w-2xl mx-auto px-4 h-[72px] flex items-center gap-3">
           <button
             onClick={() => navigate('/dashboard')}
             className="p-2 hover:bg-[#001254]/8 rounded-lg transition-colors"
@@ -251,7 +267,8 @@ export default function ReportMaintenance() {
           >
             <ArrowLeft className="w-4 h-4 text-[#001254]/60" />
           </button>
-          <img src={logo} alt="FORGE" className="h-5 opacity-70" />
+          <img src={logo} alt="FORGE" className="h-8 opacity-70" />
+          <span className="text-[#001254]/70 font-semibold text-lg">Report Maintenance</span>
         </div>
       </header>
 
@@ -294,7 +311,7 @@ export default function ReportMaintenance() {
                 </div>
               ) : (
                 <>
-                  <div className="w-16 h-16 rounded-xl flex items-center justify-center bg-[#001254]/6">
+                  <div className="w-16 h-[72px] rounded-xl flex items-center justify-center bg-[#001254]/6">
                     <QrCode className="w-8 h-8 text-[#001254]/40" />
                   </div>
                   <p className="text-xs text-[#001254]/45 text-center max-w-[200px]">
@@ -378,16 +395,39 @@ export default function ReportMaintenance() {
 
             {/* Description textarea */}
             <div>
-              <label
-                htmlFor="description"
-                className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide"
-              >
-                Description <span className="text-red-400">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label
+                  htmlFor="description"
+                  className="block text-xs font-medium text-[#001254]/60 uppercase tracking-wide"
+                >
+                  Description <span className="text-red-400">*</span>
+                </label>
+                {!sttActive ? (
+                  <button
+                    type="button"
+                    onClick={handleMicClick}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#001254]/6 text-[#001254]/60 hover:bg-[#001254]/10 transition-all"
+                    aria-label="Start voice input"
+                  >
+                    <Mic className="w-3.5 h-3.5" />
+                    Speak
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleMicClick}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200 transition-all"
+                    aria-label="Done speaking"
+                  >
+                    <MicOff className="w-3.5 h-3.5" />
+                    Done Speaking
+                  </button>
+                )}
+              </div>
               <textarea
                 id="description"
                 rows={4}
-                placeholder="Describe the issue in detail…"
+                placeholder="Describe the issue in detail… or tap Speak"
                 value={description}
                 onChange={(e) => {
                   setDescription(e.target.value);
@@ -397,6 +437,9 @@ export default function ReportMaintenance() {
                 aria-invalid={!!errors.description}
                 aria-describedby={errors.description ? 'description-error' : undefined}
               />
+              {sttError && (
+                <p className="mt-1 text-xs text-amber-600">{sttError}</p>
+              )}
               {errors.description && (
                 <p id="description-error" className="mt-1 text-xs text-red-500">{errors.description}</p>
               )}

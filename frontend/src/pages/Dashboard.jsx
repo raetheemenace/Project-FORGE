@@ -188,11 +188,11 @@ export default function Dashboard() {
         }}
       >
         <div className="max-w-7xl mx-auto px-4 md:px-6">
-          <div className="flex items-center justify-between h-14">
+          <div className="flex items-center justify-between h-[72px]">
             <div className="flex items-center gap-3">
-              <img src={logo} alt="FORGE" className="h-6 opacity-80" />
+              <img src={logo} alt="FORGE" className="h-9 opacity-80" />
               <div className="hidden md:block h-5 w-[1px] bg-[#001254]/20" />
-              <span className="hidden md:block text-[#001254]/50 tracking-widest uppercase" style={{ fontSize: '0.6rem' }}>
+              <span className="hidden md:block text-[#001254]/70 font-semibold tracking-wide text-lg">
                 Resource Dashboard
               </span>
             </div>
@@ -274,8 +274,8 @@ export default function Dashboard() {
                 </AnimatePresence>
               </div>
 
-              <button onClick={handleLogout} className="p-2 hover:bg-white/10 rounded-lg transition-colors" title="Sign out">
-                <LogOut className="w-4 h-4 text-white/60" />
+              <button onClick={handleLogout} className="p-2 hover:bg-[#001254]/8 rounded-lg transition-colors" title="Sign out">
+                <LogOut className="w-4 h-4 text-[#001254]/60" />
               </button>
             </div>
           </div>
@@ -287,7 +287,7 @@ export default function Dashboard() {
         {/* Greeting bar */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
-            <h1 className="text-[#001254]">
+            <h1 className="text-[#001254] text-3xl font-bold">
               Hello, {firstName}
               <span className="text-[#0B4EA2]/50"> | {displayProgram}</span>
             </h1>

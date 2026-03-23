@@ -18,7 +18,7 @@ export default function WebHeader({ logo, user, onLogout, navItems = [] }) {
 
   return (
     <header
-      className="sticky top-0 z-40 text-white"
+      className="sticky top-0 z-40"
       style={{
         background: 'rgba(255,255,255,0.08)',
         backdropFilter: 'blur(18px)',
@@ -27,10 +27,10 @@ export default function WebHeader({ logo, user, onLogout, navItems = [] }) {
       }}
     >
       <div className="max-w-7xl mx-auto px-4 md:px-6">
-        <div className="flex items-center justify-between h-14">
+        <div className="flex items-center justify-between h-[72px]">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            {logo && <img src={logo} alt="FORGE" className="h-6 opacity-80" />}
+            {logo && <img src={logo} alt="FORGE" className="h-9 opacity-80" />}
             {navItems.length > 0 && (
               <div className="hidden md:block h-5 w-[1px] bg-[#001254]/20" />
             )}
@@ -70,11 +70,11 @@ export default function WebHeader({ logo, user, onLogout, navItems = [] }) {
             {onLogout && (
               <button
                 onClick={onLogout}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                className="p-2 hover:bg-[#001254]/8 rounded-lg transition-colors"
                 title="Sign out"
                 aria-label="Sign out"
               >
-                <LogOut className="w-4 h-4 text-white/60" />
+                <LogOut className="w-4 h-4 text-[#001254]/60" />
               </button>
             )}
           </div>

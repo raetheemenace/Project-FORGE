@@ -195,7 +195,7 @@ export default function MyTransactions() {
           borderBottom: '1px solid rgba(0,18,84,0.08)',
         }}
       >
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center gap-3">
+        <div className="max-w-3xl mx-auto px-4 h-[72px] flex items-center gap-3">
           <button
             onClick={() => navigate('/dashboard')}
             className="p-2 hover:bg-[#001254]/8 rounded-lg transition-colors"
@@ -203,8 +203,8 @@ export default function MyTransactions() {
           >
             <ArrowLeft className="w-4 h-4 text-[#001254]/60" />
           </button>
-          <img src={logo} alt="FORGE" className="h-5 opacity-70" />
-          <span className="text-[#001254]/40 tracking-widest uppercase ml-1" style={{ fontSize: '0.6rem' }}>
+          <img src={logo} alt="FORGE" className="h-8 opacity-70" />
+          <span className="text-[#001254]/70 font-semibold text-lg ml-1">
             My Transactions
           </span>
         </div>
@@ -256,7 +256,7 @@ export default function MyTransactions() {
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center justify-center py-20 gap-4"
           >
-            <div className="w-16 h-16 rounded-full bg-[#001254]/6 flex items-center justify-center">
+            <div className="w-16 h-[72px] rounded-full bg-[#001254]/6 flex items-center justify-center">
               <ClipboardList className="w-8 h-8 text-[#001254]/25" />
             </div>
             <div className="text-center">

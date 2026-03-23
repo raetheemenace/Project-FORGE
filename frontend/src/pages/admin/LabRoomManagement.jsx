@@ -288,12 +288,12 @@ export default function LabRoomManagement() {
         }}
       >
         <div className="max-w-7xl mx-auto px-4 md:px-6">
-          <div className="flex items-center justify-between h-14">
+          <div className="flex items-center justify-between h-[72px]">
             <div className="flex items-center gap-3">
               <button onClick={() => navigate('/admin')} className="p-1.5 hover:bg-[#001254]/8 rounded-lg transition-colors">
                 <ChevronLeft className="w-4 h-4 text-[#001254]/50" />
               </button>
-              <img src={logo} alt="FORGE" className="h-6 opacity-80" />
+              <img src={logo} alt="FORGE" className="h-9 opacity-80" />
               <div className="hidden md:block h-5 w-[1px] bg-[#001254]/20" />
               <div className="hidden md:flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-[#0B4EA2]/60" />
