@@ -58,7 +58,17 @@
 
 ---
 
-## 📦 Quick Start
+## 🌐 Live Deployment
+
+**Frontend:** https://main.d7sychv2krlg6.amplifyapp.com  
+**Backend:** http://forge-production.eba-44spvn32.ap-southeast-1.elasticbeanstalk.com  
+**Database:** PostgreSQL 17.6-R2 on AWS RDS (ap-southeast-1)
+
+The application is fully deployed and accessible online. Test credentials: Sign up with any 7-8 digit Student ID.
+
+---
+
+## 📦 Quick Start (Local Development)
 
 ### 🚀 For Professors and Teammates
 
