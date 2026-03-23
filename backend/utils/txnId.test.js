@@ -96,7 +96,7 @@ describe('Property 6: Transaction ID uniqueness', () => {
   it('same sequence number on two different dates produces different IDs', () => {
     fc.assert(
       fc.property(
-        fc.date({ min: new Date('2020-01-01'), max: new Date('2099-12-30') }),
+        fc.date({ min: new Date('2020-01-01'), max: new Date('2099-12-30') }).filter((d) => !isNaN(d.getTime())),
         validSeqArb,
         (date1, seq) => {
           // date2 is always one day after date1
