@@ -1,0 +1,292 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
+import {
+  ArrowLeft,
+  Package,
+  Loader2,
+  CreditCard,
+  CheckCircle2,
+  ChevronRight,
+  ChevronDown,
+  AlertTriangle,
+  ClipboardList,
+} from 'lucide-react';
+import logo from '../assets/logo_landingpage.png';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+const STATUS_META = {
+  ACTIVE: {
+    label: 'ACTIVE',
+    bg: 'bg-blue-50',
+    text: 'text-blue-700',
+    border: 'border-blue-200',
+    icon: Package,
+  },
+  PENDING_RETURN: {
+    label: 'PENDING RETURN',
+    bg: 'bg-amber-50',
+    text: 'text-amber-700',
+    border: 'border-amber-200',
+    icon: Loader2,
+    spin: true,
+  },
+  CLAIM_ID: {
+    label: 'CLAIM ID',
+    bg: 'bg-green-50',
+    text: 'text-green-700',
+    border: 'border-green-200',
+    icon: CreditCard,
+  },
+  RETURNED: {
+    label: 'RETURNED',
+    bg: 'bg-gray-50',
+    text: 'text-gray-500',
+    border: 'border-gray-200',
+    icon: CheckCircle2,
+  },
+};
+
+function StatusBadge({ status }) {
+  const meta = STATUS_META[status] || STATUS_META.RETURNED;
+  const Icon = meta.icon;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full border text-xs font-medium ${meta.bg} ${meta.text} ${meta.border}`}
+    >
+      <Icon className={`w-3 h-3 ${meta.spin ? 'animate-spin' : ''}`} />
+      {meta.label}
+    </span>
+  );
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// ── Transaction row (expandable) ─────────────────────────────────────────────
+
+function TransactionRow({ txn, index }) {
+  const [expanded, setExpanded] = useState(false);
+  const items = txn.items || [];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.04 }}
+      className="border border-[#001254]/8 rounded-xl overflow-hidden bg-white"
+    >
+      {/* Row header — tap to expand (req 9.4) */}
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-[#F2F0DB]/30 transition-colors text-left"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-mono text-[#001254] text-sm font-semibold">{txn.txn_id}</span>
+            <StatusBadge status={txn.status} />
+          </div>
+          <p className="text-[#001254]/40 text-xs mt-0.5 truncate">
+            {formatDate(txn.txn_date)} · {txn.department} · {txn.lab_room} · {items.length} item{items.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <ChevronDown
+          className={`w-4 h-4 text-[#001254]/30 flex-shrink-0 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {/* Expanded detail (req 9.2, 9.4) */}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            key="detail"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 pt-1 border-t border-[#001254]/6 space-y-3">
+              {/* Session details */}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                {[
+                  ['Transaction ID', txn.txn_id],
+                  ['Date', formatDate(txn.txn_date)],
+                  ['Department', txn.department],
+                  ['Course', txn.course],
+                  ['Time Slot', txn.time_slot],
+                  ['Lab Room', txn.lab_room],
+                  ['Adviser', txn.adviser],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <span className="text-[#001254]/35 uppercase tracking-wide" style={{ fontSize: '0.6rem' }}>{label}</span>
+                    <p className="text-[#001254] font-medium mt-0.5">{value || '—'}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Equipment list */}
+              {items.length > 0 && (
+                <div>
+                  <p className="text-[#001254]/35 uppercase tracking-wide mb-1.5" style={{ fontSize: '0.6rem' }}>Equipment</p>
+                  <div className="space-y-1">
+                    {items.map((item, i) => (
+                      <div key={item.item_id || i} className="flex items-center justify-between bg-[#F2F0DB]/40 rounded-lg px-3 py-2">
+                        <span className="text-[#001254] text-xs">{item.name || `Equipment #${item.equipment_id}`}</span>
+                        {item.condition && (
+                          <span className="text-[#001254]/40 text-xs">{item.condition}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
+// ── main component ────────────────────────────────────────────────────────────
+
+export default function MyTransactions() {
+  const navigate = useNavigate();
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    axios
+      .get(`${API_URL}/transactions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => setTransactions(res.data.transactions || []))
+      .catch((err) => {
+        console.error('Transactions fetch error:', err);
+        setError('Could not load transactions.');
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Summary counters (req 9.3)
+  const activeCount = transactions.filter((t) => t.status === 'ACTIVE').length;
+  const pendingCount = transactions.filter((t) => t.status === 'PENDING_RETURN').length;
+  const claimCount = transactions.filter((t) => t.status === 'CLAIM_ID').length;
+
+  return (
+    <div className="min-h-screen bg-[#EFEFE9]">
+      {/* Header */}
+      <header
+        className="sticky top-0 z-40"
+        style={{
+          background: 'rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(18px)',
+          WebkitBackdropFilter: 'blur(18px)',
+          borderBottom: '1px solid rgba(0,18,84,0.08)',
+        }}
+      >
+        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center gap-3">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="p-2 hover:bg-[#001254]/8 rounded-lg transition-colors"
+            aria-label="Back to dashboard"
+          >
+            <ArrowLeft className="w-4 h-4 text-[#001254]/60" />
+          </button>
+          <img src={logo} alt="FORGE" className="h-5 opacity-70" />
+          <span className="text-[#001254]/40 tracking-widest uppercase ml-1" style={{ fontSize: '0.6rem' }}>
+            My Transactions
+          </span>
+        </div>
+      </header>
+
+      <main className="max-w-3xl mx-auto w-full px-4 py-6 space-y-5">
+
+        {/* Summary counters (req 9.3) */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="grid grid-cols-3 gap-3"
+        >
+          {[
+            { label: 'Active', count: activeCount, bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', icon: Package },
+            { label: 'Pending Return', count: pendingCount, bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: Loader2 },
+            { label: 'Claim ID', count: claimCount, bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', icon: CreditCard },
+          ].map(({ label, count, bg, text, border, icon: Icon }) => (
+            <div
+              key={label}
+              className={`rounded-xl border ${bg} ${border} px-3 py-3 flex flex-col items-center gap-1`}
+            >
+              <Icon className={`w-4 h-4 ${text}`} />
+              <span className={`text-2xl font-bold ${text}`}>{count}</span>
+              <span className={`text-center leading-tight ${text} opacity-70`} style={{ fontSize: '0.6rem' }}>{label.toUpperCase()}</span>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* Error banner */}
+        {error && (
+          <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            {error}
+          </div>
+        )}
+
+        {/* Loading */}
+        {loading && (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 text-[#0B4EA2] animate-spin" />
+          </div>
+        )}
+
+        {/* Empty state (req 9.5) */}
+        {!loading && !error && transactions.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center justify-center py-20 gap-4"
+          >
+            <div className="w-16 h-16 rounded-full bg-[#001254]/6 flex items-center justify-center">
+              <ClipboardList className="w-8 h-8 text-[#001254]/25" />
+            </div>
+            <div className="text-center">
+              <p className="text-[#001254]/50 font-medium">No transactions yet</p>
+              <p className="text-[#001254]/30 text-sm mt-1">Your borrowing records will appear here.</p>
+            </div>
+            <button
+              onClick={() => navigate('/borrow')}
+              className="mt-2 px-5 py-2.5 bg-[#0B4EA2] text-white rounded-xl text-sm font-medium hover:bg-[#0a3f8a] transition-colors"
+            >
+              Borrow an Item
+            </button>
+          </motion.div>
+        )}
+
+        {/* Transaction list (req 9.1, 9.2, 9.4) */}
+        {!loading && transactions.length > 0 && (
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between px-1">
+              <p className="text-[#001254]/40 text-xs uppercase tracking-wide">
+                {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            {transactions.map((txn, i) => (
+              <TransactionRow key={txn.txn_id} txn={txn} index={i} />
+            ))}
+          </div>
+        )}
+
+      </main>
+    </div>
+  );
+}
