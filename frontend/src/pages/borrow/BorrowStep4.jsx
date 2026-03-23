@@ -85,7 +85,7 @@ export default function BorrowStep4() {
     speak('Submitting your borrowing transaction. Please wait.');
 
     try {
-      const token = localStorage.getItem('forge_token');
+      const token = localStorage.getItem('token');
       const { data } = await axios.post(
         `${API_BASE}/api/transactions`,
         {

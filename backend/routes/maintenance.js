@@ -5,17 +5,25 @@ const { authenticateToken } = require('../middleware/auth');
 
 const VALID_SEVERITIES = ['Low', 'Medium', 'High', 'Critical'];
 
+/** Map severity → priority for forge_maintenance_tickets */
+const SEVERITY_TO_PRIORITY = {
+  Low: 'LOW',
+  Medium: 'MEDIUM',
+  High: 'HIGH',
+  Critical: 'CRITICAL',
+};
+
 /**
  * POST /api/maintenance
  * Submit a maintenance report for a piece of equipment.
+ * Atomically inserts one forge_maintenance row and one forge_maintenance_tickets row.
  * Body: { equipmentId, severity, description }
- * Response: { reportId, message }
- * Requirements: 10.5, 10.6
+ * Response: { reportId, ticketId, message }
+ * Requirements: 6.7
  */
 router.post('/', authenticateToken, async (req, res) => {
   const { equipmentId, severity, description } = req.body;
 
-  // Validate severity and description (req 10.4, 10.5)
   if (!severity || !VALID_SEVERITIES.includes(severity)) {
     return res.status(400).json({
       error: 'Severity is required and must be one of: Low, Medium, High, Critical.',
@@ -26,20 +34,43 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 
   const userId = req.user.userId;
+  const priority = SEVERITY_TO_PRIORITY[severity];
 
+  let client;
   try {
-    const result = await db.query(
+    client = await db.getConnection();
+
+    await client.query('BEGIN');
+
+    const reportResult = await client.query(
       `INSERT INTO forge_maintenance (equipment_id, user_id, severity, description)
        VALUES ($1, $2, $3, $4)
        RETURNING report_id`,
       [equipmentId || null, userId, severity, description.trim()]
     );
 
-    const reportId = result.rows[0].report_id;
-    return res.status(201).json({ reportId, message: 'Maintenance report submitted successfully.' });
+    const reportId = reportResult.rows[0].report_id;
+
+    const ticketResult = await client.query(
+      `INSERT INTO forge_maintenance_tickets (report_id, status, priority)
+       VALUES ($1, 'OPEN', $2)
+       RETURNING ticket_id`,
+      [reportId, priority]
+    );
+
+    const ticketId = ticketResult.rows[0].ticket_id;
+
+    await client.query('COMMIT');
+
+    return res.status(201).json({ reportId, ticketId, message: 'Maintenance report submitted successfully.' });
   } catch (err) {
+    if (client) {
+      try { await client.query('ROLLBACK'); } catch (_) { /* ignore rollback error */ }
+    }
     console.error('Maintenance report error:', err);
     return res.status(500).json({ error: 'Failed to submit maintenance report. Please retry.' });
+  } finally {
+    if (client) client.release();
   }
 });
 

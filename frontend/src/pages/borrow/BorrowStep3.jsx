@@ -1,14 +1,15 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Volume2, Camera, Plus, ChevronRight,
-  AlertCircle, RefreshCw, BookOpen, Trash2, Mic
+  AlertCircle, RefreshCw, BookOpen, Trash2, Mic, QrCode
 } from 'lucide-react';
 import axios from 'axios';
 import logo from '../../assets/logo_landingpage.png';
 import { useTTS } from '../../hooks/useTTS';
 import { useSTT } from '../../hooks/useSTT';
+import { useQRScanner } from '../../hooks/useQRScanner';
 import StepIndicator from '../../components/ui/StepIndicator';
 import TTSToggle from '../../components/ui/TTSToggle';
 
@@ -42,9 +43,69 @@ export default function BorrowStep3() {
   const [scanResult, setScanResult] = useState(null);
   const [scanError, setScanError] = useState(null);
   const [cartItems, setCartItems] = useState([]);
+  const [qrMode, setQrMode] = useState(false);
+  const [qrLookupError, setQrLookupError] = useState(null);
 
   const speak_ref = useRef(speak);
   speak_ref.current = speak;
+
+  // QR scan success: fetch equipment details and auto-add to cart
+  const handleQRSuccess = useCallback(async (equipmentId) => {
+    setQrLookupError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const { data } = await axios.get(
+        `${API_BASE}/api/equipment/${equipmentId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const item = {
+        equipmentId: data.equipmentId,
+        name: data.name,
+        condition: 'Good', // default condition; no per-item condition stored on equipment
+      };
+      setCartItems((prev) => {
+        const next = [...prev, item];
+        speak(`${data.name} added to cart via QR. ${next.length} item${next.length !== 1 ? 's' : ''} in cart.`);
+        return next;
+      });
+    } catch (err) {
+      const msg = err.response?.status === 404
+        ? `Equipment "${equipmentId}" not found in the system.`
+        : 'Could not look up equipment. Please retry.';
+      setQrLookupError(msg);
+      speak('QR error. ' + msg);
+    }
+  }, [speak]);
+
+  const handleQRError = useCallback((msg) => {
+    setQrLookupError(msg);
+  }, []);
+
+  const { startScanner, stopScanner } = useQRScanner(handleQRSuccess, handleQRError);
+
+  // Toggle QR mode on/off
+  function toggleQrMode() {
+    if (qrMode) {
+      stopScanner();
+      setQrMode(false);
+      setQrLookupError(null);
+    } else {
+      setQrMode(true);
+      setQrLookupError(null);
+    }
+  }
+
+  // Start QR scanner once the container div is mounted
+  useEffect(() => {
+    if (qrMode) {
+      // Small delay to ensure the DOM element is rendered
+      const t = setTimeout(() => startScanner('qr-scanner-container'), 100);
+      return () => {
+        clearTimeout(t);
+        stopScanner();
+      };
+    }
+  }, [qrMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Read instructions aloud when TTS enabled (req 6.8)
   useEffect(() => {
@@ -101,7 +162,7 @@ export default function BorrowStep3() {
       canvas.getContext('2d').drawImage(video, 0, 0);
       const imageBase64 = canvas.toDataURL('image/jpeg', 0.85);
 
-      const token = localStorage.getItem('forge_token');
+      const token = localStorage.getItem('token');
       const { data } = await axios.post(
         `${API_BASE}/api/scanner/identify`,
         { imageBase64, mediaType: 'image/jpeg' },
@@ -323,17 +384,61 @@ export default function BorrowStep3() {
           )}
         </AnimatePresence>
 
+        {/* QR scanner panel */}
+        <AnimatePresence>
+          {qrMode && (
+            <motion.div
+              key="qr-panel"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="bg-white rounded-2xl border border-[#001254]/10 overflow-hidden"
+            >
+              <div className="px-4 py-3 border-b border-[#001254]/8 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <QrCode className="w-4 h-4 text-[#0B4EA2]" />
+                  <p className="text-xs font-semibold text-[#001254]/60 uppercase tracking-wide">
+                    QR Code Scanner
+                  </p>
+                </div>
+                <p className="text-xs text-[#001254]/40">Point at equipment QR code to auto-add</p>
+              </div>
+              <div id="qr-scanner-container" className="w-full" />
+              {qrLookupError && (
+                <div className="px-4 py-3 border-t border-[#001254]/8 flex items-center gap-2 bg-red-50">
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                  <p className="text-xs text-red-700">{qrLookupError}</p>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Action buttons */}
         <div className="flex gap-3">
           {/* Scan button (req 6.2) */}
           <button
             onClick={handleScan}
-            disabled={!cameraReady || scanning}
+            disabled={!cameraReady || scanning || qrMode}
             className="flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#0B4EA2] text-white font-semibold text-sm hover:bg-[#0a3f8a] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             aria-label="Scan equipment"
           >
             <Camera className="w-4 h-4" />
             {scanning ? 'Scanning…' : 'Scan Equipment'}
+          </button>
+
+          {/* QR scanner toggle */}
+          <button
+            onClick={toggleQrMode}
+            className={`p-3.5 rounded-xl border transition-all ${
+              qrMode
+                ? 'bg-[#0B4EA2] border-[#0B4EA2] text-white'
+                : 'bg-white border-[#001254]/15 text-[#001254]/60 hover:border-[#0B4EA2]/30'
+            }`}
+            aria-label={qrMode ? 'Close QR scanner' : 'Scan QR code'}
+            aria-pressed={qrMode}
+          >
+            <QrCode className="w-4 h-4" />
           </button>
 
           {/* STT button (req 11.3) */}

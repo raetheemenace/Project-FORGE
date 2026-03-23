@@ -12,6 +12,31 @@ const s3 = new S3Client({ region: process.env.AWS_REGION });
 const SEVEN_DAYS_SECONDS = 604800;
 
 /**
+ * GET /api/equipment/:id
+ * Returns basic equipment details (name, status) by equipment_id.
+ */
+router.get('/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  // Prevent this route from matching /image-url/:id
+  if (id === 'image-url') return res.status(400).json({ error: 'Invalid equipment ID.' });
+
+  try {
+    const result = await db.query(
+      'SELECT equipment_id, name, status FROM forge_equipment WHERE equipment_id = $1',
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Equipment not found.' });
+    }
+    const row = result.rows[0];
+    return res.json({ equipmentId: row.equipment_id, name: row.name, status: row.status });
+  } catch (err) {
+    console.error('Equipment lookup error:', err);
+    return res.status(500).json({ error: 'Failed to fetch equipment.' });
+  }
+});
+
+/**
  * GET /api/equipment/image-url/:id
  * Returns a pre-signed S3 URL for the equipment image.
  * Expiry: 7 days (604800 seconds)

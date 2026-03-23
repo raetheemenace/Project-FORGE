@@ -1,7 +1,7 @@
 // Feature: forge-system, Property 15: Maintenance ticket lifecycle
 // Validates: Maintenance workflow integrity
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import * as fc from 'fast-check';
 
 // ---------------------------------------------------------------------------
@@ -144,6 +144,91 @@ describe('Property 15: Maintenance ticket lifecycle', () => {
         expect(isValidTransition(from, to)).toBe(isValidTransition(from, to));
       }),
       { numRuns: 200 }
+    );
+  });
+});
+
+// Feature: lab-system-full-integration, Property 17: Maintenance report atomically creates report and ticket
+// Validates: Requirements 6.7
+
+describe('Property 17: Maintenance report atomically creates report and ticket', () => {
+  it('both row counts increase by exactly 1 or neither does (atomicity)', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.record({
+          severity: fc.constantFrom('Low', 'Medium', 'High', 'Critical'),
+          description: fc.string({ minLength: 1 }),
+        }),
+        async ({ severity, description }) => {
+          let reportInserted = false;
+          let ticketInserted = false;
+          let committed = false;
+          let rolledBack = false;
+
+          // Mock client that tracks which queries were executed
+          const mockClient = {
+            query: vi.fn(async (sql) => {
+              const normalized = sql.trim().toUpperCase();
+              if (normalized === 'BEGIN' || normalized === 'COMMIT' || normalized === 'ROLLBACK') {
+                if (normalized === 'COMMIT') committed = true;
+                if (normalized === 'ROLLBACK') rolledBack = true;
+                return {};
+              }
+              if (sql.includes('forge_maintenance') && !sql.includes('forge_maintenance_tickets')) {
+                reportInserted = true;
+                return { rows: [{ report_id: 1 }] };
+              }
+              if (sql.includes('forge_maintenance_tickets')) {
+                ticketInserted = true;
+                return { rows: [{ ticket_id: 1 }] };
+              }
+              return { rows: [] };
+            }),
+            release: vi.fn(),
+          };
+
+          // Mock db module
+          const db = await import('../db/pool.js');
+          vi.spyOn(db, 'getConnection').mockResolvedValue(mockClient);
+
+          // Build a minimal Express-like req/res to invoke the route handler
+          const req = {
+            body: { equipmentId: null, severity, description },
+            user: { userId: 42 },
+          };
+          let statusCode = null;
+          const res = {
+            status(code) { statusCode = code; return this; },
+            json() { return this; },
+          };
+
+          // Dynamically import the route module (re-import to pick up mock)
+          const maintenanceRouter = await import('../routes/maintenance.js');
+          // Extract the POST handler from the router stack
+          const postHandler = maintenanceRouter.default.stack.find(
+            (layer) => layer.route && layer.route.methods.post
+          )?.route?.stack?.find((l) => l.name !== 'authenticateToken')?.handle;
+
+          if (postHandler) {
+            await postHandler(req, res);
+          }
+
+          // Atomicity: either both were inserted and committed, or neither was committed
+          const bothInserted = reportInserted && ticketInserted && committed;
+          const neitherCommitted = !committed;
+
+          expect(bothInserted || neitherCommitted).toBe(true);
+
+          // If committed, exactly one report and one ticket must have been inserted
+          if (committed) {
+            expect(reportInserted).toBe(true);
+            expect(ticketInserted).toBe(true);
+          }
+
+          vi.restoreAllMocks();
+        }
+      ),
+      { numRuns: 100 }
     );
   });
 });

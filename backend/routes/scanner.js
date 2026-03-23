@@ -127,10 +127,13 @@ If you cannot identify any lab equipment, set name to "Unknown Equipment", condi
     equipmentId: resolvedEquipmentId,
   });
 
+  const VALID_CONDITIONS = ['Excellent', 'Good', 'Fair', 'Poor'];
+  const condition = VALID_CONDITIONS.includes(parsed.condition) ? parsed.condition : 'Fair';
+
   res.json({
     equipmentId: resolvedEquipmentId,
     name: parsed.name,
-    condition: parsed.condition,
+    condition,
     confidence: parsed.confidence ?? 0,
   });
 });
