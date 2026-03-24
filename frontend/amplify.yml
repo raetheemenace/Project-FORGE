@@ -16,3 +16,6 @@ applications:
       cache:
         paths:
           - node_modules/**/*
+    environment:
+      variables:
+        VITE_API_URL: https://d2ynrbzmm9hzfy.cloudfront.net/api
