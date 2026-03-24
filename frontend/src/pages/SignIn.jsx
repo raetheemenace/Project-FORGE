@@ -26,7 +26,8 @@ export default function SignIn() {
     const errs = {};
     if (!formData.fullName.trim()) errs.fullName = 'Full name is required';
     if (!formData.studentId.trim()) errs.studentId = 'Student ID is required';
-    else if (!/^\d{7,8}$/.test(formData.studentId)) errs.studentId = 'Must be 7-8 digits';
+    // Allow 7-8 digits OR admin format (ADMIN followed by digits)
+    else if (!/^(\d{7,8}|ADMIN\d+)$/i.test(formData.studentId)) errs.studentId = 'Must be 7-8 digits or admin ID';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
