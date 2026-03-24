@@ -28,6 +28,23 @@ function ProtectedRoute({ children }) {
   return isAuthenticated ? children : <Navigate to="/signin" replace />;
 }
 
+function AdminRoute({ children }) {
+  const { user, isAuthenticated, loading } = useAuth();
+  
+  if (loading) return null;
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/signin" replace />;
+  }
+  
+  // Check if user has admin role
+  if (user?.role !== 'ADMIN') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  return children;
+}
+
 function App() {
   const [showSplash, setShowSplash] = useState(true);
 
@@ -55,23 +72,28 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/borrow" element={<BorrowStep1 />} />
-          <Route path="/borrow/step1" element={<BorrowStep1 />} />
-          <Route path="/borrow/step2" element={<BorrowStep2 />} />
-          <Route path="/borrow/step3" element={<BorrowStep3 />} />
-          <Route path="/borrow/step4" element={<BorrowStep4 />} />
-          <Route path="/log-updated" element={<LogUpdated />} />
-          <Route path="/transactions" element={<MyTransactions />} />
-          <Route path="/report-maintenance" element={<ReportMaintenance />} />
+          
+          {/* Protected User Routes */}
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/borrow" element={<ProtectedRoute><BorrowStep1 /></ProtectedRoute>} />
+          <Route path="/borrow/step1" element={<ProtectedRoute><BorrowStep1 /></ProtectedRoute>} />
+          <Route path="/borrow/step2" element={<ProtectedRoute><BorrowStep2 /></ProtectedRoute>} />
+          <Route path="/borrow/step3" element={<ProtectedRoute><BorrowStep3 /></ProtectedRoute>} />
+          <Route path="/borrow/step4" element={<ProtectedRoute><BorrowStep4 /></ProtectedRoute>} />
+          <Route path="/log-updated" element={<ProtectedRoute><LogUpdated /></ProtectedRoute>} />
+          <Route path="/transactions" element={<ProtectedRoute><MyTransactions /></ProtectedRoute>} />
+          <Route path="/report-maintenance" element={<ProtectedRoute><ReportMaintenance /></ProtectedRoute>} />
           <Route path="/offline" element={<OfflinePage />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/admin/equipment" element={<EquipmentManagement />} />
-          <Route path="/admin/transactions" element={<TransactionOversight />} />
-          <Route path="/admin/tickets" element={<MaintenanceTickets />} />
-          <Route path="/admin/users" element={<UserManagement />} />
-          <Route path="/admin/rooms" element={<LabRoomManagement />} />
-          <Route path="/admin/reports" element={<SystemReports />} />
+          
+          {/* Admin Routes - Protected */}
+          <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/admin/equipment" element={<AdminRoute><EquipmentManagement /></AdminRoute>} />
+          <Route path="/admin/transactions" element={<AdminRoute><TransactionOversight /></AdminRoute>} />
+          <Route path="/admin/tickets" element={<AdminRoute><MaintenanceTickets /></AdminRoute>} />
+          <Route path="/admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
+          <Route path="/admin/rooms" element={<AdminRoute><LabRoomManagement /></AdminRoute>} />
+          <Route path="/admin/reports" element={<AdminRoute><SystemReports /></AdminRoute>} />
+          
           {/* Redirect any unknown routes to landing page */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
