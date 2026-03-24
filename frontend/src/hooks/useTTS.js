@@ -4,7 +4,7 @@
 import { useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 /**
  * useTTS — manages TTS enabled state and speak() function.
@@ -41,7 +41,7 @@ export function useTTS(initialEnabled = false) {
       try {
         const token = localStorage.getItem('token');
         const response = await axios.post(
-          `${API_BASE}/api/tts/synthesize`,
+          `${API_BASE}/tts/synthesize`,
           { text },
           {
             headers: { Authorization: `Bearer ${token}` },
