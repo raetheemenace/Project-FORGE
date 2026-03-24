@@ -114,6 +114,11 @@ export default function BorrowStep3() {
     } else {
       stop();
     }
+    
+    // Cleanup: stop TTS when navigating away
+    return () => {
+      stop();
+    };
   }, [ttsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Start camera on mount (req 6.1)

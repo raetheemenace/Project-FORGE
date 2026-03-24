@@ -60,6 +60,11 @@ export default function BorrowStep2() {
     } else {
       stop();
     }
+    
+    // Cleanup: stop TTS when navigating away
+    return () => {
+      stop();
+    };
   }, [ttsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleTTS = () => toggleTTS();
