@@ -37,8 +37,8 @@ function AdminRoute({ children }) {
     return <Navigate to="/signin" replace />;
   }
   
-  // Check if user has admin role
-  if (user?.role !== 'ADMIN') {
+  // Check if user has LAB_ADMIN role
+  if (user?.role !== 'LAB_ADMIN') {
     return <Navigate to="/dashboard" replace />;
   }
   
