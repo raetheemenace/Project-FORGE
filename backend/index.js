@@ -32,7 +32,7 @@ db.initialize()
   .then(() => console.log('Database connection pool initialized'))
   .catch(err => console.error('Failed to initialize database pool:', err));
 
-// Root health check for Elastic Beanstalk
+// Root health check endpoint for ELB
 app.get('/', (req, res) => {
   res.status(200).send('OK');
 });
