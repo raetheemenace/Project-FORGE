@@ -13,7 +13,11 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
  * @returns {{ ttsEnabled, toggleTTS, speak, speaking }}
  */
 export function useTTS(initialEnabled = false) {
-  const [ttsEnabled, setTtsEnabled] = useState(initialEnabled);
+  // Persist TTS state in localStorage
+  const [ttsEnabled, setTtsEnabled] = useState(() => {
+    const saved = localStorage.getItem('ttsEnabled');
+    return saved !== null ? saved === 'true' : initialEnabled;
+  });
   const [speaking, setSpeaking] = useState(false);
   const audioRef = useRef(null);
 
@@ -96,6 +100,8 @@ export function useTTS(initialEnabled = false) {
 
   const toggleTTS = useCallback(() => {
     setTtsEnabled((prev) => {
+      const newValue = !prev;
+      localStorage.setItem('ttsEnabled', String(newValue));
       if (prev) {
         // Turning off — stop any active speech
         if (audioRef.current) {
@@ -105,7 +111,7 @@ export function useTTS(initialEnabled = false) {
         window.speechSynthesis?.cancel();
         setSpeaking(false);
       }
-      return !prev;
+      return newValue;
     });
   }, []);
 
