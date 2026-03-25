@@ -148,8 +148,8 @@ export default function BorrowStep4() {
               <ArrowLeft className="w-4 h-4 text-[#001254]/60" />
             </button>
             <img src={logo} alt="FORGE" className="h-8 opacity-70" />
+            <span className="text-[#001254]/70 font-semibold text-lg">Borrow an Item</span>
           </div>
-
           <div className="flex items-center gap-3">
             <StepIndicator current={CURRENT_STEP} total={TOTAL_STEPS} />
             <TTSToggle enabled={ttsEnabled} onToggle={toggleTTS} />
