@@ -78,46 +78,112 @@ FORGE is a digital lab equipment management platform. Students borrow equipment 
 - You can add multiple items to one transaction
 - Check the Dashboard for real-time equipment and room availability before heading to the lab
 
-Always be helpful, concise, and accurate. If you don't know something specific about FORGE, say so and suggest the user contact the lab admin.`;
+## Answer Style Rules
+- Be direct. Lead every answer with the key fact (Yes/No, the time, the status).
+- Keep answers short — 1 to 3 sentences for simple questions.
+- For availability questions, always state: (1) available or not, (2) the booked time slots if any, (3) when it becomes free.
+- Never pad answers with unnecessary explanation unless the user asks for details.
+- If you don't know something specific about FORGE, say so briefly and suggest contacting the lab admin.`;
 
 /**
  * Fetch live context from the database to inject into the AI prompt.
- * Returns a summary string of current equipment and room status.
+ * Includes per-equipment time slot bookings for today so the AI can answer
+ * availability questions like "is EQ-0001 free at 10:00?" directly.
  */
 async function fetchLiveContext() {
   try {
-    const [equipResult, roomResult] = await Promise.all([
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const [equipResult, roomResult, bookingsResult] = await Promise.all([
+      // All equipment with status
       db.query(
         `SELECT equipment_id, name, status, department
          FROM forge_equipment
          ORDER BY name
-         LIMIT 100`
+         LIMIT 200`
       ),
+      // All lab rooms
       db.query(
         `SELECT room_id, room_name, department, status
          FROM forge_lab_rooms
          ORDER BY room_id`
       ),
+      // Today's active bookings per equipment with time slots and borrower info
+      db.query(
+        `SELECT
+           e.equipment_id,
+           e.name          AS equipment_name,
+           t.time_slot,
+           t.txn_date,
+           t.status        AS txn_status,
+           u.full_name     AS borrower_name,
+           t.lab_room
+         FROM forge_txn_items i
+         JOIN forge_equipment e ON e.equipment_id = i.equipment_id
+         JOIN forge_transactions t ON t.txn_id = i.txn_id
+         JOIN forge_users u ON u.user_id = t.user_id
+         WHERE t.txn_date = $1
+           AND t.status IN ('ACTIVE', 'PENDING_RETURN', 'CLAIM_ID')
+         ORDER BY e.equipment_id, t.time_slot`,
+        [today]
+      ),
     ]);
 
     const equipment = equipResult.rows;
     const rooms = roomResult.rows;
+    const bookings = bookingsResult.rows;
 
-    const available = equipment.filter((e) => e.status === 'AVAILABLE');
-    const maintenance = equipment.filter((e) => e.status === 'MAINTENANCE');
+    // Build a map: equipment_id → list of booked time slots today
+    const bookingMap = {};
+    for (const b of bookings) {
+      if (!bookingMap[b.equipment_id]) bookingMap[b.equipment_id] = [];
+      bookingMap[b.equipment_id].push({
+        timeSlot: b.time_slot,
+        borrower: b.borrower_name,
+        room: b.lab_room,
+        status: b.txn_status,
+      });
+    }
 
-    const equipmentContext = [
-      `## Live Equipment Status (${equipment.length} total)`,
-      `Available (${available.length}): ${available.map((e) => `${e.equipment_id} — ${e.name}`).join(', ') || 'none'}`,
-      `Under Maintenance (${maintenance.length}): ${maintenance.map((e) => `${e.equipment_id} — ${e.name}`).join(', ') || 'none'}`,
-    ].join('\n');
+    // Build per-equipment availability lines
+    const equipLines = equipment.map((e) => {
+      const slots = bookingMap[e.equipment_id] || [];
+      if (e.status === 'MAINTENANCE') {
+        return `${e.equipment_id} — ${e.name}: UNDER MAINTENANCE (not available for borrowing)`;
+      }
+      if (slots.length === 0) {
+        return `${e.equipment_id} — ${e.name}: AVAILABLE all day today`;
+      }
+      const slotList = slots.map((s) => `${s.timeSlot} (borrowed by ${s.borrower}, room ${s.room})`).join('; ');
+      return `${e.equipment_id} — ${e.name}: BOOKED today during ${slotList}`;
+    });
 
-    const roomContext = [
-      `## Live Lab Room Status (${rooms.length} total)`,
-      rooms.map((r) => `${r.room_id} (${r.room_name}, ${r.department}): ${r.status}`).join('\n'),
-    ].join('\n');
+    const roomLines = rooms.map(
+      (r) => `${r.room_id} (${r.room_name}, ${r.department}): ${r.status}`
+    );
 
-    return `\n\n${equipmentContext}\n\n${roomContext}`;
+    return `
+
+## Current Date & Time
+Today: ${today}
+Current time: ${currentTime}
+
+## Live Equipment Availability — Today (${today})
+Each line shows whether the equipment is free or booked, and during which time slots.
+${equipLines.join('\n')}
+
+## Live Lab Room Status
+${roomLines.join('\n')}
+
+## Instructions for availability questions
+- If asked "is [equipment] available [today / at time X]?", check the booking list above.
+- If the equipment has no bookings, answer: "Yes, [name] is available all day today."
+- If it has bookings, check whether the requested time overlaps. If it does NOT overlap, say it's available at that time. If it DOES overlap, say it's booked during that slot and give the free windows.
+- Be direct and specific. Lead with Yes or No. Then give the time details.
+- Example: "Yes, the Oscilloscope (EQ-0012) is available today. It has no bookings."
+- Example: "No, the Soldering Iron (EQ-0005) is booked from 09:00–11:00 today. It's free before 09:00 and after 11:00."`;
   } catch (err) {
     console.error('AI context fetch error:', err);
     return ''; // degrade gracefully — answer without live data
