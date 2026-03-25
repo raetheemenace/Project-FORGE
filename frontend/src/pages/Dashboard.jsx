@@ -117,6 +117,12 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // AI Q&A state
+  const [aiQuestion, setAiQuestion] = useState('');
+  const [aiAnswer, setAiAnswer] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
+
   // Fetch dashboard data
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -154,6 +160,42 @@ export default function Dashboard() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // TTS: speak dashboard summary after data loads
+  useEffect(() => {
+    if (loading || !ttsEnabled) return;
+    const name = (user?.fullName || user?.username || 'Student').split(' ')[0];
+    const n = activeTransactions.length;
+    const availableRooms = labRooms.filter(
+      (r) => r.status === 'ACTIVE' || r.status === 'AVAILABLE'
+    ).length;
+    const k = labRooms.length;
+    const p = highDemandEquipment.length;
+    const summary = `Hello ${name}. You have ${n} active transaction(s). ${availableRooms} of ${k} lab rooms are available. ${p} high-demand items tracked.`;
+    speak(summary);
+  }, [loading, ttsEnabled]);
+
+  const handleAiAsk = async () => {
+    if (!aiQuestion.trim()) return;
+    setAiLoading(true);
+    setAiError(null);
+    setAiAnswer('');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(
+        `${API_URL}/ai/chat`,
+        { question: aiQuestion },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const answer = res.data.answer;
+      setAiAnswer(answer);
+      if (ttsEnabled) speak(answer);
+    } catch (err) {
+      setAiError(err.response?.data?.error || 'Failed to get an answer. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     signOut();
     navigate('/signin');
@@ -181,10 +223,10 @@ export default function Dashboard() {
       <header
         className="sticky top-0 z-40 text-white"
         style={{
-          background: 'rgba(255, 255, 255, 0.08)',
+          background: 'rgba(255,255,255,0.08)',
           backdropFilter: 'blur(18px)',
           WebkitBackdropFilter: 'blur(18px)',
-          borderBottom: '1px solid rgba(255,255,255,0.12)',
+          borderBottom: '1px solid rgba(0,18,84,0.08)',
         }}
       >
         <div className="max-w-7xl mx-auto px-4 md:px-6">
@@ -331,7 +373,7 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
             onClick={() => navigate('/transactions')}
-            className="bg-white border-2 border-[#0B4EA2]/15 text-[#001254] rounded-xl p-6 flex items-center gap-5 hover:border-[#0B4EA2]/30 hover:shadow-md transition-all group text-left relative overflow-hidden"
+            className="bg-white border border-[#001254]/10 text-[#001254] rounded-xl p-6 flex items-center gap-5 hover:border-[#0B4EA2]/30 hover:shadow-md transition-all group text-left relative overflow-hidden"
           >
             <div className="w-14 h-14 rounded-xl bg-[#0B4EA2]/10 flex items-center justify-center shrink-0 group-hover:bg-[#0B4EA2]/15 transition-colors">
               <Package className="w-7 h-7 text-[#0B4EA2]/70" />
@@ -353,7 +395,7 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
             whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
             onClick={() => navigate('/report-maintenance')}
-            className="bg-white border-2 border-[#001254]/10 text-[#001254] rounded-xl p-6 flex items-center gap-5 hover:border-[#0B4EA2]/30 transition-all group text-left"
+            className="bg-white border border-[#001254]/10 text-[#001254] rounded-xl p-6 flex items-center gap-5 hover:border-[#0B4EA2]/30 transition-all group text-left"
           >
             <div className="w-14 h-14 rounded-xl bg-[#F2F0DB] flex items-center justify-center shrink-0 group-hover:bg-[#F2F0DB]/80 transition-colors">
               <QrCode className="w-7 h-7 text-[#001254]/60" />
@@ -544,6 +586,52 @@ export default function Dashboard() {
             )}
           </motion.div>
         </div>
+
+        {/* AI Q&A Widget */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+          className="rounded-2xl border border-[#001254]/10 bg-white overflow-hidden"
+        >
+          <div className="flex items-center gap-2 px-5 py-4 border-b border-[#001254]/8">
+            <Zap className="w-4 h-4 text-[#0B4EA2]" />
+            <h3 className="text-[#001254]">AI Lab Assistant</h3>
+          </div>
+          <div className="px-5 py-4 space-y-3">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={aiQuestion}
+                onChange={(e) => setAiQuestion(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !aiLoading && handleAiAsk()}
+                placeholder="Ask about equipment, borrowing, or lab policies..."
+                className="flex-1 border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] placeholder-[#001254]/30 focus:outline-none focus:border-[#0B4EA2]/40 bg-[#EFEFE9]/40"
+                style={{ fontSize: '0.85rem' }}
+                disabled={aiLoading}
+              />
+              <button
+                onClick={handleAiAsk}
+                disabled={aiLoading || !aiQuestion.trim()}
+                className="px-4 py-2 bg-[#0B4EA2] hover:bg-[#0a3f8a] active:scale-[0.98] text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ fontSize: '0.85rem' }}
+              >
+                {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Ask'}
+              </button>
+            </div>
+            {aiError && (
+              <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2" style={{ fontSize: '0.8rem' }}>
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                {aiError}
+              </div>
+            )}
+            {aiAnswer && (
+              <div className="bg-[#EFEFE9]/60 border border-[#001254]/8 rounded-lg px-4 py-3 text-[#001254]" style={{ fontSize: '0.85rem', lineHeight: '1.6' }}>
+                {aiAnswer}
+              </div>
+            )}
+          </div>
+        </motion.div>
 
       </main>
     </div>

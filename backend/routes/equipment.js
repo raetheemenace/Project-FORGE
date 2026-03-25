@@ -22,14 +22,25 @@ router.get('/:id', authenticateToken, async (req, res) => {
 
   try {
     const result = await db.query(
-      'SELECT equipment_id, name, status FROM forge_equipment WHERE equipment_id = $1',
+      `SELECT equipment_id, name, status,
+              COALESCE(condition, NULL) AS condition,
+              COALESCE(location, NULL) AS location,
+              COALESCE(description, NULL) AS description
+       FROM forge_equipment WHERE equipment_id = $1`,
       [id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Equipment not found.' });
     }
     const row = result.rows[0];
-    return res.json({ equipmentId: row.equipment_id, name: row.name, status: row.status });
+    return res.json({
+      equipmentId: row.equipment_id,
+      name: row.name,
+      status: row.status,
+      condition: row.condition ?? null,
+      location: row.location ?? null,
+      description: row.description ?? null,
+    });
   } catch (err) {
     console.error('Equipment lookup error:', err);
     return res.status(500).json({ error: 'Failed to fetch equipment.' });

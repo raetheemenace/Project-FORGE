@@ -1,21 +1,30 @@
 const QRCode = require('qrcode');
 
 /**
- * Generate a QR code containing Equipment ID in JSON format
+ * Generate a QR code containing Equipment ID in JSON format, or as a URL.
  * @param {string} equipmentId - The equipment ID to encode
+ * @param {object} [options]
+ * @param {boolean} [options.asUrl=false] - When true, encode a URL payload instead of JSON
  * @returns {Promise<string>} QR code as PNG data URL
  */
-async function generateQRCode(equipmentId) {
+async function generateQRCode(equipmentId, { asUrl = false } = {}) {
   if (!equipmentId) {
     throw new Error('Equipment ID is required');
   }
 
-  // Create JSON payload with equipment information
-  const qrData = JSON.stringify({
-    type: 'FORGE_EQUIPMENT',
-    equipmentId: equipmentId,
-    timestamp: new Date().toISOString()
-  });
+  // Build the payload
+  let qrData;
+  if (asUrl) {
+    const domain = process.env.APP_DOMAIN || 'localhost:5173';
+    qrData = `https://${domain}/equipment/${equipmentId}`;
+  } else {
+    // Default: JSON payload (existing behaviour — do not change)
+    qrData = JSON.stringify({
+      type: 'FORGE_EQUIPMENT',
+      equipmentId: equipmentId,
+      timestamp: new Date().toISOString()
+    });
+  }
 
   try {
     // Generate QR code with high error correction and 300x300px size

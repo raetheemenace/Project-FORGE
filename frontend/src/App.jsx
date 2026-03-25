@@ -21,6 +21,7 @@ import MaintenanceTickets from './pages/admin/MaintenanceTickets';
 import UserManagement from './pages/admin/UserManagement';
 import LabRoomManagement from './pages/admin/LabRoomManagement';
 import SystemReports from './pages/admin/SystemReports';
+import MachineDetail from './pages/MachineDetail';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -30,18 +31,18 @@ function ProtectedRoute({ children }) {
 
 function AdminRoute({ children }) {
   const { user, isAuthenticated, loading } = useAuth();
-  
+
   if (loading) return null;
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/signin" replace />;
   }
-  
+
   // Check if user has LAB_ADMIN role
   if (user?.role !== 'LAB_ADMIN') {
     return <Navigate to="/dashboard" replace />;
   }
-  
+
   return children;
 }
 
@@ -72,7 +73,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
-          
+
           {/* Protected User Routes */}
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/borrow" element={<ProtectedRoute><BorrowStep1 /></ProtectedRoute>} />
@@ -84,7 +85,8 @@ function App() {
           <Route path="/transactions" element={<ProtectedRoute><MyTransactions /></ProtectedRoute>} />
           <Route path="/report-maintenance" element={<ProtectedRoute><ReportMaintenance /></ProtectedRoute>} />
           <Route path="/offline" element={<OfflinePage />} />
-          
+          <Route path="/equipment/:id" element={<ProtectedRoute><MachineDetail /></ProtectedRoute>} />
+
           {/* Admin Routes - Protected */}
           <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/admin/equipment" element={<AdminRoute><EquipmentManagement /></AdminRoute>} />
@@ -93,7 +95,7 @@ function App() {
           <Route path="/admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
           <Route path="/admin/rooms" element={<AdminRoute><LabRoomManagement /></AdminRoute>} />
           <Route path="/admin/reports" element={<AdminRoute><SystemReports /></AdminRoute>} />
-          
+
           {/* Redirect any unknown routes to landing page */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

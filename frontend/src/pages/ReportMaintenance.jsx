@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, QrCode, CheckCircle2, AlertTriangle, LayoutDashboard, Camera, X, Mic, MicOff } from 'lucide-react';
+import { ArrowLeft, QrCode, CheckCircle2, AlertTriangle, LayoutDashboard, Camera, X, Mic, MicOff, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import logo from '../assets/logo_landingpage.png';
 import { useQRScanner } from '../hooks/useQRScanner';
@@ -18,6 +18,17 @@ const SEVERITY_COLORS = {
 
 export default function ReportMaintenance() {
   const navigate = useNavigate();
+
+  // Camera refs (mirror BorrowStep3 pattern)
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+
+  // Camera state (req 2.4)
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+  const [capturedImage, setCapturedImage] = useState(null);
 
   // Form state
   const [equipmentId, setEquipmentId] = useState('');
@@ -68,14 +79,61 @@ export default function ReportMaintenance() {
     };
   }, [stopScanner]);
 
+  // Stop camera stream on unmount (req 2.4)
+  useEffect(() => {
+    return () => stopCamera();
+  }, []);
+
+  // Start camera (req 2.4)
+  async function startCamera() {
+    setCameraError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current.play();
+          setCameraReady(true);
+        };
+      }
+      setCameraOpen(true);
+    } catch (err) {
+      setCameraError(err.message || 'Camera access denied or unavailable.');
+    }
+  }
+
+  // Stop camera (req 2.4)
+  function stopCamera() {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setCameraOpen(false);
+    setCameraReady(false);
+  }
+
+  // Capture still frame from video (req 2.4)
+  function capturePhoto() {
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    if (!canvas || !video) return;
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    setCapturedImage(dataUrl);
+    stopCamera();
+  }
+
   // Start QR scanner with 5-second timeout (req 10.8)
   const handleStartScan = () => {
     setScanError('');
     setScanning(true);
-    
-    // Start the scanner
-    startScanner('qr-reader');
-    
+
+    // Delay scanner init by 100ms to ensure #qr-reader is painted (mirror BorrowStep3 pattern)
+    setTimeout(() => startScanner('qr-reader'), 100);
+
     // Set 5-second timeout for failed scans (req 10.8)
     scanTimeoutRef.current = setTimeout(() => {
       setScanError('QR scan timeout. Please try again or enter Equipment ID manually.');
@@ -135,9 +193,11 @@ export default function ReportMaintenance() {
     setSubmitting(true);
     try {
       const token = localStorage.getItem('token');
+      const body = { equipmentId: equipmentId || undefined, severity, description: description.trim() };
+      if (capturedImage) body.photoBase64 = capturedImage;
       await axios.post(
         '/api/maintenance',
-        { equipmentId: equipmentId || undefined, severity, description: description.trim() },
+        body,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSubmittedEquipmentId(equipmentId || '—');
@@ -297,7 +357,7 @@ export default function ReportMaintenance() {
               {scanning ? (
                 <div className="w-full">
                   {/* QR scanner container */}
-                  <div id="qr-reader" className="w-full"></div>
+                  <div id="qr-reader" className="w-full min-h-[300px]" />
                   <div className="flex justify-center mt-3">
                     <button
                       type="button"
@@ -306,6 +366,69 @@ export default function ReportMaintenance() {
                     >
                       <X className="w-4 h-4" />
                       Cancel Scan
+                    </button>
+                  </div>
+                </div>
+              ) : cameraOpen ? (
+                /* Camera viewfinder (req 2.4) */
+                <div className="w-full space-y-3">
+                  <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-[#001254]/10">
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover"
+                      aria-label="Camera viewfinder"
+                    />
+                    <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
+                    {cameraError && (
+                      <div className="absolute inset-0 bg-[#001254]/80 flex items-center justify-center p-4">
+                        <div className="text-center text-white space-y-2">
+                          <AlertTriangle className="w-8 h-8 mx-auto text-red-300" />
+                          <p className="text-xs">{cameraError}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={capturePhoto}
+                      disabled={!cameraReady}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0B4EA2] text-white text-xs font-semibold hover:bg-[#0a3f8a] transition-all active:scale-[0.97] disabled:opacity-40"
+                    >
+                      <Camera className="w-4 h-4" />
+                      Capture Photo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={stopCamera}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 text-white text-xs font-semibold hover:bg-red-600 transition-all active:scale-[0.97]"
+                    >
+                      <X className="w-4 h-4" />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : capturedImage ? (
+                /* Captured image preview (req 2.4) */
+                <div className="w-full space-y-3">
+                  <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-[#001254]/10">
+                    <img
+                      src={capturedImage}
+                      alt="Captured photo"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() => { setCapturedImage(null); startCamera(); }}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#001254]/10 text-[#001254]/70 text-xs font-semibold hover:bg-[#001254]/15 transition-all active:scale-[0.97]"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Retake
                     </button>
                   </div>
                 </div>
@@ -326,14 +449,25 @@ export default function ReportMaintenance() {
                     </div>
                   )}
                   
-                  <button
-                    type="button"
-                    onClick={handleStartScan}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0B4EA2] text-white text-xs font-semibold hover:bg-[#0a3f8a] transition-all active:scale-[0.97]"
-                  >
-                    <Camera className="w-4 h-4" />
-                    Scan QR Code
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleStartScan}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0B4EA2] text-white text-xs font-semibold hover:bg-[#0a3f8a] transition-all active:scale-[0.97]"
+                    >
+                      <QrCode className="w-4 h-4" />
+                      Scan QR Code
+                    </button>
+                    <button
+                      type="button"
+                      onClick={startCamera}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#001254]/10 text-[#001254]/70 text-xs font-semibold hover:bg-[#001254]/15 transition-all active:scale-[0.97]"
+                      aria-label="Take photo"
+                    >
+                      <Camera className="w-4 h-4" />
+                      Take Photo
+                    </button>
+                  </div>
                 </>
               )}
             </div>
