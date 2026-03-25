@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, QrCode, CheckCircle2, AlertTriangle, LayoutDashboard, Camera, X, Mic, MicOff, RefreshCw } from 'lucide-react';
@@ -41,33 +41,32 @@ export default function ReportMaintenance() {
   const [scanError, setScanError] = useState('');
   const scanTimeoutRef = useRef(null);
 
-  // QR scanner hook with success/error callbacks
-  const { startScanner, stopScanner } = useQRScanner(
-    // onScanSuccess - auto-fill Equipment ID (req 10.2)
-    (equipmentId) => {
-      setEquipmentId(equipmentId);
-      setScanning(false);
-      setScanError('');
-      stopScanner();
-      if (errors.equipmentId) setErrors((prev) => ({ ...prev, equipmentId: '' }));
-      // Clear timeout if scan succeeded
-      if (scanTimeoutRef.current) {
-        clearTimeout(scanTimeoutRef.current);
-        scanTimeoutRef.current = null;
-      }
-    },
-    // onScanError - handle invalid QR codes (req 10.3, 10.8)
-    (error) => {
-      setScanError(error);
-      setScanning(false);
-      stopScanner();
-      // Clear timeout if scan failed
-      if (scanTimeoutRef.current) {
-        clearTimeout(scanTimeoutRef.current);
-        scanTimeoutRef.current = null;
-      }
+  // QR scanner hook with success/error callbacks (memoized to keep startScanner stable)
+  const handleScanSuccess = useCallback((scannedId) => {
+    setEquipmentId(scannedId);
+    setScanning(false);
+    setScanError('');
+    stopScanner();
+    setErrors((prev) => ({ ...prev, equipmentId: '' }));
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = null;
     }
-  );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleScanError = useCallback((error) => {
+    setScanError(error);
+    setScanning(false);
+    stopScanner();
+    if (scanTimeoutRef.current) {
+      clearTimeout(scanTimeoutRef.current);
+      scanTimeoutRef.current = null;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const { startScanner, stopScanner } = useQRScanner(handleScanSuccess, handleScanError);
 
   // Cleanup scanner on unmount
   useEffect(() => {
