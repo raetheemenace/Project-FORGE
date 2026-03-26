@@ -81,19 +81,29 @@ export default function ReportMaintenance() {
   // Start camera (req 2.4)
   async function startCamera() {
     setCameraError(null);
+    setCameraReady(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
       });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current.play();
-          setCameraReady(true);
+          videoRef.current.play()
+            .then(() => {
+              setCameraReady(true);
+              setCameraOpen(true);
+            })
+            .catch(err => {
+              console.error('Error playing video:', err);
+              setCameraError('Failed to start camera preview.');
+            });
+        };
+        videoRef.current.onerror = () => {
+          setCameraError('Error loading camera feed.');
         };
       }
-      setCameraOpen(true);
     } catch (err) {
       setCameraError(err.message || 'Camera access denied or unavailable.');
     }
@@ -111,13 +121,30 @@ export default function ReportMaintenance() {
   function capturePhoto() {
     const canvas = canvasRef.current;
     const video = videoRef.current;
-    if (!canvas || !video) return;
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-    setCapturedImage(dataUrl);
-    stopCamera();
+    if (!canvas || !video) {
+      setCameraError('Camera not initialized.');
+      return;
+    }
+    
+    // Check if video is ready and has dimensions
+    if (!video.readyState || video.readyState < 2) {
+      setCameraError('Camera not ready. Please wait a moment and try again.');
+      return;
+    }
+    
+    const width = video.videoWidth || 640;
+    const height = video.videoHeight || 480;
+    canvas.width = width;
+    canvas.height = height;
+    
+    try {
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      setCapturedImage(dataUrl);
+      stopCamera();
+    } catch (err) {
+      setCameraError('Failed to capture photo: ' + err.message);
+    }
   }
 
   // Start QR scanner — give the DOM 200ms to paint #qr-reader before init
