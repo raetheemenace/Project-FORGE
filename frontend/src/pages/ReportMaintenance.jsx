@@ -24,8 +24,10 @@ export default function ReportMaintenance() {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
-  // Camera state (req 2.4)
-  const [cameraOpen, setCameraOpen] = useState(false);
+  // Camera state
+  // cameraActive = true means we're in camera mode (video element is mounted)
+  // cameraReady  = true means the stream is flowing and capture is safe
+  const [cameraActive, setCameraActive] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
@@ -73,78 +75,71 @@ export default function ReportMaintenance() {
     };
   }, [stopScanner]);
 
-  // Stop camera stream on unmount (req 2.4)
+  // Stop camera stream on unmount
   useEffect(() => {
-    return () => stopCamera();
+    return () => {
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
   }, []);
 
-  // Start camera (req 2.4)
+  // Wire the stream to the <video> element once cameraActive=true mounts it
+  useEffect(() => {
+    if (!cameraActive) return;
+    const video = videoRef.current;
+    if (!video || !streamRef.current) return;
+    video.srcObject = streamRef.current;
+    video.onloadedmetadata = () => {
+      video.play()
+        .then(() => setCameraReady(true))
+        .catch((err) => setCameraError('Failed to start camera preview: ' + err.message));
+    };
+    video.onerror = () => setCameraError('Error loading camera feed.');
+  }, [cameraActive]);
+
+  // Open camera — request stream first, then flip cameraActive to mount the video element
   async function startCamera() {
     setCameraError(null);
     setCameraReady(false);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
       });
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current.play()
-            .then(() => {
-              setCameraReady(true);
-              setCameraOpen(true);
-            })
-            .catch(err => {
-              console.error('Error playing video:', err);
-              setCameraError('Failed to start camera preview.');
-            });
-        };
-        videoRef.current.onerror = () => {
-          setCameraError('Error loading camera feed.');
-        };
-      }
+      setCameraActive(true); // mounts <video> — useEffect above will assign srcObject
     } catch (err) {
-      setCameraError(err.message || 'Camera access denied or unavailable.');
+      const msg =
+        err.name === 'NotAllowedError' ? 'Camera permission denied. Please allow camera access and try again.' :
+        err.name === 'NotFoundError' ? 'No camera found on this device.' :
+        err.name === 'NotReadableError' ? 'Camera is in use by another app. Please close it and retry.' :
+        err.message || 'Camera unavailable.';
+      setCameraError(msg);
     }
   }
 
-  // Stop camera (req 2.4)
+  // Close camera and release stream
   function stopCamera() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-    setCameraOpen(false);
+    setCameraActive(false);
     setCameraReady(false);
+    setCameraError(null);
   }
 
-  // Capture still frame from video (req 2.4)
+  // Capture a still frame from the live video
   function capturePhoto() {
-    const canvas = canvasRef.current;
     const video = videoRef.current;
-    if (!canvas || !video) {
-      setCameraError('Camera not initialized.');
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+    if (video.readyState < 2) {
+      setCameraError('Camera not ready yet — please wait a moment.');
       return;
     }
-    
-    // Check if video is ready and has dimensions
-    if (!video.readyState || video.readyState < 2) {
-      setCameraError('Camera not ready. Please wait a moment and try again.');
-      return;
-    }
-    
-    const width = video.videoWidth || 640;
-    const height = video.videoHeight || 480;
-    canvas.width = width;
-    canvas.height = height;
-    
-    try {
-      canvas.getContext('2d').drawImage(video, 0, 0);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      setCapturedImage(dataUrl);
-      stopCamera();
-    } catch (err) {
-      setCameraError('Failed to capture photo: ' + err.message);
-    }
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+    setCapturedImage(dataUrl);
+    stopCamera();
   }
 
   // Start QR scanner — give the DOM 200ms to paint #qr-reader before init
@@ -389,10 +384,11 @@ export default function ReportMaintenance() {
                     </button>
                   </div>
                 </div>
-              ) : cameraOpen ? (
-                /* Camera viewfinder (req 2.4) */
-                <div className="w-full space-y-3">
-                  <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-[#001254]/10">
+              ) : cameraActive ? (
+                /* Camera viewfinder */
+                <div className="w-full space-y-3 px-2">
+                  {/* Video element is always rendered while cameraActive=true */}
+                  <div className="relative w-full rounded-xl overflow-hidden bg-black" style={{ aspectRatio: '4/3' }}>
                     <video
                       ref={videoRef}
                       autoPlay
@@ -402,24 +398,41 @@ export default function ReportMaintenance() {
                       aria-label="Camera viewfinder"
                     />
                     <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
-                    {cameraError && (
-                      <div className="absolute inset-0 bg-[#001254]/80 flex items-center justify-center p-4">
-                        <div className="text-center text-white space-y-2">
-                          <AlertTriangle className="w-8 h-8 mx-auto text-red-300" />
-                          <p className="text-xs">{cameraError}</p>
+                    {/* Loading overlay while stream isn't flowing yet */}
+                    {!cameraReady && !cameraError && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                        <div className="flex flex-col items-center gap-2 text-white">
+                          <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span className="text-xs">Starting camera…</span>
                         </div>
                       </div>
                     )}
+                    {/* Corner guides when ready */}
+                    {cameraReady && (
+                      <>
+                        <div className="absolute top-2 left-2 w-5 h-5 border-t-2 border-l-2 border-white/70 rounded-tl" />
+                        <div className="absolute top-2 right-2 w-5 h-5 border-t-2 border-r-2 border-white/70 rounded-tr" />
+                        <div className="absolute bottom-2 left-2 w-5 h-5 border-b-2 border-l-2 border-white/70 rounded-bl" />
+                        <div className="absolute bottom-2 right-2 w-5 h-5 border-b-2 border-r-2 border-white/70 rounded-br" />
+                      </>
+                    )}
                   </div>
+                  {/* Camera error shown below the viewfinder */}
+                  {cameraError && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      {cameraError}
+                    </div>
+                  )}
                   <div className="flex justify-center gap-2">
                     <button
                       type="button"
                       onClick={capturePhoto}
                       disabled={!cameraReady}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0B4EA2] text-white text-xs font-semibold hover:bg-[#0a3f8a] transition-all active:scale-[0.97] disabled:opacity-40"
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0B4EA2] text-white text-xs font-semibold hover:bg-[#0a3f8a] transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Camera className="w-4 h-4" />
-                      Capture Photo
+                      {cameraReady ? 'Capture Photo' : 'Starting…'}
                     </button>
                     <button
                       type="button"
@@ -432,14 +445,18 @@ export default function ReportMaintenance() {
                   </div>
                 </div>
               ) : capturedImage ? (
-                /* Captured image preview (req 2.4) */
-                <div className="w-full space-y-3">
-                  <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-[#001254]/10">
+                /* Captured image preview */
+                <div className="w-full space-y-3 px-2">
+                  <div className="relative w-full rounded-xl overflow-hidden bg-[#001254]/10" style={{ aspectRatio: '4/3' }}>
                     <img
                       src={capturedImage}
                       alt="Captured photo"
                       className="w-full h-full object-cover"
                     />
+                    <div className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500 text-white text-xs font-semibold px-2 py-1 rounded-full">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Photo saved
+                    </div>
                   </div>
                   <div className="flex justify-center">
                     <button
@@ -448,7 +465,7 @@ export default function ReportMaintenance() {
                       className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#001254]/10 text-[#001254]/70 text-xs font-semibold hover:bg-[#001254]/15 transition-all active:scale-[0.97]"
                     >
                       <RefreshCw className="w-4 h-4" />
-                      Retake
+                      Retake Photo
                     </button>
                   </div>
                 </div>
