@@ -82,7 +82,7 @@ export default function MachineDetail() {
 
         {error && (
           <div className="rounded-2xl border border-red-200 bg-white p-6 flex items-start gap-4">
-            <AlertTriangle size={24} className="text-red-500 flex-shrink-0 mt-0.5" />
+            <AlertTriangle size={24} className="text-red-500 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-red-700">Error</p>
               <p className="text-sm text-red-600 mt-1">{error}</p>

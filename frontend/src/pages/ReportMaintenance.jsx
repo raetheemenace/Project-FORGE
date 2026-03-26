@@ -130,8 +130,8 @@ export default function ReportMaintenance() {
     setScanError('');
     setScanning(true);
 
-    // Delay scanner init by 100ms to ensure #qr-reader is painted (mirror BorrowStep3 pattern)
-    setTimeout(() => startScanner('qr-reader'), 100);
+    // Delay scanner init by 300ms to ensure #qr-reader is fully painted (increased from 100ms for reliability)
+    setTimeout(() => startScanner('qr-reader'), 300);
 
     // Set 5-second timeout for failed scans (req 10.8)
     scanTimeoutRef.current = setTimeout(() => {
@@ -352,7 +352,7 @@ export default function ReportMaintenance() {
             </p>
 
             {/* QR scan area */}
-            <div className="flex flex-col items-center gap-3 py-4 rounded-xl border-2 border-dashed border-[#001254]/15 bg-[#EFEFE9]/60 relative overflow-hidden">
+            <div className="flex flex-col items-center gap-3 py-4 rounded-xl border-2 border-dashed border-[#001254]/15 bg-[#EFEFE9]/60 relative">
               {scanning ? (
                 <div className="w-full">
                   {/* QR scanner container */}

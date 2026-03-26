@@ -571,7 +571,7 @@ export default function Dashboard() {
                           </div>
                           <div className="w-full h-1.5 bg-[#001254]/5 rounded-full overflow-hidden">
                             <motion.div
-                              className="h-full bg-gradient-to-r from-[#0B4EA2] to-[#001254] rounded-full"
+                              className="h-full bg-linear-to-r from-[#0B4EA2] to-[#001254] rounded-full"
                               initial={{ width: '0%' }}
                               animate={{ width: `${pct}%` }}
                               transition={{ duration: 1, delay: 0.3 + i * 0.1 }}
@@ -592,44 +592,93 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35 }}
-          className="rounded-2xl border border-[#001254]/10 bg-white overflow-hidden"
+          className="rounded-2xl overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, #001254 0%, #0B4EA2 100%)',
+            boxShadow: '0 4px 24px rgba(0,18,84,0.18)',
+          }}
         >
-          <div className="flex items-center gap-2 px-5 py-4 border-b border-[#001254]/8">
-            <Zap className="w-4 h-4 text-[#0B4EA2]" />
-            <h3 className="text-[#001254]">AI Lab Assistant</h3>
+          {/* Header */}
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10">
+            <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
+              <Zap className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-white font-semibold" style={{ fontSize: '0.95rem' }}>AI Lab Assistant</h3>
+              <p className="text-white/40" style={{ fontSize: '0.65rem' }}>Ask about equipment, borrowing, or lab policies</p>
+            </div>
           </div>
-          <div className="px-5 py-4 space-y-3">
+
+          {/* Answer area — only shown when there's a response */}
+          <AnimatePresence>
+            {(aiAnswer || aiError) && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="px-5 pt-4"
+              >
+                {aiError ? (
+                  <div className="flex items-start gap-3 bg-red-500/20 border border-red-400/30 rounded-xl px-4 py-3 mb-1">
+                    <AlertTriangle className="w-4 h-4 text-red-300 shrink-0 mt-0.5" />
+                    <p className="text-red-200" style={{ fontSize: '0.85rem' }}>{aiError}</p>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    {/* Answer bubble */}
+                    <div
+                      className="bg-white/10 border border-white/15 rounded-xl px-4 py-3.5 backdrop-blur-sm"
+                    >
+                      {/* "FORGE" label */}
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center">
+                          <Zap className="w-2.5 h-2.5 text-white" />
+                        </div>
+                        <span className="text-white/50 font-medium" style={{ fontSize: '0.65rem', letterSpacing: '0.08em' }}>FORGE ASSISTANT</span>
+                      </div>
+                      <p className="text-white/90 whitespace-pre-wrap" style={{ fontSize: '0.875rem', lineHeight: '1.65' }}>
+                        {aiAnswer}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Input row */}
+          <div className="px-5 py-4">
             <div className="flex gap-2">
               <input
                 type="text"
                 value={aiQuestion}
                 onChange={(e) => setAiQuestion(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !aiLoading && handleAiAsk()}
-                placeholder="Ask about equipment, borrowing, or lab policies..."
-                className="flex-1 border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] placeholder-[#001254]/30 focus:outline-none focus:border-[#0B4EA2]/40 bg-[#EFEFE9]/40"
-                style={{ fontSize: '0.85rem' }}
+                placeholder="Ask a question…"
+                className="flex-1 rounded-xl px-4 py-2.5 text-white placeholder-white/30 outline-none transition-all"
+                style={{
+                  fontSize: '0.875rem',
+                  background: 'rgba(255,255,255,0.10)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                }}
+                onFocus={(e) => { e.target.style.background = 'rgba(255,255,255,0.15)'; e.target.style.borderColor = 'rgba(255,255,255,0.35)'; }}
+                onBlur={(e) => { e.target.style.background = 'rgba(255,255,255,0.10)'; e.target.style.borderColor = 'rgba(255,255,255,0.15)'; }}
                 disabled={aiLoading}
               />
               <button
                 onClick={handleAiAsk}
                 disabled={aiLoading || !aiQuestion.trim()}
-                className="px-4 py-2 bg-[#0B4EA2] hover:bg-[#0a3f8a] active:scale-[0.98] text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ fontSize: '0.85rem' }}
+                className="px-4 py-2.5 rounded-xl font-semibold transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                style={{
+                  fontSize: '0.85rem',
+                  background: aiLoading || !aiQuestion.trim() ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,1)',
+                  color: aiLoading || !aiQuestion.trim() ? 'rgba(255,255,255,0.5)' : '#001254',
+                }}
               >
                 {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Ask'}
               </button>
             </div>
-            {aiError && (
-              <div className="flex items-center gap-2 text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2" style={{ fontSize: '0.8rem' }}>
-                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                {aiError}
-              </div>
-            )}
-            {aiAnswer && (
-              <div className="bg-[#EFEFE9]/60 border border-[#001254]/8 rounded-lg px-4 py-3 text-[#001254]" style={{ fontSize: '0.85rem', lineHeight: '1.6' }}>
-                {aiAnswer}
-              </div>
-            )}
           </div>
         </motion.div>
 

@@ -24,7 +24,8 @@ export function useQRScanner(onScanSuccess, onScanError) {
     const scanner = new Html5QrcodeScanner(elementId, {
       fps: 10,
       qrbox: { width: 250, height: 250 },
-      aspectRatio: 1.0,
+      // Let the library handle aspect ratio automatically for better compatibility
+      // Removed explicit aspectRatio to avoid issues on different screen sizes
       facingMode: 'environment', // Use back camera on mobile
       rememberLastUsedCamera: true,
       showTorchButtonIfSupported: true,
