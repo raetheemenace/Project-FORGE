@@ -41,32 +41,27 @@ export default function ReportMaintenance() {
   const [scanError, setScanError] = useState('');
   const scanTimeoutRef = useRef(null);
 
-  // QR scanner hook with success/error callbacks (memoized to keep startScanner stable)
-  const handleScanSuccess = useCallback((scannedId) => {
-    setEquipmentId(scannedId);
-    setScanning(false);
-    setScanError('');
-    stopScanner();
-    setErrors((prev) => ({ ...prev, equipmentId: '' }));
-    if (scanTimeoutRef.current) {
-      clearTimeout(scanTimeoutRef.current);
-      scanTimeoutRef.current = null;
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleScanError = useCallback((error) => {
-    setScanError(error);
-    setScanning(false);
-    stopScanner();
-    if (scanTimeoutRef.current) {
-      clearTimeout(scanTimeoutRef.current);
-      scanTimeoutRef.current = null;
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const { startScanner, stopScanner } = useQRScanner(handleScanSuccess, handleScanError);
+  // useQRScanner captures callbacks via refs internally — no circular dep issue
+  const { startScanner, stopScanner } = useQRScanner(
+    useCallback((scannedId) => {
+      setEquipmentId(scannedId);
+      setScanning(false);
+      setScanError('');
+      setErrors((prev) => ({ ...prev, equipmentId: '' }));
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+        scanTimeoutRef.current = null;
+      }
+    }, []),
+    useCallback((error) => {
+      setScanError(error);
+      setScanning(false);
+      if (scanTimeoutRef.current) {
+        clearTimeout(scanTimeoutRef.current);
+        scanTimeoutRef.current = null;
+      }
+    }, [])
+  );
 
   // Cleanup scanner on unmount
   useEffect(() => {
@@ -125,31 +120,30 @@ export default function ReportMaintenance() {
     stopCamera();
   }
 
-  // Start QR scanner with 5-second timeout (req 10.8)
+  // Start QR scanner — give the DOM 200ms to paint #qr-reader before init
   const handleStartScan = () => {
     setScanError('');
     setScanning(true);
+    setTimeout(() => startScanner('qr-reader'), 200);
 
-    // Delay scanner init by 300ms to ensure #qr-reader is fully painted (increased from 100ms for reliability)
-    setTimeout(() => startScanner('qr-reader'), 300);
-
-    // Set 5-second timeout for failed scans (req 10.8)
+    // 30-second safety timeout — gives the user enough time to actually scan
     scanTimeoutRef.current = setTimeout(() => {
-      setScanError('QR scan timeout. Please try again or enter Equipment ID manually.');
+      setScanError('Scan timed out. Please try again or enter the Equipment ID manually.');
       setScanning(false);
       stopScanner();
-    }, 5000);
+      scanTimeoutRef.current = null;
+    }, 30000);
   };
 
   // Stop scanning
   const handleStopScan = () => {
-    setScanning(false);
-    setScanError('');
-    stopScanner();
     if (scanTimeoutRef.current) {
       clearTimeout(scanTimeoutRef.current);
       scanTimeoutRef.current = null;
     }
+    stopScanner();
+    setScanning(false);
+    setScanError('');
   };
 
   // STT for description field

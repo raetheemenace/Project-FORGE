@@ -2,81 +2,86 @@ import { useRef, useCallback } from 'react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
 /**
- * Custom hook for QR code scanning using html5-qrcode library
- * Handles camera lifecycle, QR decode success/error callbacks
- * Requirements: 10.2, 10.7
+ * Custom hook for QR code scanning using html5-qrcode library.
+ * Callbacks are captured via refs so startScanner/stopScanner identities
+ * never change across re-renders (no stale-closure risk).
  */
 export function useQRScanner(onScanSuccess, onScanError) {
   const scannerRef = useRef(null);
-  
-  /**
-   * Start the QR scanner on a given HTML element
-   * @param {string} elementId - The ID of the HTML element to render the scanner in
-   */
+
+  // Keep latest callbacks in refs — avoids needing them as useCallback deps
+  const onSuccessRef = useRef(onScanSuccess);
+  const onErrorRef = useRef(onScanError);
+  onSuccessRef.current = onScanSuccess;
+  onErrorRef.current = onScanError;
+
+  const stopScanner = useCallback(() => {
+    const scanner = scannerRef.current;
+    if (!scanner) return;
+    scannerRef.current = null; // clear ref immediately to prevent double-stop
+    scanner.clear().catch((err) => {
+      // html5-qrcode throws if clear() is called before render() completes;
+      // safe to ignore — the scanner is already being torn down.
+      console.warn('QR scanner clear warning (safe to ignore):', err?.message ?? err);
+    });
+  }, []);
+
   const startScanner = useCallback((elementId) => {
-    // Clean up any existing scanner
-    if (scannerRef.current) {
-      scannerRef.current.clear().catch(err => {
-        console.warn('Error clearing previous scanner:', err);
-      });
+    // Tear down any existing instance first
+    const existing = scannerRef.current;
+    if (existing) {
+      scannerRef.current = null;
+      existing.clear().catch(() => {});
     }
 
-    const scanner = new Html5QrcodeScanner(elementId, {
-      fps: 10,
-      qrbox: { width: 250, height: 250 },
-      aspectRatio: 1.0,
-      facingMode: 'environment', // Use back camera on mobile
-      rememberLastUsedCamera: true,
-      showTorchButtonIfSupported: true,
-    });
-    
+    const scanner = new Html5QrcodeScanner(
+      elementId,
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.0,
+        facingMode: 'environment',
+        rememberLastUsedCamera: true,
+        showTorchButtonIfSupported: true,
+      },
+      /* verbose= */ false
+    );
+
     scanner.render(
       (decodedText) => {
+        // Use ref so we always call the latest callback
         try {
-          // Try to parse as JSON (FORGE QR codes contain JSON)
           const data = JSON.parse(decodedText);
           if (data.type === 'FORGE_EQUIPMENT' && data.equipmentId) {
-            onScanSuccess(data.equipmentId);
+            onSuccessRef.current(data.equipmentId);
           } else {
-            onScanError('Invalid QR code format: Missing equipment information');
+            onErrorRef.current('Invalid QR code format: Missing equipment information');
           }
-        } catch (err) {
-          // If not JSON, treat as plain text equipment ID
-          // This allows for simple QR codes that just contain the ID
-          if (decodedText && decodedText.trim()) {
-            onScanSuccess(decodedText.trim());
+        } catch {
+          // Plain-text QR (just the equipment ID)
+          const trimmed = decodedText?.trim();
+          if (trimmed) {
+            onSuccessRef.current(trimmed);
           } else {
-            onScanError('Invalid QR code format: Unable to extract equipment ID');
+            onErrorRef.current('Invalid QR code format: Unable to extract equipment ID');
           }
         }
       },
-      (error) => {
-        // This callback fires frequently during scanning, so we don't treat it as an error
-        // Only log actual errors, not "No QR code found" messages
-        if (error && !error.includes('NotFoundException')) {
-          console.debug('QR scan error:', error);
+      (errorMsg) => {
+        // This fires on every frame where no QR is found — not a real error.
+        // Only surface genuine errors (not NotFoundException / No MultiFormat).
+        if (
+          errorMsg &&
+          !errorMsg.includes('NotFoundException') &&
+          !errorMsg.includes('No MultiFormat')
+        ) {
+          console.debug('QR frame error:', errorMsg);
         }
       }
     );
-    
+
     scannerRef.current = scanner;
-  }, [onScanSuccess, onScanError]);
-  
-  /**
-   * Stop the QR scanner and clean up resources
-   */
-  const stopScanner = useCallback(() => {
-    if (scannerRef.current) {
-      scannerRef.current.clear()
-        .then(() => {
-          scannerRef.current = null;
-        })
-        .catch(err => {
-          console.error('Error stopping scanner:', err);
-          scannerRef.current = null;
-        });
-    }
-  }, []);
-  
+  }, []); // stable — no external deps needed thanks to refs
+
   return { startScanner, stopScanner };
 }

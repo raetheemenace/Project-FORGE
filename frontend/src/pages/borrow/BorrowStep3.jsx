@@ -50,6 +50,7 @@ export default function BorrowStep3() {
   speak_ref.current = speak;
 
   // QR scan success: fetch equipment details and auto-add to cart
+  // speak_ref.current always has the latest speak — no need to list speak as dep
   const handleQRSuccess = useCallback(async (equipmentId) => {
     setQrLookupError(null);
     try {
@@ -65,7 +66,7 @@ export default function BorrowStep3() {
       };
       setCartItems((prev) => {
         const next = [...prev, item];
-        speak(`${data.name} added to cart via QR. ${next.length} item${next.length !== 1 ? 's' : ''} in cart.`);
+        speak_ref.current(`${data.name} added to cart via QR. ${next.length} item${next.length !== 1 ? 's' : ''} in cart.`);
         return next;
       });
     } catch (err) {
@@ -73,9 +74,9 @@ export default function BorrowStep3() {
         ? `Equipment "${equipmentId}" not found in the system.`
         : 'Could not look up equipment. Please retry.';
       setQrLookupError(msg);
-      speak('QR error. ' + msg);
+      speak_ref.current('QR error. ' + msg);
     }
-  }, [speak]);
+  }, []); // stable — uses speak_ref
 
   const handleQRError = useCallback((msg) => {
     setQrLookupError(msg);
