@@ -188,3 +188,53 @@ describe('Property 7: Scanner response schema invariant', function() {
     );
   });
 });
+
+
+// Feature: lab-system-full-integration, Property 9: Successful scan is logged to forge_scan_log
+describe('Property 9: Successful scan is logged to forge_scan_log', function() {
+  // Validates: Requirements 3.6, 5.5, 6.9
+
+  beforeEach(function() {
+    mockSend.mockReset();
+    mockQuery.mockReset();
+    mockQuery.mockResolvedValue({ rows: [] });
+  });
+
+  it('forge_scan_log INSERT is called exactly once with matching user_id, predicted_name, confidence_score', async function() {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.integer({ min: 1, max: 1000 }),
+        fc.record({
+          name: fc.string(),
+          confidence: fc.integer({ min: 0, max: 100 }),
+          condition: fc.constantFrom('Excellent', 'Good', 'Fair', 'Poor'),
+          equipmentId: fc.constant(null),
+        }),
+        async function(userId, bedrockData) {
+          mockSend.mockReset();
+          mockQuery.mockReset();
+          mockQuery.mockResolvedValue({ rows: [] });
+
+          mockSend.mockResolvedValueOnce(bedrockResp(JSON.stringify(bedrockData)));
+
+          await callIdentify(
+            { imageBase64: 'dGVzdA==' },
+            { authorization: 'Bearer ' + makeToken(userId) }
+          );
+
+          const insertCalls = mockQuery.mock.calls.filter(function(c) {
+            return c[0] && c[0].includes('INSERT INTO forge_scan_log');
+          });
+
+          expect(insertCalls).toHaveLength(1);
+
+          const params = insertCalls[0][1];
+          expect(params[0]).toBe(userId);
+          expect(params[3]).toBe(bedrockData.name);
+          expect(params[4]).toBe(bedrockData.confidence);
+        }
+      ),
+      { numRuns: 100 }
+    );
+  });
+});
