@@ -238,3 +238,212 @@ describe('Property 9: Successful scan is logged to forge_scan_log', function() {
     );
   });
 });
+
+
+// ============================================================
+// Bug Condition Exploration Tests — Property 1
+// Validates: Requirements 1.1, 1.2, 2.1, 2.2, 2.3
+// EXPECTED TO FAIL on unfixed code — failure confirms the bug exists
+// ============================================================
+describe('Bug Condition Exploration — Catalog-Injected Prompt Resolves Valid Equipment ID', function() {
+  // Validates: Requirements 2.1, 2.2, 2.3
+
+  beforeEach(function() {
+    mockSend.mockReset();
+    mockQuery.mockReset();
+    // Default: catalog query returns empty, log insert succeeds
+    mockQuery.mockResolvedValue({ rows: [] });
+  });
+
+  it('BC-1: Bedrock returns null equipmentId with name "Bunsen Burner" — should resolve to EQ-5016 via name fallback', async function() {
+    // Bedrock returns no ID but a valid name
+    mockSend.mockResolvedValueOnce(
+      bedrockResp(JSON.stringify({ name: 'Bunsen Burner', condition: 'Good', confidence: 85, equipmentId: null }))
+    );
+
+    // DB: catalog query (AVAILABLE equipment), direct-ID lookup (skipped since null), name-fallback lookup, scan log insert
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ equipment_id: 'EQ-5016', name: 'Bunsen Burner', status: 'AVAILABLE' }] }) // catalog fetch
+      .mockResolvedValueOnce({ rows: [{ equipment_id: 'EQ-5016' }] })  // name-fallback
+      .mockResolvedValueOnce({ rows: [] });                              // scan log insert
+
+    const res = await callIdentify(
+      { imageBase64: 'dGVzdA==' },
+      { authorization: 'Bearer ' + makeToken(1) }
+    );
+
+    expect(res._status).toBe(200);
+    // WILL FAIL on unfixed code: no name-fallback exists, so equipmentId is null
+    expect(res._body.equipmentId).toBe('EQ-5016');
+  });
+
+  it('BC-2: Bedrock returns wrong ID "EQ-9999" with name "Vernier Caliper Mitutoyo 500-196" — should resolve to EQ-3001 via name fallback', async function() {
+    // Bedrock returns a non-existent ID but a valid name
+    mockSend.mockResolvedValueOnce(
+      bedrockResp(JSON.stringify({ name: 'Vernier Caliper Mitutoyo 500-196', condition: 'Excellent', confidence: 90, equipmentId: 'EQ-9999' }))
+    );
+
+    // DB calls on FIXED code: catalog fetch, direct-ID lookup for EQ-9999 (not found), name-fallback returns EQ-3001, scan log insert
+    // DB calls on UNFIXED code: direct-ID lookup for EQ-9999 (not found), scan log insert
+    // We set up mocks for the fixed path; on unfixed code the first mock (catalog) is consumed by the direct-ID lookup,
+    // returning a row with equipment_id 'EQ-3001' — but that row's equipment_id key is what the unfixed code reads,
+    // so we must ensure the direct-ID lookup returns empty to prove the bug.
+    // Use a query interceptor to route mocks correctly regardless of call order:
+    mockQuery.mockImplementation(function(sql) {
+      if (sql && sql.includes('WHERE status') && sql.includes('AVAILABLE') && !sql.includes('LOWER')) {
+        // catalog fetch (fixed code only)
+        return Promise.resolve({ rows: [{ equipment_id: 'EQ-3001', name: 'Vernier Caliper Mitutoyo 500-196', status: 'AVAILABLE' }] });
+      }
+      if (sql && sql.includes('WHERE equipment_id')) {
+        // direct-ID lookup — EQ-9999 does not exist
+        return Promise.resolve({ rows: [] });
+      }
+      if (sql && sql.includes('LOWER')) {
+        // name-fallback (fixed code only)
+        return Promise.resolve({ rows: [{ equipment_id: 'EQ-3001' }] });
+      }
+      // scan log insert and anything else
+      return Promise.resolve({ rows: [] });
+    });
+
+    const res = await callIdentify(
+      { imageBase64: 'dGVzdA==' },
+      { authorization: 'Bearer ' + makeToken(1) }
+    );
+
+    expect(res._status).toBe(200);
+    // WILL FAIL on unfixed code: wrong ID not found, no name-fallback, so equipmentId is null
+    expect(res._body.equipmentId).toBe('EQ-3001');
+  });
+
+  it('BC-3: Bedrock returns null equipmentId with lowercase name "bunsen burner" — should resolve to EQ-5016 via case-insensitive name fallback', async function() {
+    // Bedrock returns lowercase name — requires case-insensitive matching
+    mockSend.mockResolvedValueOnce(
+      bedrockResp(JSON.stringify({ name: 'bunsen burner', condition: 'Fair', confidence: 70, equipmentId: null }))
+    );
+
+    // DB: catalog fetch, name-fallback (case-insensitive), scan log insert
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ equipment_id: 'EQ-5016', name: 'Bunsen Burner', status: 'AVAILABLE' }] }) // catalog fetch
+      .mockResolvedValueOnce({ rows: [{ equipment_id: 'EQ-5016' }] })  // case-insensitive name-fallback
+      .mockResolvedValueOnce({ rows: [] });                              // scan log insert
+
+    const res = await callIdentify(
+      { imageBase64: 'dGVzdA==' },
+      { authorization: 'Bearer ' + makeToken(1) }
+    );
+
+    expect(res._status).toBe(200);
+    // WILL FAIL on unfixed code: no case-insensitive name-fallback exists
+    expect(res._body.equipmentId).toBe('EQ-5016');
+  });
+
+  it('BC-4: Prompt sent to Bedrock must contain at least one EQ-XXXX catalog entry', async function() {
+    // Set up catalog in DB
+    mockQuery
+      .mockResolvedValueOnce({ rows: [
+        { equipment_id: 'EQ-1001', name: 'Oscilloscope Tektronix TDS2024C', status: 'AVAILABLE' },
+        { equipment_id: 'EQ-5016', name: 'Bunsen Burner', status: 'AVAILABLE' },
+      ]}) // catalog fetch
+      .mockResolvedValueOnce({ rows: [] })  // direct-ID lookup
+      .mockResolvedValueOnce({ rows: [] }); // scan log insert
+
+    let capturedInput = null;
+    mockSend.mockImplementationOnce(function(cmd) {
+      capturedInput = cmd;
+      return Promise.resolve(
+        bedrockResp(JSON.stringify({ name: 'Bunsen Burner', condition: 'Good', confidence: 80, equipmentId: null }))
+      );
+    });
+
+    await callIdentify(
+      { imageBase64: 'dGVzdA==' },
+      { authorization: 'Bearer ' + makeToken(1) }
+    );
+
+    // Extract the prompt text from the Bedrock input
+    const body = JSON.parse(capturedInput.body);
+    const promptText = body.messages[0].content
+      .filter(function(c) { return c.type === 'text'; })
+      .map(function(c) { return c.text; })
+      .join('\n');
+
+    // WILL FAIL on unfixed code: prompt has no catalog, so no EQ-XXXX entries
+    expect(promptText).toMatch(/EQ-\d{4}/);
+  });
+});
+
+
+// ============================================================
+// Preservation Properties — Non-Buggy Inputs
+// Validates: Requirements 3.1, 3.2, 3.4, 3.5
+// EXPECTED TO PASS on unfixed code — confirms baseline behavior to preserve
+// ============================================================
+describe('Preservation Properties — Non-Buggy Inputs', function() {
+
+  beforeEach(function() {
+    mockSend.mockReset();
+    mockQuery.mockReset();
+    mockQuery.mockResolvedValue({ rows: [] });
+  });
+
+  // Property 2a: Throttle preservation
+  // Validates: Requirement 3.2
+  it('P2a: For any ThrottlingException, response is always HTTP 429 with the throttle message', async function() {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.base64String(),
+        async function(imageBase64) {
+          mockSend.mockReset();
+          mockQuery.mockReset();
+          mockQuery.mockResolvedValue({ rows: [] });
+
+          const err = Object.assign(new Error('throttled'), { name: 'ThrottlingException' });
+          mockSend.mockRejectedValueOnce(err);
+
+          const res = await callIdentify(
+            { imageBase64: imageBase64 || 'dGVzdA==' },
+            { authorization: 'Bearer ' + makeToken(1) }
+          );
+
+          expect(res._status).toBe(429);
+          expect(res._body.error).toBe('Too many scan requests. Please wait 30 seconds and try again.');
+        }
+      ),
+      { numRuns: 50 }
+    );
+  });
+
+  // Property 2b: Non-JSON preservation
+  // Validates: Requirement 3.1
+  it('P2b: For any non-JSON Bedrock text, response always has name "Unknown Equipment" and equipmentId null', async function() {
+    // Generate strings that throw on JSON.parse (not parseable at all)
+    const nonJsonArb = fc.oneof(
+      fc.string().filter(function(s) { try { JSON.parse(s); return false; } catch { return true; } }),
+      fc.constantFrom('not json', 'hello world', 'undefined', '<xml/>', '{ broken json')
+    );
+
+    await fc.assert(
+      fc.asyncProperty(
+        nonJsonArb,
+        async function(nonJsonText) {
+          mockSend.mockReset();
+          mockQuery.mockReset();
+          mockQuery.mockResolvedValue({ rows: [] });
+
+          mockSend.mockResolvedValueOnce(bedrockResp(nonJsonText));
+
+          const res = await callIdentify(
+            { imageBase64: 'dGVzdA==' },
+            { authorization: 'Bearer ' + makeToken(1) }
+          );
+
+          expect(res._status).toBe(200);
+          expect(res._body.name).toBe('Unknown Equipment');
+          expect(res._body.equipmentId).toBeNull();
+        }
+      ),
+      { numRuns: 50 }
+    );
+  });
+});

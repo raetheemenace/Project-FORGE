@@ -22,19 +22,41 @@ router.post('/identify', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'imageBase64 is required' });
   }
 
+  // Step 1 — Fetch AVAILABLE catalog before Bedrock call
+  let catalogRows = [];
+  try {
+    const catalogResult = await db.query(
+      'SELECT equipment_id, name, department FROM forge_equipment WHERE status = \'AVAILABLE\' ORDER BY equipment_id'
+    );
+    catalogRows = catalogResult.rows;
+  } catch {
+    // Graceful degradation — continue without catalog if fetch fails
+    catalogRows = [];
+  }
+
   // Strip data URL prefix if present (e.g. "data:image/jpeg;base64,...")
   const base64Data = imageBase64.includes(',')
     ? imageBase64.split(',')[1]
     : imageBase64;
 
+  // Step 2 — Inject catalog into prompt
+  const catalogList = catalogRows.length > 0
+    ? catalogRows.map((r, i) => `${i + 1}. ${r.equipment_id} — ${r.name} (${r.department})`).join('\n')
+    : '(no equipment available)';
+
   const prompt = `You are a laboratory equipment identification assistant.
 Analyze the image and identify the lab equipment shown.
+
+Here is the list of registered AVAILABLE equipment in the system:
+${catalogList}
+
+Match the equipment in the image against this list. Return the exact equipment_id from the list above if you find a match, or null if none match.
 Respond ONLY with a JSON object in this exact format (no markdown, no extra text):
 {
   "name": "<equipment name>",
   "condition": "<Excellent|Good|Fair|Poor>",
   "confidence": <0-100 number>,
-  "equipmentId": "<EQ-XXXX or null if unknown>"
+  "equipmentId": "<EQ-XXXX from the list above, or null if no match>"
 }
 If you cannot identify any lab equipment, set name to "Unknown Equipment", condition to "Fair", confidence to 0, and equipmentId to null.`;
 
@@ -106,7 +128,7 @@ If you cannot identify any lab equipment, set name to "Unknown Equipment", condi
     return res.status(statusCode).json({ error: errorMessage });
   }
 
-  // Resolve equipment_id from DB if Bedrock returned one
+  // Step 3 — Resolve equipment_id from DB if Bedrock returned one (direct-ID lookup, unchanged)
   let resolvedEquipmentId = null;
   if (parsed.equipmentId) {
     try {
@@ -115,6 +137,20 @@ If you cannot identify any lab equipment, set name to "Unknown Equipment", condi
         [parsed.equipmentId]
       );
       if (eq.rows.length > 0) resolvedEquipmentId = eq.rows[0].equipment_id;
+    } catch { /* non-fatal */ }
+  }
+
+  // Step 4 — Name-match fallback when direct-ID lookup failed or equipmentId was absent
+  if (!resolvedEquipmentId && parsed.name && parsed.name !== 'Unknown Equipment') {
+    try {
+      const nameMatch = await db.query(
+        `SELECT equipment_id FROM forge_equipment
+         WHERE status = 'AVAILABLE'
+           AND LOWER(name) LIKE LOWER($1)
+         LIMIT 1`,
+        [`%${parsed.name}%`]
+      );
+      if (nameMatch.rows.length > 0) resolvedEquipmentId = nameMatch.rows[0].equipment_id;
     } catch { /* non-fatal */ }
   }
 
