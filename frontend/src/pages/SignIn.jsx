@@ -26,8 +26,7 @@ export default function SignIn() {
     const errs = {};
     if (!formData.fullName.trim()) errs.fullName = 'Full name is required';
     if (!formData.studentId.trim()) errs.studentId = 'Student ID is required';
-    // Allow 7-8 digits OR admin format (ADMIN followed by digits)
-    else if (!/^(\d{7,8}|ADMIN\d+)$/i.test(formData.studentId)) errs.studentId = 'Must be 7-8 digits or admin ID';
+    else if (!/^\d{7,8}$/.test(formData.studentId)) errs.studentId = 'Must be 7-8 digits';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -84,7 +83,7 @@ export default function SignIn() {
           {/* Header */}
           <div className="bg-[#001254] px-4 sm:px-8 py-6 sm:py-8 flex flex-col items-center gap-3 sm:gap-4">
             <img src={logo} alt="FORGE" className="w-40 sm:w-56 brightness-0 invert opacity-90" />
-            <div className="h-[1px] w-16 sm:w-24 bg-white/20" />
+            <div className="h-px w-16 sm:w-24 bg-white/20" />
             <p className="text-white/60 tracking-[0.15em] sm:tracking-[0.2em] uppercase text-center" style={{ fontSize: '0.6rem' }}>
               Lab & Resource Management
             </p>

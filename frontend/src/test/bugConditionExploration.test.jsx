@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Bug Condition Exploration Tests
  * Validates: Requirements 1.1, 1.5, 1.6
  *
@@ -8,38 +8,13 @@
  * Bug 1  (TTS)           req 1.1 — speak() never called with dashboard content
  * Bug 5  (QR container)  req 1.5 — #qr-reader has no dimensions after scan starts
  * Bug 6  (missing route) req 1.6 — /equipment/:id has no route; hits wildcard redirect
- *
- * ── DOCUMENTED FAILURE OUTPUT (unfixed code) ─────────────────────────────────
- *
- * Bug 1:
- *   AssertionError: expected "vi.fn()" to be called at least once
- *   at src/test/bugConditionExploration.test.jsx:178:23
- *   Root cause: Dashboard.jsx has no useEffect that calls speak() after
- *   loading transitions to false. speak() is destructured from useTTS but
- *   never invoked with page content.
- *
- * Bug 5:
- *   AssertionError: expected false to be true // Object.is equality
- *   - Expected: true
- *   + Received: false
- *   at src/test/bugConditionExploration.test.jsx:228:31
- *   Root cause: <div id="qr-reader" className="w-full"></div> has no
- *   min-h-* Tailwind class and no inline minHeight style, so the container
- *   has zero height when Html5QrcodeScanner.render() is called.
- *
- * Bug 6:
- *   AssertionError: expected null not to be null
- *   HTML: <html><head /><body><div /></body></html>
- *   at src/test/bugConditionExploration.test.jsx:280:33
- *   Root cause: App.jsx has no /equipment/:id route. The wildcard
- *   <Route path="*" element={<Navigate to="/" replace />} /> fires,
- *   rendering LandingPage instead of MachineDetail.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import React from 'react';
+
 
 // ── Top-level mocks (hoisted by Vitest) ──────────────────────────────────────
 
@@ -124,16 +99,21 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }) => children,
 }));
 
-// Use importOriginal so all named exports are available
-vi.mock('lucide-react', async (importOriginal) => {
-  const actual = await importOriginal();
-  return { ...actual };
-});
+vi.mock('lucide-react', () =>
+  new Proxy(
+    {},
+    {
+      get: (_, name) =>
+        ({ className }) => React.createElement('span', { 'data-icon': name, className }),
+    }
+  )
+);
 
 vi.mock('../assets/logo_landingpage.png', () => ({ default: 'logo.png' }));
 vi.mock('../assets/logo.png', () => ({ default: 'logo.png' }));
 vi.mock('../assets/hero.png', () => ({ default: 'hero.png' }));
 
+// Stub all pages so App can import them without errors
 vi.mock('../pages/LandingPage.jsx', () => ({ default: () => React.createElement('div', { 'data-testid': 'landing' }) }));
 vi.mock('../pages/SignIn.jsx', () => ({ default: () => React.createElement('div', { 'data-testid': 'signin' }) }));
 vi.mock('../pages/SignUp.jsx', () => ({ default: () => React.createElement('div', { 'data-testid': 'signup' }) }));
@@ -151,7 +131,7 @@ vi.mock('../pages/admin/MaintenanceTickets.jsx', () => ({ default: () => React.c
 vi.mock('../pages/admin/UserManagement.jsx', () => ({ default: () => React.createElement('div', { 'data-testid': 'admin-users' }) }));
 vi.mock('../pages/admin/LabRoomManagement.jsx', () => ({ default: () => React.createElement('div', { 'data-testid': 'admin-rooms' }) }));
 vi.mock('../pages/admin/SystemReports.jsx', () => ({ default: () => React.createElement('div', { 'data-testid': 'admin-reports' }) }));
-// MachineDetail stub — on unfixed code App.jsx does not import or route to this
+// MachineDetail stub — on unfixed code this file does not exist; App won't import it
 vi.mock('../pages/MachineDetail.jsx', () => ({ default: () => React.createElement('div', { 'data-testid': 'machine-detail' }, 'MachineDetail') }));
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
@@ -166,6 +146,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Bug 1 — TTS: speak() never called with dashboard content
 // ─────────────────────────────────────────────────────────────────────────────
@@ -176,9 +157,9 @@ describe('Bug 1 — TTS speak() called with dashboard content', () => {
    * EXPECTED TO FAIL on unfixed code because Dashboard.jsx never calls speak()
    * with page content after data loads, even when ttsEnabled is true.
    *
-   * DOCUMENTED FAILURE (unfixed):
-   *   AssertionError: expected "vi.fn()" to be called at least once
-   *   Root cause: no useEffect in Dashboard.jsx calls speak() after loading=false
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected spy to have been called at least once
+   *   (speak was never invoked — no useEffect calls speak() after loading=false)
    */
   it('calls speak() with a string containing the user first name after data loads', async () => {
     const { default: Dashboard } = await import('../pages/Dashboard.jsx');
@@ -203,16 +184,18 @@ describe('Bug 1 — TTS speak() called with dashboard content', () => {
       await new Promise((r) => setTimeout(r, 50));
     });
 
+    // ASSERTION: speak() must have been called at least once
     // On UNFIXED code this FAILS — speak() is never invoked with dashboard content
     expect(speakMock).toHaveBeenCalled();
 
-    // At least one call must include the user's first name ("Alice")
+    // ASSERTION: at least one call must include the user's first name ("Alice")
     const calledWithName = speakMock.mock.calls.some(
       ([text]) => typeof text === 'string' && text.toLowerCase().includes('alice')
     );
     expect(calledWithName).toBe(true);
   });
 });
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Bug 5 — QR container: #qr-reader has no dimensions after scan starts
@@ -223,12 +206,11 @@ describe('Bug 5 — QR container #qr-reader has visible dimensions', () => {
    *
    * EXPECTED TO FAIL on unfixed code because the container div is rendered as:
    *   <div id="qr-reader" className="w-full"></div>
-   * which has no explicit height — no min-h-* class and no inline minHeight.
+   * which has no explicit height, so it has no min-h-* class and offsetHeight=0.
    *
-   * DOCUMENTED FAILURE (unfixed):
+   * FAILURE OUTPUT (unfixed):
    *   AssertionError: expected false to be true
-   *   Root cause: <div id="qr-reader" className="w-full"> has no height
-   *   constraint; offsetHeight=0 when Html5QrcodeScanner.render() is called
+   *   (qr-reader has className="w-full" — no min-h-* class, no inline minHeight)
    */
   it('#qr-reader has a min-height style or class after clicking Scan QR Code', async () => {
     const { default: ReportMaintenance } = await import('../pages/ReportMaintenance.jsx');
@@ -253,14 +235,19 @@ describe('Bug 5 — QR container #qr-reader has visible dimensions', () => {
     const qrReader = document.getElementById('qr-reader');
     expect(qrReader).not.toBeNull();
 
-    // On UNFIXED code this FAILS — the div has no height constraint
+    // ASSERTION: the container must have an explicit min-height so the scanner
+    // preview is visible. jsdom doesn't do layout, but Tailwind class names and
+    // inline styles are reflected in the DOM.
+    // On UNFIXED code: className="w-full" — no min-h-* class, no inline style.
     const hasExplicitHeight =
       (qrReader.style && qrReader.style.minHeight !== '') ||
       (qrReader.className && qrReader.className.includes('min-h-'));
 
+    // On UNFIXED code this FAILS — the div has no height constraint
     expect(hasExplicitHeight).toBe(true);
   });
 });
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Bug 6 — Missing route: /equipment/:id not registered in App
@@ -273,13 +260,12 @@ describe('Bug 6 — /equipment/:id route renders MachineDetail, not a redirect',
    * route — the wildcard <Navigate to="/" replace /> fires and LandingPage
    * renders instead of MachineDetail.
    *
-   * DOCUMENTED FAILURE (unfixed):
+   * FAILURE OUTPUT (unfixed):
    *   AssertionError: expected null not to be null
-   *   HTML: <html><head /><body><div /></body></html>
-   *   Root cause: App.jsx wildcard route catches /equipment/EQ-0001 and
-   *   redirects to "/" — MachineDetail is never rendered
+   *   (machine-detail element is null; landing renders instead)
    */
   it('renders MachineDetail component (not a redirect) when navigating to /equipment/EQ-0001', async () => {
+    // Mock sessionStorage so App skips the splash screen
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key) => {
       if (key === 'splashShown') return 'true';
       if (key === 'token') return 'fake-token';
@@ -309,6 +295,7 @@ describe('Bug 6 — /equipment/:id route renders MachineDetail, not a redirect',
       await new Promise((r) => setTimeout(r, 50));
     });
 
+    // ASSERTION: MachineDetail must be rendered, not the wildcard redirect
     // On UNFIXED code this FAILS — App has no /equipment/:id route so the
     // wildcard <Navigate to="/" replace /> fires and LandingPage renders instead.
     await waitFor(() => {
