@@ -6,34 +6,47 @@ const poolConfig = {
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   host: process.env.DB_CONNECTION_STRING,
-  port: process.env.DB_PORT || 5432,
+  port: parseInt(process.env.DB_PORT || '5432', 10),
   database: process.env.DB_NAME || 'forge',
-  max: 10,                    // Maximum number of clients in the pool
-  min: 2,                     // Minimum number of clients in the pool
-  idleTimeoutMillis: 30000,   // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection cannot be established
+  max: 10,
+  min: 1,                          // Keep at least 1 idle connection ready
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,  // 10s — gives RDS time to respond from cold start
   ssl: {
-    rejectUnauthorized: false  // Required for AWS RDS
+    rejectUnauthorized: false       // Required for AWS RDS
   }
 };
 
 let pool;
 
 /**
- * Initialize the PostgreSQL connection pool
- * @returns {Promise<void>}
+ * Initialize the PostgreSQL connection pool with retry logic.
+ * Retries up to 5 times with 3-second delays before giving up.
  */
-async function initialize() {
-  try {
-    pool = new Pool(poolConfig);
-    
-    // Test the connection
-    const client = await pool.connect();
-    console.log('PostgreSQL connection pool created successfully');
-    client.release();
-  } catch (err) {
-    console.error('Error creating PostgreSQL connection pool:', err);
-    throw err;
+async function initialize(retries = 5, delayMs = 3000) {
+  pool = new Pool(poolConfig);
+
+  // Surface pool-level errors so they don't crash the process silently
+  pool.on('error', (err) => {
+    console.error('Unexpected PostgreSQL pool error:', err.message);
+  });
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const client = await pool.connect();
+      console.log('PostgreSQL connection pool created successfully');
+      client.release();
+      return; // connected — done
+    } catch (err) {
+      console.error(`DB connection attempt ${attempt}/${retries} failed: ${err.message}`);
+      if (attempt < retries) {
+        console.log(`Retrying in ${delayMs / 1000}s…`);
+        await new Promise((res) => setTimeout(res, delayMs));
+      } else {
+        console.error('All DB connection attempts failed. Check RDS host, credentials, and VPC/security group settings.');
+        throw err;
+      }
+    }
   }
 }
 

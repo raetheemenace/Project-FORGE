@@ -31,7 +31,10 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 // Initialize database connection pool
 db.initialize()
   .then(() => console.log('Database connection pool initialized'))
-  .catch(err => console.error('Failed to initialize database pool:', err));
+  .catch(err => {
+    console.error('Failed to initialize database pool:', err.message);
+    console.error('Server will continue running — DB-dependent routes will return 503 until connection is restored.');
+  });
 
 // Root health check endpoint for ELB
 app.get('/', (req, res) => {
