@@ -19,6 +19,7 @@ const adminUserRoutes = require('./routes/admin/users');
 const adminRoomRoutes = require('./routes/admin/rooms');
 const adminSystemReportsRoutes = require('./routes/admin/systemReports');
 const adminQRCodeRoutes = require('./routes/admin/qrcode');
+const adminAcquisitionsRoutes = require('./routes/admin/acquisitions');
 const aiRoutes = require('./routes/ai');
 
 const app = express();
@@ -93,6 +94,7 @@ app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/rooms', adminRoomRoutes);
 app.use('/api/admin/system-reports', adminSystemReportsRoutes);
 app.use('/api/admin/qrcode', adminQRCodeRoutes);
+app.use('/api/admin/acquisitions', adminAcquisitionsRoutes);
 
 // AI Q&A routes (AWS Bedrock Claude 3)
 app.use('/api/ai', aiRoutes);

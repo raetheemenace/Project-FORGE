@@ -99,15 +99,17 @@ vi.mock('framer-motion', () => ({
   AnimatePresence: ({ children }) => children,
 }));
 
-vi.mock('lucide-react', () =>
-  new Proxy(
-    {},
-    {
-      get: (_, name) =>
-        ({ className }) => React.createElement('span', { 'data-icon': name, className }),
-    }
-  )
-);
+vi.mock('lucide-react', async (importOriginal) => {
+  const actual = await importOriginal();
+  // Override every export with a lightweight stub that renders a <span>
+  const stubs = {};
+  for (const key of Object.keys(actual)) {
+    const name = key;
+    stubs[name] = ({ className } = {}) =>
+      React.createElement('span', { 'data-icon': name, className });
+  }
+  return stubs;
+});
 
 vi.mock('../assets/logo_landingpage.png', () => ({ default: 'logo.png' }));
 vi.mock('../assets/logo.png', () => ({ default: 'logo.png' }));

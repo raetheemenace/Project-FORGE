@@ -21,6 +21,7 @@ import MaintenanceTickets from './pages/admin/MaintenanceTickets';
 import UserManagement from './pages/admin/UserManagement';
 import LabRoomManagement from './pages/admin/LabRoomManagement';
 import SystemReports from './pages/admin/SystemReports';
+import AcquisitionsManagement from './pages/admin/AcquisitionsManagement';
 import MachineDetail from './pages/MachineDetail';
 
 function ProtectedRoute({ children }) {
@@ -95,6 +96,7 @@ function App() {
           <Route path="/admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
           <Route path="/admin/rooms" element={<AdminRoute><LabRoomManagement /></AdminRoute>} />
           <Route path="/admin/reports" element={<AdminRoute><SystemReports /></AdminRoute>} />
+          <Route path="/admin/acquisitions" element={<AdminRoute><AcquisitionsManagement /></AdminRoute>} />
 
           {/* Redirect any unknown routes to landing page */}
           <Route path="*" element={<Navigate to="/" replace />} />

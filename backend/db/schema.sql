@@ -135,3 +135,28 @@ CREATE INDEX idx_equipment_events_equipment ON forge_equipment_events(equipment_
 CREATE INDEX idx_admin_actions_admin ON forge_admin_actions(admin_id);
 CREATE INDEX idx_tickets_report ON forge_maintenance_tickets(report_id);
 CREATE INDEX idx_analytics_date_dept ON forge_analytics_daily(report_date, department);
+
+-- Acquisition workflow tables
+CREATE TABLE forge_acquisitions (
+    acquisition_id  SERIAL PRIMARY KEY,
+    supplier_name   VARCHAR(200) NOT NULL,
+    acquisition_date DATE NOT NULL,
+    notes           TEXT,
+    created_by      INTEGER NOT NULL REFERENCES forge_users(user_id),
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_acquisitions_date ON forge_acquisitions(acquisition_date DESC);
+CREATE INDEX idx_acquisitions_created_by ON forge_acquisitions(created_by);
+
+CREATE TABLE forge_acquisition_items (
+    item_id         SERIAL PRIMARY KEY,
+    acquisition_id  INTEGER NOT NULL REFERENCES forge_acquisitions(acquisition_id),
+    equipment_id    VARCHAR(20) NOT NULL REFERENCES forge_equipment(equipment_id),
+    initial_condition VARCHAR(20) CHECK (initial_condition IN ('Excellent', 'Good', 'Fair', 'Poor')),
+    assigned_room   VARCHAR(20) REFERENCES forge_lab_rooms(room_id),
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_acq_items_acquisition ON forge_acquisition_items(acquisition_id);
+CREATE INDEX idx_acq_items_equipment ON forge_acquisition_items(equipment_id);

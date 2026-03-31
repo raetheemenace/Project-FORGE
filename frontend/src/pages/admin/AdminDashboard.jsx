@@ -17,6 +17,7 @@ import {
   ClipboardList,
   DoorOpen,
   BarChart3,
+  ShoppingCart,
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -230,6 +231,18 @@ export default function AdminDashboard() {
             <div>
               <p className="text-[#001254] font-medium" style={{ fontSize: '0.88rem' }}>Lab Rooms</p>
               <p className="text-[#001254]/40" style={{ fontSize: '0.75rem' }}>Manage laboratory rooms</p>
+            </div>
+          </button>
+          <button
+            onClick={() => navigate('/admin/acquisitions')}
+            className="bg-white rounded-xl border border-[#001254]/10 p-5 flex items-center gap-4 hover:border-[#0B4EA2]/30 transition-colors text-left"
+          >
+            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+              <ShoppingCart className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-[#001254] font-medium" style={{ fontSize: '0.88rem' }}>Acquisitions</p>
+              <p className="text-[#001254]/40" style={{ fontSize: '0.75rem' }}>Manage inventory intake</p>
             </div>
           </button>
         </div>

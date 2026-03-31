@@ -96,7 +96,7 @@ async function fetchLiveContext() {
     const now = new Date();
     const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-    const [equipResult, roomResult, bookingsResult] = await Promise.all([
+    const [equipResult, roomResult, bookingsResult, roomEquipResult] = await Promise.all([
       // All equipment with status
       db.query(
         `SELECT equipment_id, name, status, department
@@ -129,6 +129,44 @@ async function fetchLiveContext() {
          ORDER BY e.equipment_id, t.time_slot`,
         [today]
       ),
+      // Per-room equipment availability
+      db.query(`
+        SELECT
+          r.room_id,
+          r.room_name,
+          r.department,
+          r.status AS room_status,
+          e.equipment_id,
+          e.name AS equipment_name,
+          e.status AS equipment_status,
+          CASE
+            WHEN t.txn_id IS NOT NULL THEN t.time_slot
+            ELSE NULL
+          END AS booked_slot,
+          CASE
+            WHEN t.txn_id IS NOT NULL THEN u.full_name
+            ELSE NULL
+          END AS borrower_name
+        FROM forge_lab_rooms r
+        LEFT JOIN forge_equipment_events ev
+          ON ev.to_location = r.room_id
+          AND ev.event_type IN ('PROCURED', 'TRANSFERRED')
+          AND ev.event_id = (
+            SELECT MAX(ev2.event_id)
+            FROM forge_equipment_events ev2
+            WHERE ev2.equipment_id = ev.equipment_id
+              AND ev2.event_type IN ('PROCURED', 'TRANSFERRED')
+          )
+        LEFT JOIN forge_equipment e ON e.equipment_id = ev.equipment_id
+          AND e.status != 'DISPOSED'
+        LEFT JOIN forge_txn_items ti ON ti.equipment_id = e.equipment_id
+        LEFT JOIN forge_transactions t
+          ON t.txn_id = ti.txn_id
+          AND t.txn_date = $1
+          AND t.status IN ('ACTIVE', 'PENDING_RETURN', 'CLAIM_ID')
+        LEFT JOIN forge_users u ON u.user_id = t.user_id
+        ORDER BY r.room_id, e.name
+      `, [today]),
     ]);
 
     const equipment = equipResult.rows;
@@ -164,6 +202,8 @@ async function fetchLiveContext() {
       (r) => `${r.room_id} (${r.room_name}, ${r.department}): ${r.status}`
     );
 
+    const roomContext = buildRoomContext(roomEquipResult.rows);
+
     return `
 
 ## Current Date & Time
@@ -183,7 +223,8 @@ ${roomLines.join('\n')}
 - If it has bookings, check whether the requested time overlaps. If it does NOT overlap, say it's available at that time. If it DOES overlap, say it's booked during that slot and give the free windows.
 - Be direct and specific. Lead with Yes or No. Then give the time details.
 - Example: "Yes, the Oscilloscope (EQ-0012) is available today. It has no bookings."
-- Example: "No, the Soldering Iron (EQ-0005) is booked from 09:00–11:00 today. It's free before 09:00 and after 11:00."`;
+- Example: "No, the Soldering Iron (EQ-0005) is booked from 09:00–11:00 today. It's free before 09:00 and after 11:00."
+${roomContext ? '\n' + roomContext : ''}`;
   } catch (err) {
     console.error('AI context fetch error:', err);
     return ''; // degrade gracefully — answer without live data
@@ -237,4 +278,93 @@ router.post('/chat', authenticateToken, async (req, res) => {
   }
 });
 
+/**
+ * Pure helper: build the per-room equipment availability context string.
+ *
+ * @param {Array} rows - Raw query result rows, each with:
+ *   room_id, room_name, department, room_status,
+ *   equipment_id, equipment_name, equipment_status,
+ *   booked_slot, borrower_name
+ * @returns {string} Formatted context section
+ */
+function buildRoomContext(rows) {
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Group rows by room, preserving insertion order
+  const roomMap = new Map();
+
+  for (const row of rows) {
+    if (!roomMap.has(row.room_id)) {
+      roomMap.set(row.room_id, {
+        room_id: row.room_id,
+        room_name: row.room_name,
+        department: row.department,
+        room_status: row.room_status,
+        available: [],
+        booked: [],
+      });
+    }
+
+    // Null equipment_id means the room has no equipment assigned
+    if (!row.equipment_id) continue;
+
+    const room = roomMap.get(row.room_id);
+
+    if (row.booked_slot) {
+      // Equipment is booked — may appear multiple times (one row per booking)
+      // Avoid duplicating the same equipment in the booked list
+      const existing = room.booked.find((b) => b.equipment_id === row.equipment_id);
+      if (!existing) {
+        room.booked.push({
+          equipment_id: row.equipment_id,
+          equipment_name: row.equipment_name,
+          booked_slot: row.booked_slot,
+          borrower_name: row.borrower_name,
+        });
+      }
+    } else {
+      // Equipment is available — avoid duplicates
+      if (!room.available.find((a) => a.equipment_id === row.equipment_id)) {
+        room.available.push({
+          equipment_id: row.equipment_id,
+          equipment_name: row.equipment_name,
+        });
+      }
+    }
+  }
+
+  if (roomMap.size === 0) {
+    return '';
+  }
+
+  const lines = [`## Live Per-Room Equipment Availability — Today (${today})`, ''];
+
+  for (const room of roomMap.values()) {
+    lines.push(`### ${room.room_id} — ${room.room_name} (${room.department}) [${room.room_status}]`);
+
+    const availNames = room.available.map((a) => a.equipment_name);
+    lines.push(`Available (${availNames.length}): ${availNames.length > 0 ? availNames.join(', ') : 'none'}`);
+
+    if (room.booked.length === 0) {
+      lines.push('Booked (0): none');
+    } else {
+      const bookedEntries = room.booked.map(
+        (b) => `${b.equipment_name} — ${b.booked_slot} (borrowed by ${b.borrower_name})`
+      );
+      lines.push(`Booked (${room.booked.length}): ${bookedEntries.join(', ')}`);
+    }
+
+    lines.push('');
+  }
+
+  lines.push('## Per-Room Summary');
+  for (const room of roomMap.values()) {
+    const total = room.available.length + room.booked.length;
+    lines.push(`${room.room_id} (${room.room_name}): ${room.available.length} available / ${total} total`);
+  }
+
+  return lines.join('\n');
+}
+
 module.exports = router;
+module.exports.buildRoomContext = buildRoomContext;
