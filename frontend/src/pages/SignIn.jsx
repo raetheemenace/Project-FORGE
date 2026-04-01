@@ -15,16 +15,16 @@ export default function SignIn() {
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    let value = e.target.value;
+    if (e.target.name === 'studentId') value = value.replace(/\D/g, '');
+    setFormData({ ...formData, [e.target.name]: value });
     setErrors({});
   };
 
   const validate = () => {
     const errs = {};
     if (!formData.fullName.trim()) errs.fullName = 'Full name is required';
+    else if (/\d/.test(formData.fullName)) errs.fullName = 'Full name must not contain numbers';
     if (!formData.studentId.trim()) errs.studentId = 'Student ID is required';
     else if (!/^\d{7,8}$/.test(formData.studentId)) errs.studentId = 'Must be 7-8 digits';
     setErrors(errs);

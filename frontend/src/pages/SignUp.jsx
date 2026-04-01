@@ -10,25 +10,36 @@ export default function SignUp() {
   const [formData, setFormData] = useState({
     fullName: '',
     studentId: '',
-    program: ''
+    program: '',
+    tipEmail: ''
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    let value = e.target.value;
+    if (e.target.name === 'studentId') value = value.replace(/\D/g, '');
+    setFormData({ ...formData, [e.target.name]: value });
     setErrors({});
   };
 
   const validate = () => {
     const errs = {};
-    if (!formData.fullName.trim()) errs.fullName = 'Full name is required';
+    if (!formData.fullName.trim()) {
+      errs.fullName = 'Full name is required';
+    } else if (/\d/.test(formData.fullName)) {
+      errs.fullName = 'Full name must not contain numbers';
+    }
     if (!formData.studentId.trim()) errs.studentId = 'Student ID is required';
     else if (!/^\d{7,8}$/.test(formData.studentId)) errs.studentId = 'Must be 7-8 digits';
     if (!formData.program.trim()) errs.program = 'Program is required';
+    if (!formData.tipEmail.trim()) {
+      errs.tipEmail = 'TIP Email is required';
+    } else if (/\d/.test(formData.tipEmail.split('@')[0])) {
+      errs.tipEmail = 'Must be a valid TIP Email';
+    } else if (!/^m[a-zA-Z.]+@tip\.edu\.ph$/.test(formData.tipEmail)) {
+      errs.tipEmail = 'Must be a valid TIP Email';
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -145,6 +156,25 @@ export default function SignUp() {
               {errors.studentId && (
                 <p className="mt-1 text-[#d4183d]" style={{ fontSize: '0.75rem' }}>
                   {errors.studentId}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-[#001254]/70 mb-1.5" style={{ fontSize: '0.8rem' }}>
+                TIP Email
+              </label>
+              <input
+                type="email"
+                name="tipEmail"
+                value={formData.tipEmail}
+                onChange={handleChange}
+                placeholder="mjdelacruz@tip.edu.ph"
+                className="w-full px-4 py-3 bg-[#f7f7f3] border border-[#001254]/10 rounded-lg focus:outline-none focus:border-[#0B4EA2] focus:ring-1 focus:ring-[#0B4EA2]/30 transition-all placeholder:text-[#001254]/25"
+              />
+              {errors.tipEmail && (
+                <p className="mt-1 text-[#d4183d]" style={{ fontSize: '0.75rem' }}>
+                  {errors.tipEmail}
                 </p>
               )}
             </div>
