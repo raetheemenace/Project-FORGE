@@ -22,6 +22,7 @@ import UserManagement from './pages/admin/UserManagement';
 import LabRoomManagement from './pages/admin/LabRoomManagement';
 import SystemReports from './pages/admin/SystemReports';
 import AcquisitionsManagement from './pages/admin/AcquisitionsManagement';
+import RequestAcquisition from './pages/RequestAcquisition';
 import MachineDetail from './pages/MachineDetail';
 
 function ProtectedRoute({ children }) {
@@ -85,6 +86,7 @@ function App() {
           <Route path="/log-updated" element={<ProtectedRoute><LogUpdated /></ProtectedRoute>} />
           <Route path="/transactions" element={<ProtectedRoute><MyTransactions /></ProtectedRoute>} />
           <Route path="/report-maintenance" element={<ProtectedRoute><ReportMaintenance /></ProtectedRoute>} />
+          <Route path="/request-acquisition" element={<ProtectedRoute><RequestAcquisition /></ProtectedRoute>} />
           <Route path="/offline" element={<OfflinePage />} />
           <Route path="/equipment/:id" element={<ProtectedRoute><MachineDetail /></ProtectedRoute>} />
 

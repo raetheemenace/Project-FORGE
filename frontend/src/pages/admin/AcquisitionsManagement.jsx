@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   CheckCircle2,
   Eye,
+  Inbox,
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -366,6 +367,128 @@ function DetailView({ acquisitionId, onBack, onFlash, onError }) {
   );
 }
 
+const URGENCY_COLORS = {
+  Low: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  Medium: 'bg-amber-100 text-amber-700 border-amber-200',
+  High: 'bg-orange-100 text-orange-700 border-orange-200',
+  Critical: 'bg-red-100 text-red-700 border-red-200',
+};
+
+const STATUS_COLORS = {
+  PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
+  APPROVED: 'bg-blue-50 text-blue-700 border-blue-200',
+  REJECTED: 'bg-red-50 text-red-600 border-red-200',
+  FULFILLED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+};
+
+const STATUS_OPTIONS = ['PENDING', 'APPROVED', 'REJECTED', 'FULFILLED'];
+
+function RequestsPanel() {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [updating, setUpdating] = useState(null); // request_id being updated
+  const [adminNotes, setAdminNotes] = useState({});
+
+  const token = () => localStorage.getItem('token');
+
+  const fetchRequests = () => {
+    setLoading(true);
+    setError(null);
+    axios
+      .get(`${API_URL}/admin/acquisitions/requests`, {
+        headers: { Authorization: `Bearer ${token()}` },
+      })
+      .then((res) => setRequests(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setError('Could not load student requests.'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchRequests(); }, []);
+
+  const handleStatusChange = async (requestId, status) => {
+    setUpdating(requestId);
+    try {
+      await axios.patch(
+        `${API_URL}/admin/acquisitions/requests/${requestId}`,
+        { status, admin_notes: adminNotes[requestId] || null },
+        { headers: { Authorization: `Bearer ${token()}` } }
+      );
+      fetchRequests();
+    } catch {
+      setError('Failed to update request.');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  if (loading) return <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 text-[#0B4EA2] animate-spin" /></div>;
+  if (error) return <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm"><AlertTriangle className="w-4 h-4 shrink-0" />{error}</div>;
+  if (requests.length === 0) return (
+    <div className="flex flex-col items-center justify-center py-16 gap-3">
+      <Inbox className="w-10 h-10 text-[#001254]/15" />
+      <p className="text-[#001254]/40 text-sm">No student requests yet.</p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      {requests.map((req) => (
+        <div key={req.request_id} className="bg-white rounded-xl border border-[#001254]/10 p-5 space-y-4">
+          {/* Header row */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-[#001254] font-semibold text-sm">{req.equipment_name}</p>
+              <p className="text-[#001254]/45 text-xs mt-0.5">
+                {req.department} · Qty {req.quantity} · {req.requested_by} ({req.student_id})
+              </p>
+              {req.program && <p className="text-[#001254]/35 text-xs">{req.program}</p>}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${URGENCY_COLORS[req.urgency]}`}>
+                {req.urgency}
+              </span>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${STATUS_COLORS[req.status]}`}>
+                {req.status}
+              </span>
+            </div>
+          </div>
+
+          {/* Reason */}
+          <p className="text-[#001254]/60 text-xs leading-relaxed bg-[#EFEFE9]/60 rounded-lg px-3 py-2">{req.reason}</p>
+
+          {/* Admin notes input + status buttons */}
+          <div className="space-y-2">
+            <input
+              type="text"
+              placeholder="Admin notes (optional)…"
+              value={adminNotes[req.request_id] ?? req.admin_notes ?? ''}
+              onChange={(e) => setAdminNotes((p) => ({ ...p, [req.request_id]: e.target.value }))}
+              className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-xs text-[#001254] focus:outline-none focus:border-[#0B4EA2]/40"
+            />
+            <div className="flex gap-2 flex-wrap">
+              {STATUS_OPTIONS.filter((s) => s !== req.status).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => handleStatusChange(req.request_id, s)}
+                  disabled={updating === req.request_id}
+                  className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all disabled:opacity-50 ${STATUS_COLORS[s]}`}
+                >
+                  {updating === req.request_id ? <Loader2 className="w-3 h-3 animate-spin inline" /> : `Mark ${s}`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-[#001254]/30 text-xs">
+            Submitted {new Date(req.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AcquisitionsManagement() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -378,6 +501,7 @@ export default function AcquisitionsManagement() {
   const [showCreate, setShowCreate] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const [adminTab, setAdminTab] = useState('acquisitions'); // 'acquisitions' | 'requests'
 
   const token = () => localStorage.getItem('token');
 
@@ -499,6 +623,26 @@ export default function AcquisitionsManagement() {
               </button>
             </div>
 
+            {/* Tab switcher */}
+            <div className="flex gap-1 bg-white border border-[#001254]/10 rounded-xl p-1">
+              <button
+                onClick={() => setAdminTab('acquisitions')}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                  adminTab === 'acquisitions' ? 'bg-[#0B4EA2] text-white shadow-sm' : 'text-[#001254]/50 hover:text-[#001254]/70'
+                }`}
+              >
+                Acquisitions
+              </button>
+              <button
+                onClick={() => setAdminTab('requests')}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                  adminTab === 'requests' ? 'bg-[#0B4EA2] text-white shadow-sm' : 'text-[#001254]/50 hover:text-[#001254]/70'
+                }`}
+              >
+                Student Requests
+              </button>
+            </div>
+
             {/* Success banner */}
             {successMsg && (
               <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3" style={{ fontSize: '0.85rem' }}>
@@ -515,7 +659,8 @@ export default function AcquisitionsManagement() {
               </div>
             )}
 
-            {/* Acquisitions table */}
+            {/* Acquisitions table — only shown on acquisitions tab */}
+            {adminTab === 'acquisitions' && (
             <div className="bg-white rounded-xl border border-[#001254]/10 overflow-hidden">
               {loading ? (
                 <div className="flex items-center justify-center py-16">
@@ -580,6 +725,10 @@ export default function AcquisitionsManagement() {
                 </div>
               )}
             </div>
+            )}
+
+            {/* Student Requests panel — only shown on requests tab */}
+            {adminTab === 'requests' && <RequestsPanel />}
           </>
         )}
       </main>

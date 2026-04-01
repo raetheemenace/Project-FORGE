@@ -160,3 +160,22 @@ CREATE TABLE forge_acquisition_items (
 
 CREATE INDEX idx_acq_items_acquisition ON forge_acquisition_items(acquisition_id);
 CREATE INDEX idx_acq_items_equipment ON forge_acquisition_items(equipment_id);
+
+-- Student equipment acquisition requests
+CREATE TABLE forge_acquisition_requests (
+    request_id    SERIAL PRIMARY KEY,
+    user_id       INTEGER NOT NULL REFERENCES forge_users(user_id),
+    equipment_name VARCHAR(200) NOT NULL,
+    department    VARCHAR(50) NOT NULL,
+    quantity      INTEGER NOT NULL DEFAULT 1 CHECK (quantity >= 1),
+    reason        TEXT NOT NULL,
+    urgency       VARCHAR(20) NOT NULL DEFAULT 'Medium' CHECK (urgency IN ('Low', 'Medium', 'High', 'Critical')),
+    status        VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'FULFILLED')),
+    admin_notes   TEXT,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_acq_requests_user ON forge_acquisition_requests(user_id);
+CREATE INDEX idx_acq_requests_status ON forge_acquisition_requests(status);
+CREATE INDEX idx_acq_requests_created ON forge_acquisition_requests(created_at DESC);

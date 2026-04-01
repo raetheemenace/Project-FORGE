@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   Volume2,
   VolumeX,
+  ShoppingCart,
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -214,6 +215,7 @@ export default function Dashboard() {
     { label: 'Borrow an Item', desc: 'AI-powered scanning & checkout', icon: ScanLine, path: '/borrow' },
     { label: 'My Transactions', desc: 'View, return & track records', icon: Package, path: '/transactions', badge: activeTransactions.length },
     { label: 'Report Maintenance', desc: 'QR scan to flag issues', icon: QrCode, path: '/report-maintenance' },
+    { label: 'Request Equipment', desc: 'Submit an acquisition request', icon: ShoppingCart, path: '/request-acquisition' },
   ];
 
   return (
@@ -350,7 +352,7 @@ export default function Dashboard() {
         )}
 
         {/* Navigation cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Borrow an Item */}
           <motion.button
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
@@ -403,6 +405,23 @@ export default function Dashboard() {
             <div className="flex-1">
               <h3 className="text-[#001254]">Report Maintenance</h3>
               <p className="text-[#001254]/40 mt-0.5" style={{ fontSize: '0.8rem' }}>QR scan to flag issues</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-[#001254]/20 group-hover:text-[#001254]/40 transition-colors" />
+          </motion.button>
+
+          {/* Request Equipment */}
+          <motion.button
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+            whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+            onClick={() => navigate('/request-acquisition')}
+            className="bg-white border border-[#001254]/10 text-[#001254] rounded-xl p-6 flex items-center gap-5 hover:border-amber-300 transition-all group text-left"
+          >
+            <div className="w-14 h-14 rounded-xl bg-amber-50 flex items-center justify-center shrink-0 group-hover:bg-amber-100 transition-colors">
+              <ShoppingCart className="w-7 h-7 text-amber-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-[#001254]">Request Equipment</h3>
+              <p className="text-[#001254]/40 mt-0.5" style={{ fontSize: '0.8rem' }}>Submit an acquisition request</p>
             </div>
             <ChevronRight className="w-5 h-5 text-[#001254]/20 group-hover:text-[#001254]/40 transition-colors" />
           </motion.button>

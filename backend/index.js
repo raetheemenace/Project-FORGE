@@ -21,6 +21,7 @@ const adminSystemReportsRoutes = require('./routes/admin/systemReports');
 const adminQRCodeRoutes = require('./routes/admin/qrcode');
 const adminAcquisitionsRoutes = require('./routes/admin/acquisitions');
 const aiRoutes = require('./routes/ai');
+const acquisitionRoutes = require('./routes/acquisitions');
 
 const app = express();
 
@@ -98,6 +99,9 @@ app.use('/api/admin/acquisitions', adminAcquisitionsRoutes);
 
 // AI Q&A routes (AWS Bedrock Claude 3)
 app.use('/api/ai', aiRoutes);
+
+// Student acquisition request routes
+app.use('/api/acquisitions', acquisitionRoutes);
 
 // AWS Bedrock integration for AI equipment scanner
 const { BedrockRuntimeClient, InvokeModelCommand } = require("@aws-sdk/client-bedrock-runtime");
