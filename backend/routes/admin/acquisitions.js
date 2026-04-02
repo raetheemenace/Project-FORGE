@@ -209,8 +209,6 @@ router.post('/:id/items', authenticateToken, requireRole('LAB_ADMIN'), async (re
   }
 });
 
-module.exports = router;
-
 // ---------------------------------------------------------------------------
 // GET /api/admin/acquisitions/requests — list all student acquisition requests
 // ---------------------------------------------------------------------------
@@ -275,3 +273,4 @@ router.patch('/requests/:id', authenticateToken, requireRole('LAB_ADMIN'), async
     return res.status(500).json({ error: 'Failed to update request.' });
   }
 });
+module.exports = router;
