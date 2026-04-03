@@ -35,10 +35,8 @@ export default function SignUp() {
     if (!formData.program.trim()) errs.program = 'Program is required';
     if (!formData.tipEmail.trim()) {
       errs.tipEmail = 'TIP Email is required';
-    } else if (/\d/.test(formData.tipEmail.split('@')[0])) {
-      errs.tipEmail = 'Must be a valid TIP Email';
-    } else if (!/^m[a-zA-Z.]+@tip\.edu\.ph$/.test(formData.tipEmail)) {
-      errs.tipEmail = 'Must be a valid TIP Email';
+    } else if (!/^[mMqQ][a-zA-Z0-9._%+-]*@tip\.edu\.ph$/.test(formData.tipEmail)) {
+      errs.tipEmail = 'Must be a valid TIP email starting with m or q (e.g. mjdelacruz@tip.edu.ph)';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
