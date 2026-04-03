@@ -16,7 +16,9 @@ export default function SignIn() {
 
   const handleChange = (e) => {
     let value = e.target.value;
-    if (e.target.name === 'studentId') value = value.replace(/\D/g, '');
+    if (e.target.name === 'studentId' && value.toUpperCase() !== 'ADMIN01') {
+      value = value.replace(/\D/g, '');
+    }
     setFormData({ ...formData, [e.target.name]: value });
     setErrors({});
   };
@@ -26,7 +28,8 @@ export default function SignIn() {
     if (!formData.fullName.trim()) errs.fullName = 'Full name is required';
     else if (/\d/.test(formData.fullName)) errs.fullName = 'Full name must not contain numbers';
     if (!formData.studentId.trim()) errs.studentId = 'Student ID is required';
-    else if (!/^\d{7,8}$/.test(formData.studentId)) errs.studentId = 'Must be 7-8 digits';
+    else if (formData.studentId.toUpperCase() !== 'ADMIN01' && !/^\d{7,8}$/.test(formData.studentId))
+      errs.studentId = 'Must be 7-8 digits';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
