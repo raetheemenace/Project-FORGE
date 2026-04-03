@@ -481,61 +481,63 @@ export default function LabRoomManagement() {
             )}
           </div>
         ) : (
-          filteredGrouped.map(([dept, deptRooms]) => (
-            <div key={dept} className="bg-white rounded-xl border border-[#001254]/10 overflow-hidden">
-              <div className="px-5 py-3 border-b border-[#001254]/8 bg-[#001254]/2 flex items-center justify-between">
-                <h2 className="text-[#001254] font-semibold" style={{ fontSize: '0.85rem' }}>{dept}</h2>
-                <span className="text-[#001254]/40 text-xs">{deptRooms.length} room{deptRooms.length !== 1 ? 's' : ''}</span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-[#001254]/8">
-                      <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Room ID</th>
-                      <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Name</th>
-                      <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest hidden lg:table-cell" style={{ fontSize: '0.65rem' }}>Capacity</th>
-                      <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Status</th>
-                      <th className="text-right px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {deptRooms.map((room, i) => (
-                      <tr
-                        key={room.room_id}
-                        className={`border-b border-[#001254]/5 hover:bg-[#001254]/2 transition-colors ${i === deptRooms.length - 1 ? 'border-b-0' : ''}`}
-                      >
-                        <td className="px-5 py-3.5 font-mono text-[#001254]" style={{ fontSize: '0.85rem' }}>{room.room_id}</td>
-                        <td className="px-5 py-3.5 text-[#001254]" style={{ fontSize: '0.85rem' }}>{room.room_name}</td>
-                        <td className="px-5 py-3.5 text-[#001254]/60 hidden lg:table-cell" style={{ fontSize: '0.82rem' }}>
-                          {room.capacity ?? '—'}
-                        </td>
-                        <td className="px-5 py-3.5"><StatusBadge status={room.status} /></td>
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => setEditTarget(room)}
-                              className="p-1.5 hover:bg-[#001254]/8 rounded-lg transition-colors"
-                              title="Edit room"
-                            >
-                              <Pencil className="w-3.5 h-3.5 text-[#0B4EA2]" />
-                            </button>
-                            <button
-                              onClick={() => setDeactivateTarget(room)}
-                              disabled={room.status === 'INACTIVE'}
-                              className="p-1.5 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
-                              title={room.status === 'INACTIVE' ? 'Already inactive' : 'Deactivate room'}
-                            >
-                              <PowerOff className="w-3.5 h-3.5 text-red-500" />
-                            </button>
-                          </div>
-                        </td>
+          <div className="space-y-5">
+            {filteredGrouped.map(([dept, deptRooms]) => (
+              <div key={dept} className="bg-white rounded-xl border border-[#001254]/10 overflow-hidden">
+                <div className="px-5 py-3 border-b border-[#001254]/8 bg-[#001254]/2 flex items-center justify-between">
+                  <h2 className="text-[#001254] font-semibold" style={{ fontSize: '0.85rem' }}>{dept}</h2>
+                  <span className="text-[#001254]/40 text-xs">{deptRooms.length} room{deptRooms.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-[#001254]/8">
+                        <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Room ID</th>
+                        <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Name</th>
+                        <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest hidden lg:table-cell" style={{ fontSize: '0.65rem' }}>Capacity</th>
+                        <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Status</th>
+                        <th className="text-right px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {deptRooms.map((room, i) => (
+                        <tr
+                          key={room.room_id}
+                          className={`border-b border-[#001254]/5 hover:bg-[#001254]/2 transition-colors ${i === deptRooms.length - 1 ? 'border-b-0' : ''}`}
+                        >
+                          <td className="px-5 py-3.5 font-mono text-[#001254]" style={{ fontSize: '0.85rem' }}>{room.room_id}</td>
+                          <td className="px-5 py-3.5 text-[#001254]" style={{ fontSize: '0.85rem' }}>{room.room_name}</td>
+                          <td className="px-5 py-3.5 text-[#001254]/60 hidden lg:table-cell" style={{ fontSize: '0.82rem' }}>
+                            {room.capacity ?? '—'}
+                          </td>
+                          <td className="px-5 py-3.5"><StatusBadge status={room.status} /></td>
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => setEditTarget(room)}
+                                className="p-1.5 hover:bg-[#001254]/8 rounded-lg transition-colors"
+                                title="Edit room"
+                              >
+                                <Pencil className="w-3.5 h-3.5 text-[#0B4EA2]" />
+                              </button>
+                              <button
+                                onClick={() => setDeactivateTarget(room)}
+                                disabled={room.status === 'INACTIVE'}
+                                className="p-1.5 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
+                                title={room.status === 'INACTIVE' ? 'Already inactive' : 'Deactivate room'}
+                              >
+                                <PowerOff className="w-3.5 h-3.5 text-red-500" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </main>
 

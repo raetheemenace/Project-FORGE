@@ -477,7 +477,8 @@ export default function EquipmentManagement() {
             )}
           </div>
         ) : (
-          filteredGrouped.map(([dept, items]) => (
+          <div className="space-y-5">
+            {filteredGrouped.map(([dept, items]) => (
               <div key={dept} className="bg-white rounded-xl border border-[#001254]/10 overflow-hidden">
                 <div className="px-5 py-3 border-b border-[#001254]/8 bg-[#001254]/2 flex items-center justify-between">
                   <h2 className="text-[#001254] font-semibold" style={{ fontSize: '0.85rem' }}>{dept}</h2>
@@ -534,7 +535,8 @@ export default function EquipmentManagement() {
                   </table>
                 </div>
               </div>
-            ))
+            ))}
+          </div>
         )}
       </main>
 
