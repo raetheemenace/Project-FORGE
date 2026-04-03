@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../hooks/useAuth.jsx';
@@ -15,6 +15,8 @@ import {
   Pencil,
   PowerOff,
   X,
+  Filter,
+  Search,
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -193,6 +195,11 @@ export default function LabRoomManagement() {
   const [deactivateTarget, setDeactivateTarget] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Filters
+  const [search, setSearch] = useState('');
+  const [filterDept, setFilterDept] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
   const token = () => localStorage.getItem('token');
 
   const fetchRooms = () => {
@@ -274,6 +281,40 @@ export default function LabRoomManagement() {
 
   const displayName = user?.fullName || user?.username || 'Admin';
 
+  const hasActiveFilters = search || filterDept || filterStatus;
+
+  const clearFilters = () => { setSearch(''); setFilterDept(''); setFilterStatus(''); };
+
+  // Apply search + filters, then group by department
+  const filteredGrouped = useMemo(() => {
+    let list = [...rooms];
+
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (r) =>
+          (r.room_id || '').toLowerCase().includes(q) ||
+          (r.room_name || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (filterDept) {
+      list = list.filter((r) => r.department === filterDept);
+    }
+
+    if (filterStatus) {
+      list = list.filter((r) => r.status === filterStatus);
+    }
+
+    const groups = {};
+    list.forEach((r) => {
+      const dept = r.department || 'Uncategorized';
+      if (!groups[dept]) groups[dept] = [];
+      groups[dept].push(r);
+    });
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [rooms, search, filterDept, filterStatus]);
+
   return (
     <div className="min-h-screen bg-[#EFEFE9]">
 
@@ -339,6 +380,58 @@ export default function LabRoomManagement() {
           </button>
         </div>
 
+        {/* Search + Filters */}
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#001254]/30" />
+            <input
+              type="text"
+              placeholder="Search by room ID or name…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 border border-[#001254]/15 rounded-xl text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+              style={{ fontSize: '0.85rem' }}
+            />
+          </div>
+
+          <div className="bg-white rounded-xl border border-[#001254]/10 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="w-3.5 h-3.5 text-[#001254]/40" />
+              <span className="text-[#001254]/50 uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Filters</span>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="ml-auto flex items-center gap-1 text-red-500 hover:text-red-600 transition-colors"
+                  style={{ fontSize: '0.75rem' }}
+                >
+                  <X className="w-3 h-3" /> Clear
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <select
+                value={filterDept}
+                onChange={(e) => setFilterDept(e.target.value)}
+                className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.82rem' }}
+              >
+                <option value="">All Departments</option>
+                {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.82rem' }}
+              >
+                <option value="">All Statuses</option>
+                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
         {/* Success banner */}
         {successMsg && (
           <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3" style={{ fontSize: '0.85rem' }}>
@@ -358,76 +451,92 @@ export default function LabRoomManagement() {
           </div>
         )}
 
-        {/* Rooms table */}
-        <div className="bg-white rounded-xl border border-[#001254]/10 overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-6 h-6 text-[#0B4EA2] animate-spin" />
-            </div>
-          ) : rooms.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <DoorOpen className="w-10 h-10 text-[#001254]/15" />
-              <p className="text-[#001254]/40" style={{ fontSize: '0.85rem' }}>No lab rooms found.</p>
-              <button
-                onClick={() => setShowCreate(true)}
-                className="text-[#0B4EA2] hover:underline"
-                style={{ fontSize: '0.82rem' }}
-              >
-                Add the first room
+        {/* Rooms grouped by department */}
+        {loading ? (
+          <div className="bg-white rounded-xl border border-[#001254]/10 flex items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 text-[#0B4EA2] animate-spin" />
+          </div>
+        ) : rooms.length === 0 && !hasActiveFilters ? (
+          <div className="bg-white rounded-xl border border-[#001254]/10 flex flex-col items-center justify-center py-16 gap-3">
+            <DoorOpen className="w-10 h-10 text-[#001254]/15" />
+            <p className="text-[#001254]/40" style={{ fontSize: '0.85rem' }}>No lab rooms found.</p>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="text-[#0B4EA2] hover:underline"
+              style={{ fontSize: '0.82rem' }}
+            >
+              Add the first room
+            </button>
+          </div>
+        ) : filteredGrouped.length === 0 ? (
+          <div className="bg-white rounded-xl border border-[#001254]/10 flex flex-col items-center justify-center py-16 gap-3">
+            <DoorOpen className="w-10 h-10 text-[#001254]/15" />
+            <p className="text-[#001254]/40" style={{ fontSize: '0.85rem' }}>
+              {hasActiveFilters ? 'No rooms match the current filters.' : 'No lab rooms found.'}
+            </p>
+            {hasActiveFilters && (
+              <button onClick={clearFilters} className="text-[#0B4EA2] underline underline-offset-2" style={{ fontSize: '0.82rem' }}>
+                Clear filters
               </button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[#001254]/8">
-                    <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Room ID</th>
-                    <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Name</th>
-                    <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest hidden md:table-cell" style={{ fontSize: '0.65rem' }}>Department</th>
-                    <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest hidden lg:table-cell" style={{ fontSize: '0.65rem' }}>Capacity</th>
-                    <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Status</th>
-                    <th className="text-right px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rooms.map((room, i) => (
-                    <tr
-                      key={room.room_id}
-                      className={`border-b border-[#001254]/5 hover:bg-[#001254]/2 transition-colors ${i === rooms.length - 1 ? 'border-b-0' : ''}`}
-                    >
-                      <td className="px-5 py-3.5 font-mono text-[#001254]" style={{ fontSize: '0.85rem' }}>{room.room_id}</td>
-                      <td className="px-5 py-3.5 text-[#001254]" style={{ fontSize: '0.85rem' }}>{room.room_name}</td>
-                      <td className="px-5 py-3.5 text-[#001254]/60 hidden md:table-cell" style={{ fontSize: '0.82rem' }}>{room.department}</td>
-                      <td className="px-5 py-3.5 text-[#001254]/60 hidden lg:table-cell" style={{ fontSize: '0.82rem' }}>
-                        {room.capacity ?? '—'}
-                      </td>
-                      <td className="px-5 py-3.5"><StatusBadge status={room.status} /></td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => setEditTarget(room)}
-                            className="p-1.5 hover:bg-[#001254]/8 rounded-lg transition-colors"
-                            title="Edit room"
-                          >
-                            <Pencil className="w-3.5 h-3.5 text-[#0B4EA2]" />
-                          </button>
-                          <button
-                            onClick={() => setDeactivateTarget(room)}
-                            disabled={room.status === 'INACTIVE'}
-                            className="p-1.5 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
-                            title={room.status === 'INACTIVE' ? 'Already inactive' : 'Deactivate room'}
-                          >
-                            <PowerOff className="w-3.5 h-3.5 text-red-500" />
-                          </button>
-                        </div>
-                      </td>
+            )}
+          </div>
+        ) : (
+          filteredGrouped.map(([dept, deptRooms]) => (
+            <div key={dept} className="bg-white rounded-xl border border-[#001254]/10 overflow-hidden">
+              <div className="px-5 py-3 border-b border-[#001254]/8 bg-[#001254]/2 flex items-center justify-between">
+                <h2 className="text-[#001254] font-semibold" style={{ fontSize: '0.85rem' }}>{dept}</h2>
+                <span className="text-[#001254]/40 text-xs">{deptRooms.length} room{deptRooms.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-[#001254]/8">
+                      <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Room ID</th>
+                      <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Name</th>
+                      <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest hidden lg:table-cell" style={{ fontSize: '0.65rem' }}>Capacity</th>
+                      <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Status</th>
+                      <th className="text-right px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {deptRooms.map((room, i) => (
+                      <tr
+                        key={room.room_id}
+                        className={`border-b border-[#001254]/5 hover:bg-[#001254]/2 transition-colors ${i === deptRooms.length - 1 ? 'border-b-0' : ''}`}
+                      >
+                        <td className="px-5 py-3.5 font-mono text-[#001254]" style={{ fontSize: '0.85rem' }}>{room.room_id}</td>
+                        <td className="px-5 py-3.5 text-[#001254]" style={{ fontSize: '0.85rem' }}>{room.room_name}</td>
+                        <td className="px-5 py-3.5 text-[#001254]/60 hidden lg:table-cell" style={{ fontSize: '0.82rem' }}>
+                          {room.capacity ?? '—'}
+                        </td>
+                        <td className="px-5 py-3.5"><StatusBadge status={room.status} /></td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => setEditTarget(room)}
+                              className="p-1.5 hover:bg-[#001254]/8 rounded-lg transition-colors"
+                              title="Edit room"
+                            >
+                              <Pencil className="w-3.5 h-3.5 text-[#0B4EA2]" />
+                            </button>
+                            <button
+                              onClick={() => setDeactivateTarget(room)}
+                              disabled={room.status === 'INACTIVE'}
+                              className="p-1.5 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
+                              title={room.status === 'INACTIVE' ? 'Already inactive' : 'Deactivate room'}
+                            >
+                              <PowerOff className="w-3.5 h-3.5 text-red-500" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          )}
-        </div>
+          ))
+        )}
       </main>
 
       {/* Create modal */}

@@ -288,21 +288,21 @@ export default function EquipmentManagement() {
   const filteredGrouped = useMemo(() => {
     let list = [...equipment];
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
+    const q = search.trim().toLowerCase();
+    if (q) {
       list = list.filter(
         (eq) =>
-          eq.name?.toLowerCase().includes(q) ||
-          eq.equipment_id?.toLowerCase().includes(q)
+          (eq.name || '').toLowerCase().includes(q) ||
+          (eq.equipment_id || '').toLowerCase().includes(q)
       );
     }
 
     if (filterDept) {
-      list = list.filter((eq) => eq.department === filterDept);
+      list = list.filter((eq) => (eq.department || '') === filterDept);
     }
 
     if (filterStatus) {
-      list = list.filter((eq) => eq.status === filterStatus);
+      list = list.filter((eq) => (eq.status || '') === filterStatus);
     }
 
     const groups = {};
@@ -452,7 +452,7 @@ export default function EquipmentManagement() {
           <div className="bg-white rounded-xl border border-[#001254]/10 flex items-center justify-center py-16">
             <Loader2 className="w-6 h-6 text-[#0B4EA2] animate-spin" />
           </div>
-        ) : equipment.length === 0 ? (
+        ) : equipment.length === 0 && !hasActiveFilters ? (
           <div className="bg-white rounded-xl border border-[#001254]/10 flex flex-col items-center justify-center py-16 gap-3">
             <Package className="w-10 h-10 text-[#001254]/15" />
             <p className="text-[#001254]/40" style={{ fontSize: '0.85rem' }}>No equipment records found.</p>
@@ -467,7 +467,14 @@ export default function EquipmentManagement() {
         ) : filteredGrouped.length === 0 ? (
           <div className="bg-white rounded-xl border border-[#001254]/10 flex flex-col items-center justify-center py-16 gap-3">
             <Package className="w-10 h-10 text-[#001254]/15" />
-            <p className="text-[#001254]/40" style={{ fontSize: '0.85rem' }}>No equipment matches the current filters.</p>
+            <p className="text-[#001254]/40" style={{ fontSize: '0.85rem' }}>
+              {hasActiveFilters ? 'No equipment matches the current filters.' : 'No equipment records found.'}
+            </p>
+            {hasActiveFilters && (
+              <button onClick={clearFilters} className="text-[#0B4EA2] underline underline-offset-2" style={{ fontSize: '0.82rem' }}>
+                Clear filters
+              </button>
+            )}
           </div>
         ) : (
           filteredGrouped.map(([dept, items]) => (
