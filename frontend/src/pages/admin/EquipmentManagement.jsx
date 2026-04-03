@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../hooks/useAuth.jsx';
@@ -18,6 +18,8 @@ import {
   CheckCircle2,
   QrCode,
   Download,
+  Filter,
+  Search,
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -162,6 +164,11 @@ export default function EquipmentManagement() {
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
 
+  // Filters
+  const [search, setSearch] = useState('');
+  const [filterDept, setFilterDept] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(null);   // equipment object
   const [showDelete, setShowDelete] = useState(null); // equipment object
@@ -273,6 +280,40 @@ export default function EquipmentManagement() {
 
   const displayName = user?.fullName || user?.username || 'Admin';
 
+  const hasActiveFilters = search || filterDept || filterStatus;
+
+  const clearFilters = () => { setSearch(''); setFilterDept(''); setFilterStatus(''); };
+
+  // Apply search + filters, then group by department
+  const filteredGrouped = useMemo(() => {
+    let list = [...equipment];
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (eq) =>
+          eq.name?.toLowerCase().includes(q) ||
+          eq.equipment_id?.toLowerCase().includes(q)
+      );
+    }
+
+    if (filterDept) {
+      list = list.filter((eq) => eq.department === filterDept);
+    }
+
+    if (filterStatus) {
+      list = list.filter((eq) => eq.status === filterStatus);
+    }
+
+    const groups = {};
+    list.forEach((eq) => {
+      const dept = eq.department || 'Uncategorized';
+      if (!groups[dept]) groups[dept] = [];
+      groups[dept].push(eq);
+    });
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [equipment, search, filterDept, filterStatus]);
+
   return (
     <div className="min-h-screen bg-[#EFEFE9]">
 
@@ -338,6 +379,58 @@ export default function EquipmentManagement() {
           </button>
         </div>
 
+        {/* Search + Filters */}
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#001254]/30" />
+            <input
+              type="text"
+              placeholder="Search by name or equipment ID…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 border border-[#001254]/15 rounded-xl text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+              style={{ fontSize: '0.85rem' }}
+            />
+          </div>
+
+          <div className="bg-white rounded-xl border border-[#001254]/10 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="w-3.5 h-3.5 text-[#001254]/40" />
+              <span className="text-[#001254]/50 uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Filters</span>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="ml-auto flex items-center gap-1 text-red-500 hover:text-red-600 transition-colors"
+                  style={{ fontSize: '0.75rem' }}
+                >
+                  <X className="w-3 h-3" /> Clear
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <select
+                value={filterDept}
+                onChange={(e) => setFilterDept(e.target.value)}
+                className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.82rem' }}
+              >
+                <option value="">All Departments</option>
+                {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.82rem' }}
+              >
+                <option value="">All Statuses</option>
+                {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
         {/* Success banner */}
         {successMsg && (
           <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3" style={{ fontSize: '0.85rem' }}>
@@ -371,15 +464,13 @@ export default function EquipmentManagement() {
               Add the first item
             </button>
           </div>
+        ) : filteredGrouped.length === 0 ? (
+          <div className="bg-white rounded-xl border border-[#001254]/10 flex flex-col items-center justify-center py-16 gap-3">
+            <Package className="w-10 h-10 text-[#001254]/15" />
+            <p className="text-[#001254]/40" style={{ fontSize: '0.85rem' }}>No equipment matches the current filters.</p>
+          </div>
         ) : (
-          (() => {
-            const byDept = equipment.reduce((acc, eq) => {
-              const dept = eq.department || 'Uncategorized';
-              if (!acc[dept]) acc[dept] = [];
-              acc[dept].push(eq);
-              return acc;
-            }, {});
-            return Object.entries(byDept).sort(([a], [b]) => a.localeCompare(b)).map(([dept, items]) => (
+          filteredGrouped.map(([dept, items]) => (
               <div key={dept} className="bg-white rounded-xl border border-[#001254]/10 overflow-hidden">
                 <div className="px-5 py-3 border-b border-[#001254]/8 bg-[#001254]/2 flex items-center justify-between">
                   <h2 className="text-[#001254] font-semibold" style={{ fontSize: '0.85rem' }}>{dept}</h2>
@@ -436,8 +527,7 @@ export default function EquipmentManagement() {
                   </table>
                 </div>
               </div>
-            ));
-          })()
+            ))
         )}
       </main>
 
