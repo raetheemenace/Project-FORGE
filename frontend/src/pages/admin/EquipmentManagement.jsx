@@ -354,79 +354,91 @@ export default function EquipmentManagement() {
           </div>
         )}
 
-        {/* Equipment table */}
-        <div className="bg-white rounded-xl border border-[#001254]/10 overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-6 h-6 text-[#0B4EA2] animate-spin" />
-            </div>
-          ) : equipment.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <Package className="w-10 h-10 text-[#001254]/15" />
-              <p className="text-[#001254]/40" style={{ fontSize: '0.85rem' }}>No equipment records found.</p>
-              <button
-                onClick={() => setShowCreate(true)}
-                className="text-[#0B4EA2] underline underline-offset-2"
-                style={{ fontSize: '0.82rem' }}
-              >
-                Add the first item
-              </button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[#001254]/8">
-                    <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>ID</th>
-                    <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Name</th>
-                    <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest hidden md:table-cell" style={{ fontSize: '0.65rem' }}>Department</th>
-                    <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Status</th>
-                    <th className="text-right px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {equipment.map((eq, i) => (
-                    <tr
-                      key={eq.equipment_id}
-                      className={`border-b border-[#001254]/5 hover:bg-[#001254]/2 transition-colors ${i === equipment.length - 1 ? 'border-b-0' : ''}`}
-                    >
-                      <td className="px-5 py-3.5 text-[#001254]/50 font-mono" style={{ fontSize: '0.8rem' }}>{eq.equipment_id}</td>
-                      <td className="px-5 py-3.5 text-[#001254]" style={{ fontSize: '0.85rem' }}>{eq.name}</td>
-                      <td className="px-5 py-3.5 text-[#001254]/60 hidden md:table-cell" style={{ fontSize: '0.82rem' }}>{eq.department}</td>
-                      <td className="px-5 py-3.5"><StatusBadge status={eq.status} /></td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => handleGenerateQRCode(eq.equipment_id, eq.name)}
-                            className="p-1.5 hover:bg-[#0B4EA2]/8 rounded-lg transition-colors"
-                            title="Generate QR Code"
-                          >
-                            <QrCode className="w-3.5 h-3.5 text-[#0B4EA2]" />
-                          </button>
-                          <button
-                            onClick={() => setShowEdit(eq)}
-                            className="p-1.5 hover:bg-[#0B4EA2]/8 rounded-lg transition-colors"
-                            title="Edit"
-                          >
-                            <Pencil className="w-3.5 h-3.5 text-[#0B4EA2]" />
-                          </button>
-                          <button
-                            onClick={() => setShowDelete(eq)}
-                            disabled={eq.status === 'DISPOSED'}
-                            className="p-1.5 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
-                            title="Dispose"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+        {/* Equipment grouped by department */}
+        {loading ? (
+          <div className="bg-white rounded-xl border border-[#001254]/10 flex items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 text-[#0B4EA2] animate-spin" />
+          </div>
+        ) : equipment.length === 0 ? (
+          <div className="bg-white rounded-xl border border-[#001254]/10 flex flex-col items-center justify-center py-16 gap-3">
+            <Package className="w-10 h-10 text-[#001254]/15" />
+            <p className="text-[#001254]/40" style={{ fontSize: '0.85rem' }}>No equipment records found.</p>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="text-[#0B4EA2] underline underline-offset-2"
+              style={{ fontSize: '0.82rem' }}
+            >
+              Add the first item
+            </button>
+          </div>
+        ) : (
+          (() => {
+            const byDept = equipment.reduce((acc, eq) => {
+              const dept = eq.department || 'Uncategorized';
+              if (!acc[dept]) acc[dept] = [];
+              acc[dept].push(eq);
+              return acc;
+            }, {});
+            return Object.entries(byDept).sort(([a], [b]) => a.localeCompare(b)).map(([dept, items]) => (
+              <div key={dept} className="bg-white rounded-xl border border-[#001254]/10 overflow-hidden">
+                <div className="px-5 py-3 border-b border-[#001254]/8 bg-[#001254]/2 flex items-center justify-between">
+                  <h2 className="text-[#001254] font-semibold" style={{ fontSize: '0.85rem' }}>{dept}</h2>
+                  <span className="text-[#001254]/40 text-xs">{items.length} item{items.length !== 1 ? 's' : ''}</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-[#001254]/8">
+                        <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>ID</th>
+                        <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Name</th>
+                        <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Status</th>
+                        <th className="text-right px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((eq, i) => (
+                        <tr
+                          key={eq.equipment_id}
+                          className={`border-b border-[#001254]/5 hover:bg-[#001254]/2 transition-colors ${i === items.length - 1 ? 'border-b-0' : ''}`}
+                        >
+                          <td className="px-5 py-3.5 text-[#001254]/50 font-mono" style={{ fontSize: '0.8rem' }}>{eq.equipment_id}</td>
+                          <td className="px-5 py-3.5 text-[#001254]" style={{ fontSize: '0.85rem' }}>{eq.name}</td>
+                          <td className="px-5 py-3.5"><StatusBadge status={eq.status} /></td>
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleGenerateQRCode(eq.equipment_id, eq.name)}
+                                className="p-1.5 hover:bg-[#0B4EA2]/8 rounded-lg transition-colors"
+                                title="Generate QR Code"
+                              >
+                                <QrCode className="w-3.5 h-3.5 text-[#0B4EA2]" />
+                              </button>
+                              <button
+                                onClick={() => setShowEdit(eq)}
+                                className="p-1.5 hover:bg-[#0B4EA2]/8 rounded-lg transition-colors"
+                                title="Edit"
+                              >
+                                <Pencil className="w-3.5 h-3.5 text-[#0B4EA2]" />
+                              </button>
+                              <button
+                                onClick={() => setShowDelete(eq)}
+                                disabled={eq.status === 'DISPOSED'}
+                                className="p-1.5 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
+                                title="Dispose"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ));
+          })()
+        )}
       </main>
 
       {/* Create modal */}

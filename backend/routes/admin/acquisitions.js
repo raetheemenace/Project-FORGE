@@ -11,6 +11,72 @@ const { authenticateToken, requireRole } = require('../../middleware/auth');
 const { getUniqueEquipmentId } = require('./equipment');
 
 // ---------------------------------------------------------------------------
+// GET /api/admin/acquisitions/requests — list all student acquisition requests
+// ---------------------------------------------------------------------------
+
+router.get('/requests', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT
+         r.request_id,
+         r.equipment_name,
+         r.equipment_id,
+         r.department,
+         r.quantity,
+         r.reason,
+         r.urgency,
+         r.status,
+         r.admin_notes,
+         r.created_at,
+         u.full_name AS requested_by,
+         u.student_id,
+         u.program
+       FROM forge_acquisition_requests r
+       JOIN forge_users u ON u.user_id = r.user_id
+       ORDER BY
+         CASE r.urgency WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END,
+         r.created_at DESC`
+    );
+    return res.json(result.rows);
+  } catch (err) {
+    console.error('Admin list requests error:', err);
+    return res.status(500).json({ error: 'Failed to fetch acquisition requests.' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// PATCH /api/admin/acquisitions/requests/:id — update request status
+// Body: { status, admin_notes? }
+// ---------------------------------------------------------------------------
+
+router.patch('/requests/:id', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) => {
+  const { id } = req.params;
+  const { status, admin_notes } = req.body;
+  const VALID = ['PENDING', 'APPROVED', 'REJECTED', 'FULFILLED'];
+
+  if (!status || !VALID.includes(status)) {
+    return res.status(400).json({ error: `Status must be one of: ${VALID.join(', ')}.` });
+  }
+
+  try {
+    const result = await db.query(
+      `UPDATE forge_acquisition_requests
+       SET status = $1, admin_notes = $2, updated_at = NOW()
+       WHERE request_id = $3
+       RETURNING request_id`,
+      [status, admin_notes || null, id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Request not found.' });
+    }
+    return res.json({ message: 'Request updated.' });
+  } catch (err) {
+    console.error('Admin update request error:', err);
+    return res.status(500).json({ error: 'Failed to update request.' });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // GET /api/admin/acquisitions — list all acquisitions
 // ---------------------------------------------------------------------------
 
@@ -209,69 +275,4 @@ router.post('/:id/items', authenticateToken, requireRole('LAB_ADMIN'), async (re
   }
 });
 
-// ---------------------------------------------------------------------------
-// GET /api/admin/acquisitions/requests — list all student acquisition requests
-// ---------------------------------------------------------------------------
-
-router.get('/requests', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) => {
-  try {
-    const result = await db.query(
-      `SELECT
-         r.request_id,
-         r.equipment_name,
-         r.equipment_id,
-         r.department,
-         r.quantity,
-         r.reason,
-         r.urgency,
-         r.status,
-         r.admin_notes,
-         r.created_at,
-         u.full_name AS requested_by,
-         u.student_id,
-         u.program
-       FROM forge_acquisition_requests r
-       JOIN forge_users u ON u.user_id = r.user_id
-       ORDER BY
-         CASE r.urgency WHEN 'Critical' THEN 1 WHEN 'High' THEN 2 WHEN 'Medium' THEN 3 ELSE 4 END,
-         r.created_at DESC`
-    );
-    return res.json(result.rows);
-  } catch (err) {
-    console.error('Admin list requests error:', err);
-    return res.status(500).json({ error: 'Failed to fetch acquisition requests.' });
-  }
-});
-
-// ---------------------------------------------------------------------------
-// PATCH /api/admin/acquisitions/requests/:id — update request status
-// Body: { status, admin_notes? }
-// ---------------------------------------------------------------------------
-
-router.patch('/requests/:id', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) => {
-  const { id } = req.params;
-  const { status, admin_notes } = req.body;
-  const VALID = ['PENDING', 'APPROVED', 'REJECTED', 'FULFILLED'];
-
-  if (!status || !VALID.includes(status)) {
-    return res.status(400).json({ error: `Status must be one of: ${VALID.join(', ')}.` });
-  }
-
-  try {
-    const result = await db.query(
-      `UPDATE forge_acquisition_requests
-       SET status = $1, admin_notes = $2, updated_at = NOW()
-       WHERE request_id = $3
-       RETURNING request_id`,
-      [status, admin_notes || null, id]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Request not found.' });
-    }
-    return res.json({ message: 'Request updated.' });
-  } catch (err) {
-    console.error('Admin update request error:', err);
-    return res.status(500).json({ error: 'Failed to update request.' });
-  }
-});
 module.exports = router;
