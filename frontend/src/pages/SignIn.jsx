@@ -41,8 +41,12 @@ export default function SignIn() {
     setLoading(true);
 
     try {
-      await signIn(formData.fullName, formData.studentId);
-      navigate('/dashboard');
+      const response = await signIn(formData.fullName, formData.studentId);
+      if (response.user?.role === 'LAB_ADMIN') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       setErrors({ submit: err.response?.data?.error || 'Invalid credentials. Please try again.' });
     } finally {
