@@ -21,7 +21,7 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-const DEPARTMENTS = ['Chemistry', 'Physics', 'Engineering', 'Biology', 'Computer Science'];
+const DEPARTMENTS = ['Computer Engineering', 'Electronics Engineering', 'Mechanical Engineering', 'Civil Engineering', 'Chemistry Laboratory', 'Biology', 'Computer Science'];
 const STATUSES = ['ACTIVE', 'MAINTENANCE', 'INACTIVE'];
 
 function StatusBadge({ status }) {
