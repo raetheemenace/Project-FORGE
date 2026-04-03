@@ -62,7 +62,9 @@ router.get('/my-requests', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   try {
     const result = await db.query(
-      `SELECT request_id, equipment_name, equipment_id, department, quantity, reason, urgency,
+      `SELECT request_id, equipment_name,
+              COALESCE(equipment_id, '') AS equipment_id,
+              department, quantity, reason, urgency,
               status, admin_notes, created_at
        FROM forge_acquisition_requests
        WHERE user_id = $1
