@@ -49,6 +49,7 @@ export default function RequestAcquisition() {
 
   // Form state
   const [equipmentName, setEquipmentName] = useState('');
+  const [equipmentId, setEquipmentId] = useState('');
   const [department, setDepartment] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [reason, setReason] = useState('');
@@ -84,6 +85,7 @@ export default function RequestAcquisition() {
   const validate = () => {
     const e = {};
     if (!equipmentName.trim()) e.equipmentName = 'Equipment name is required.';
+    if (!equipmentId.trim()) e.equipmentId = 'Equipment ID is required.';
     if (!department) e.department = 'Department is required.';
     if (!quantity || isNaN(quantity) || Number(quantity) < 1) e.quantity = 'Enter a valid quantity (min 1).';
     if (!reason.trim()) e.reason = 'Please describe why this equipment is needed.';
@@ -102,6 +104,7 @@ export default function RequestAcquisition() {
         `${API_URL}/acquisitions/request`,
         {
           equipment_name: equipmentName.trim(),
+          equipment_id: equipmentId.trim().toUpperCase(),
           department,
           quantity: Number(quantity),
           reason: reason.trim(),
@@ -119,6 +122,7 @@ export default function RequestAcquisition() {
 
   const handleNewRequest = () => {
     setEquipmentName('');
+    setEquipmentId('');
     setDepartment('');
     setQuantity('1');
     setReason('');
@@ -258,6 +262,21 @@ export default function RequestAcquisition() {
                 {errors.equipmentName && <p className="mt-1 text-xs text-red-500">{errors.equipmentName}</p>}
               </div>
 
+              {/* Equipment ID */}
+              <div>
+                <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
+                  Equipment ID <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={equipmentId}
+                  onChange={(e) => { setEquipmentId(e.target.value); if (errors.equipmentId) setErrors((p) => ({ ...p, equipmentId: '' })); }}
+                  placeholder="e.g. EQ-7167"
+                  className={fieldClass('equipmentId')}
+                />
+                {errors.equipmentId && <p className="mt-1 text-xs text-red-500">{errors.equipmentId}</p>}
+              </div>
+
               {/* Department + Quantity row */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -390,6 +409,7 @@ export default function RequestAcquisition() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-[#001254] font-semibold text-sm truncate">{req.equipment_name}</p>
+                        <p className="text-[#001254]/40 text-xs font-mono mt-0.5">{req.equipment_id}</p>
                         <p className="text-[#001254]/40 text-xs font-mono mt-0.5">REQ-{String(req.request_id).padStart(4, '0')}</p>
                         <p className="text-[#001254]/45 text-xs mt-0.5">
                           {req.department} · Qty {req.quantity}

@@ -219,6 +219,7 @@ router.get('/requests', authenticateToken, requireRole('LAB_ADMIN'), async (req,
       `SELECT
          r.request_id,
          r.equipment_name,
+         r.equipment_id,
          r.department,
          r.quantity,
          r.reason,

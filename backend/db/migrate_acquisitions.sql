@@ -42,3 +42,7 @@ CREATE TABLE IF NOT EXISTS forge_acquisition_requests (
 CREATE INDEX IF NOT EXISTS idx_acq_requests_user ON forge_acquisition_requests(user_id);
 CREATE INDEX IF NOT EXISTS idx_acq_requests_status ON forge_acquisition_requests(status);
 CREATE INDEX IF NOT EXISTS idx_acq_requests_created ON forge_acquisition_requests(created_at DESC);
+
+-- Migration: Add equipment_id field to acquisition requests
+ALTER TABLE forge_acquisition_requests
+  ADD COLUMN IF NOT EXISTS equipment_id VARCHAR(20);
