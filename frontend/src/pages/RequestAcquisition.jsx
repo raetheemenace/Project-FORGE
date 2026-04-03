@@ -11,7 +11,14 @@ import logo from '../assets/logo_landingpage.png';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const URGENCIES = ['Low', 'Medium', 'High', 'Critical'];
-const DEPARTMENTS = ['Chemistry', 'Physics', 'Engineering', 'Biology', 'Computer Science', 'Electronics', 'Other'];
+const DEPARTMENTS = [
+  'Computer Engineering',
+  'Electronics Engineering',
+  'Mechanical Engineering',
+  'Civil Engineering',
+  'Chemistry Laboratory',
+  'Other',
+];
 
 const URGENCY_COLORS = {
   Low: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -383,6 +390,7 @@ export default function RequestAcquisition() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-[#001254] font-semibold text-sm truncate">{req.equipment_name}</p>
+                        <p className="text-[#001254]/40 text-xs font-mono mt-0.5">REQ-{String(req.request_id).padStart(4, '0')}</p>
                         <p className="text-[#001254]/45 text-xs mt-0.5">
                           {req.department} · Qty {req.quantity}
                         </p>
