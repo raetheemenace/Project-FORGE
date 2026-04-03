@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import {
   ArrowLeft, ShoppingCart, Plus, CheckCircle2, AlertTriangle,
-  Loader2, Clock, ChevronRight, LayoutDashboard,
+  Loader2, Clock, LayoutDashboard,
 } from 'lucide-react';
 import logo from '../assets/logo_landingpage.png';
 

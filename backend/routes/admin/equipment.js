@@ -103,7 +103,7 @@ router.post('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) =
       const contentType = contentTypeMap[ext] || 'application/octet-stream';
 
       await s3.send(new PutObjectCommand({
-        Bucket: process.env.S3_BUCKET_NAME,
+        Bucket: process.env.AWS_S3_BUCKET || process.env.S3_BUCKET_NAME,
         Key: key,
         Body: buffer,
         ContentType: contentType,
@@ -129,7 +129,7 @@ router.post('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) =
         const contentTypeMap = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp' };
         const contentType = contentTypeMap[ext] || 'application/octet-stream';
         await s3.send(new PutObjectCommand({
-          Bucket: process.env.S3_BUCKET_NAME,
+          Bucket: process.env.AWS_S3_BUCKET || process.env.S3_BUCKET_NAME,
           Key: realKey,
           Body: buffer,
           ContentType: contentType,
@@ -199,7 +199,7 @@ router.put('/:id', authenticateToken, requireRole('LAB_ADMIN'), async (req, res)
         const contentType = contentTypeMap[ext] || 'application/octet-stream';
 
         await s3.send(new PutObjectCommand({
-          Bucket: process.env.S3_BUCKET_NAME,
+          Bucket: process.env.AWS_S3_BUCKET || process.env.S3_BUCKET_NAME,
           Key: key,
           Body: buffer,
           ContentType: contentType,

@@ -20,10 +20,10 @@ router.post('/signup', async (req, res) => {
       });
     }
 
-    // Validate Student ID format (exactly 7 numeric digits)
-    if (!/^\d{7}$/.test(studentId)) {
+    // Validate Student ID format (7-8 numeric digits, or admin IDs like ADMIN01)
+    if (!/^\d{7,8}$/.test(studentId) && !/^[A-Z]+\d+$/.test(studentId)) {
       return res.status(400).json({
-        error: 'Student ID must be exactly 7 numeric digits'
+        error: 'Student ID must be 7-8 numeric digits'
       });
     }
 

@@ -94,7 +94,7 @@ export default function SignUp() {
           {/* Header */}
           <div className="bg-[#001254] px-4 sm:px-8 py-6 sm:py-8 flex flex-col items-center gap-3 sm:gap-4">
             <img src={logo} alt="FORGE" className="w-40 sm:w-56 brightness-0 invert opacity-90" />
-            <div className="h-[1px] w-16 sm:w-24 bg-white/20" />
+            <div className="h-px w-16 sm:w-24 bg-white/20" />
             <p className="text-white/60 tracking-[0.15em] sm:tracking-[0.2em] uppercase text-center" style={{ fontSize: '0.6rem' }}>
               Lab & Resource Management
             </p>
