@@ -104,6 +104,7 @@ describe('Auth Routes - HTTP-level unit tests', () => {
       studentId: '2021001',
       fullName: 'Juan dela Cruz',
       program: 'BSCS',
+      tipEmail: 'mjdelacruz@tip.edu.ph',
     });
 
     expect(res._status).toBe(201);
@@ -122,22 +123,24 @@ describe('Auth Routes - HTTP-level unit tests', () => {
       studentId: '2021001',
       fullName: 'Juan dela Cruz',
       program: 'BSCS',
+      tipEmail: 'mjdelacruz@tip.edu.ph',
     });
 
     expect(res._status).toBe(409);
     expect(res._body.error).toBe('Student ID already registered');
   });
 
-  it('3. Signup with missing fields → HTTP 400, message "All fields are required: studentId, fullName, program"', async () => {
+  it('3. Signup with missing fields → HTTP 400, message "All fields are required: studentId, fullName, program, tipEmail"', async () => {
     // Validates: Requirements 1.4
     const res = await callRoute('POST', '/signup', {
       studentId: '2021001',
       // fullName missing
       program: 'BSCS',
+      tipEmail: 'jdelacruz@tip.edu.ph',
     });
 
     expect(res._status).toBe(400);
-    expect(res._body.error).toBe('All fields are required: studentId, fullName, program');
+    expect(res._body.error).toBe('All fields are required: studentId, fullName, program, tipEmail');
   });
 
   it('4. Signup with invalid studentId format (not 7 digits) → HTTP 400', async () => {
@@ -379,16 +382,17 @@ describe('Property 3: Missing required signup fields are rejected', () => {
   it('should always return HTTP 400 with "All fields are required" when any required field is omitted', async () => {
     querySpy.mockReset();
 
-    const allFields = ['studentId', 'fullName', 'program'];
+    const allFields = ['studentId', 'fullName', 'program', 'tipEmail'];
     const validValues = {
       studentId: '2021001',
       fullName: 'Juan dela Cruz',
       program: 'BSCS',
+      tipEmail: 'mjdelacruz@tip.edu.ph',
     };
 
     await fc.assert(
       fc.asyncProperty(
-        fc.subarray(allFields, { minLength: 1, maxLength: 2 }),
+        fc.subarray(allFields, { minLength: 1, maxLength: 3 }),
         async (fieldsToOmit) => {
           querySpy.mockReset();
 
@@ -403,7 +407,7 @@ describe('Property 3: Missing required signup fields are rejected', () => {
           const res = await callRoute('POST', '/signup', body);
 
           expect(res._status).toBe(400);
-          expect(res._body.error).toBe('All fields are required: studentId, fullName, program');
+          expect(res._body.error).toBe('All fields are required: studentId, fullName, program, tipEmail');
         }
       ),
       { numRuns: 100 }
