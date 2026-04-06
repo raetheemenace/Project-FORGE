@@ -25,13 +25,14 @@ export default function SignIn() {
 
   const validate = () => {
     const errs = {};
+    const isAdmin = formData.studentId.trim().toUpperCase() === 'ADMIN01';
     if (!formData.tipEmail.trim()) {
       errs.tipEmail = 'TIP Email is required';
-    } else if (!/^m[a-zA-Z.]+@tip\.edu\.ph$/.test(formData.tipEmail)) {
+    } else if (!isAdmin && !/^m[a-zA-Z.]+@tip\.edu\.ph$/.test(formData.tipEmail)) {
       errs.tipEmail = 'Must be a valid TIP email (e.g. mjdelacruz@tip.edu.ph)';
     }
     if (!formData.studentId.trim()) errs.studentId = 'Student ID is required';
-    else if (!/^\d{7,8}$/.test(formData.studentId)) errs.studentId = 'Must be 7-8 digits';
+    else if (!isAdmin && !/^\d{7,8}$/.test(formData.studentId)) errs.studentId = 'Must be 7-8 digits';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };

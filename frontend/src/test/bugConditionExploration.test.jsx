@@ -530,3 +530,97 @@ describe('Bug 3 — Sign In: frontend SignIn.jsx uses tipEmail field, not fullNa
     expect(hasFullNameLabel).toBe(false);
   });
 });
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin Login Exemption — Bug Condition: validate() rejects ADMIN01 credentials
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Admin Login Exemption — Bug Condition: validate() rejects ADMIN01 credentials', () => {
+  /**
+   * Validates: Requirements 1.1, 1.2
+   *
+   * EXPECTED TO FAIL on unfixed code because validate() applies the TIP email
+   * regex and 7-8 digit numeric ID check unconditionally, rejecting ADMIN01
+   * credentials before the request reaches the backend.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected true to be false (validation errors are present)
+   *   errors: { tipEmail: 'Must be a valid TIP email', studentId: 'Must be 7-8 digits' }
+   *
+   * Root cause confirmed: both regex checks apply unconditionally — no admin exemption.
+   */
+
+  // Helper: render the real SignIn component and submit with given credentials,
+  // then return whether any validation error text is visible in the DOM.
+  async function submitAndCheckErrors(studentId, tipEmail) {
+    // Unmock SignIn so we get the real component
+    const { default: RealSignIn } = await vi.importActual('../pages/SignIn.jsx');
+
+    // Mock useAuth to provide a signIn stub (won't be called if validation fails)
+    vi.doMock('../hooks/useAuth.jsx', () => ({
+      AuthProvider: ({ children }) => children,
+      useAuth: () => ({
+        user: null,
+        isAuthenticated: false,
+        loading: false,
+        signIn: vi.fn(() => Promise.resolve({ user: { role: 'LAB_ADMIN' } })),
+        signOut: vi.fn(),
+      }),
+    }));
+
+    const { unmount } = render(
+      React.createElement(
+        MemoryRouter,
+        { initialEntries: ['/signin'] },
+        React.createElement(RealSignIn)
+      )
+    );
+
+    // Fill in the TIP Email field
+    const emailInput = document.querySelector('input[name="tipEmail"]');
+    fireEvent.change(emailInput, { target: { name: 'tipEmail', value: tipEmail } });
+
+    // Fill in the Student ID field
+    const idInput = document.querySelector('input[name="studentId"]');
+    fireEvent.change(idInput, { target: { name: 'studentId', value: studentId } });
+
+    // Submit the form
+    const form = document.querySelector('form');
+    fireEvent.submit(form);
+
+    // Check for validation error messages in the DOM
+    const hasEmailError = !!document.querySelector('p.mt-1');
+    const errorTexts = Array.from(document.querySelectorAll('p.mt-1')).map(el => el.textContent);
+
+    unmount();
+    return { hasErrors: errorTexts.length > 0, errorTexts };
+  }
+
+  it('Test case 1: studentId=ADMIN01, tipEmail=admin → validate() should return true (no errors)', async () => {
+    const { hasErrors, errorTexts } = await submitAndCheckErrors('ADMIN01', 'admin');
+    // On UNFIXED code this FAILS — errors: ['Must be a valid TIP email (e.g. mjdelacruz@tip.edu.ph)', 'Must be 7-8 digits']
+    expect(hasErrors).toBe(false);
+    expect(errorTexts).toEqual([]);
+  });
+
+  it('Test case 2: studentId=admin01 (lowercase), tipEmail=admin → validate() should return true (no errors)', async () => {
+    const { hasErrors, errorTexts } = await submitAndCheckErrors('admin01', 'admin');
+    // On UNFIXED code this FAILS — same errors as case 1 (case-insensitive match not implemented)
+    expect(hasErrors).toBe(false);
+    expect(errorTexts).toEqual([]);
+  });
+
+  it('Test case 3: studentId=Admin01 (mixed case), tipEmail=admin → validate() should return true (no errors)', async () => {
+    const { hasErrors, errorTexts } = await submitAndCheckErrors('Admin01', 'admin');
+    // On UNFIXED code this FAILS — same errors as case 1
+    expect(hasErrors).toBe(false);
+    expect(errorTexts).toEqual([]);
+  });
+
+  it('Test case 4: studentId=ADMIN01, tipEmail=administrator → validate() should return true (no errors)', async () => {
+    const { hasErrors, errorTexts } = await submitAndCheckErrors('ADMIN01', 'administrator');
+    // On UNFIXED code this FAILS — tipEmail 'administrator' fails TIP email regex
+    expect(hasErrors).toBe(false);
+    expect(errorTexts).toEqual([]);
+  });
+});

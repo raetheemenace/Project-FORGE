@@ -23,8 +23,8 @@ export function AuthProvider({ children }) {
     authService.setupAxiosInterceptor();
   }, []);
 
-  const signIn = async (username, password) => {
-    const response = await authService.signIn(username, password);
+  const signIn = async (tipEmail, studentId) => {
+    const response = await authService.signIn(tipEmail, studentId);
     setUser(response.user);
     return response;
   };

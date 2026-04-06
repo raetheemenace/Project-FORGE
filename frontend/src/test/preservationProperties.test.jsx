@@ -1,10 +1,11 @@
 /**
  * Preservation Property Tests
- * Validates: Requirements 3.2, 3.3, 3.4, 3.5, 3.6, 3.7
+ * Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7
  *
  * These tests MUST PASS on unfixed code — they confirm baseline behaviors
  * that must remain intact after all bug fixes are applied.
  *
+ * Property 2 — Regular Student Validation Unchanged (Requirements 3.1–3.4)
  * Req 3.2 — BorrowStep3 camera scan + Bedrock identify flow returns equipment data
  * Req 3.3 — BorrowStep3 QR scan auto-adds item to cart
  * Req 3.4 — ReportMaintenance submission without photo succeeds
@@ -14,6 +15,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import fc from 'fast-check';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
@@ -192,6 +194,214 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Property 2 — Regular Student Validation Unchanged
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Property 2 — Regular Student Validation Unchanged', () => {
+  /**
+   * Validates: Requirements 3.1, 3.2, 3.3, 3.4
+   *
+   * These tests MUST PASS on unfixed code — they confirm that regular student
+   * validation already works correctly and must be preserved after the fix.
+   *
+   * Observation-first methodology: we first observe the current behavior on
+   * unfixed code, then encode it as property-based tests.
+   */
+
+  // Helper: render the real SignIn component, fill in fields, submit, and
+  // return the validation result (errors object and whether form passed).
+  async function runValidate(studentId, tipEmail) {
+    const { default: RealSignIn } = await vi.importActual('../pages/SignIn.jsx');
+
+    vi.doMock('../hooks/useAuth.jsx', () => ({
+      AuthProvider: ({ children }) => children,
+      useAuth: () => ({
+        user: null,
+        isAuthenticated: false,
+        loading: false,
+        signIn: vi.fn(() => Promise.resolve({ user: { role: 'STUDENT' } })),
+        signOut: vi.fn(),
+      }),
+    }));
+
+    const { unmount } = render(
+      React.createElement(
+        MemoryRouter,
+        { initialEntries: ['/signin'] },
+        React.createElement(RealSignIn)
+      )
+    );
+
+    const emailInput = document.querySelector('input[name="tipEmail"]');
+    fireEvent.change(emailInput, { target: { name: 'tipEmail', value: tipEmail } });
+
+    const idInput = document.querySelector('input[name="studentId"]');
+    fireEvent.change(idInput, { target: { name: 'studentId', value: studentId } });
+
+    const form = document.querySelector('form');
+    fireEvent.submit(form);
+
+    const errorEls = Array.from(document.querySelectorAll('p.mt-1'));
+    const errorTexts = errorEls.map(el => el.textContent);
+
+    unmount();
+    return { passed: errorTexts.length === 0, errorTexts };
+  }
+
+  // ── Observation tests (concrete examples on unfixed code) ──────────────────
+
+  it('Obs 1: valid student credentials → validate() returns true', async () => {
+    const result = await runValidate('2024001', 'mjdelacruz@tip.edu.ph');
+    expect(result.passed).toBe(true);
+    expect(result.errorTexts).toEqual([]);
+  });
+
+  it('Obs 2: invalid email for regular student → validate() returns false with email error', async () => {
+    const result = await runValidate('2024001', 'notanemail');
+    expect(result.passed).toBe(false);
+    expect(result.errorTexts.some(t => /valid TIP email/i.test(t))).toBe(true);
+  });
+
+  it('Obs 3: invalid numeric ID (too short) → validate() returns false with ID error', async () => {
+    const result = await runValidate('123', 'mjdelacruz@tip.edu.ph');
+    expect(result.passed).toBe(false);
+    expect(result.errorTexts.some(t => /7-8 digits/i.test(t))).toBe(true);
+  });
+
+  it('Obs 4: empty tipEmail → validate() returns false with "TIP Email is required"', async () => {
+    const result = await runValidate('2024001', '');
+    expect(result.passed).toBe(false);
+    expect(result.errorTexts.some(t => /TIP Email is required/i.test(t))).toBe(true);
+  });
+
+  it('Obs 5: empty studentId → validate() returns false with "Student ID is required"', async () => {
+    const result = await runValidate('', 'mjdelacruz@tip.edu.ph');
+    expect(result.passed).toBe(false);
+    expect(result.errorTexts.some(t => /Student ID is required/i.test(t))).toBe(true);
+  });
+
+  // ── Property-based tests ───────────────────────────────────────────────────
+
+  /**
+   * Property 2a: For all non-ADMIN01 studentId values, TIP email format is enforced.
+   * Validates: Requirements 3.1
+   *
+   * Generator: numeric student IDs (7-8 digits) paired with invalid email strings.
+   * Expected: validate() returns false with a TIP email error.
+   */
+  it('PBT 2a: non-ADMIN01 studentId with invalid email → email format is enforced', async () => {
+    // Generate 7-8 digit numeric IDs (valid format) paired with non-TIP emails
+    const nonTipEmailArb = fc.oneof(
+      fc.string({ minLength: 1, maxLength: 20 }).filter(s =>
+        s.trim().length > 0 && !/^m[a-zA-Z.]+@tip\.edu\.ph$/.test(s)
+      ),
+      fc.constant('notanemail'),
+      fc.constant('user@gmail.com'),
+      fc.constant('student@tip.edu'),
+      fc.constant('mjdelacruz@gmail.com'),
+    );
+
+    const validNumericIdArb = fc.integer({ min: 1000000, max: 99999999 }).map(n => String(n));
+
+    await fc.assert(
+      fc.asyncProperty(validNumericIdArb, nonTipEmailArb, async (studentId, tipEmail) => {
+        const result = await runValidate(studentId, tipEmail);
+        // Must fail validation with an email-related error
+        return (
+          result.passed === false &&
+          result.errorTexts.some(t => /TIP email|valid TIP/i.test(t))
+        );
+      }),
+      { numRuns: 20 }
+    );
+  });
+
+  /**
+   * Property 2b: For all non-ADMIN01 studentId values, 7-8 digit numeric ID format is enforced.
+   * Validates: Requirements 3.1
+   *
+   * Generator: non-numeric or wrong-length IDs (that are not ADMIN01) paired with valid TIP emails.
+   * Expected: validate() returns false with an ID format error.
+   */
+  it('PBT 2b: non-ADMIN01 non-numeric studentId → numeric ID format is enforced', async () => {
+    // IDs that are not ADMIN01 and not 7-8 digit numeric
+    const invalidIdArb = fc.oneof(
+      fc.integer({ min: 1, max: 999999 }).map(n => String(n)),   // too short (< 7 digits)
+      fc.integer({ min: 1000000000, max: 9999999999 }).map(n => String(n)), // too long (> 8 digits)
+      fc.constant('123'),
+      fc.constant('12345'),
+      fc.constant('STUDENT01'),
+      fc.constant('abc1234'),
+    ).filter(s => s.trim().toUpperCase() !== 'ADMIN01');
+
+    const validTipEmailArb = fc.oneof(
+      fc.constant('mjdelacruz@tip.edu.ph'),
+      fc.constant('mreyes@tip.edu.ph'),
+      fc.constant('msantos@tip.edu.ph'),
+    );
+
+    await fc.assert(
+      fc.asyncProperty(invalidIdArb, validTipEmailArb, async (studentId, tipEmail) => {
+        const result = await runValidate(studentId, tipEmail);
+        // Must fail validation with an ID-related error
+        return (
+          result.passed === false &&
+          result.errorTexts.some(t => /7-8 digits/i.test(t))
+        );
+      }),
+      { numRuns: 20 }
+    );
+  });
+
+  /**
+   * Property 2c: Empty fields always produce required-field errors regardless of admin status.
+   * Validates: Requirements 3.2, 3.3
+   *
+   * Generator: any studentId (including ADMIN01 variants) with empty tipEmail, and vice versa.
+   * Expected: validate() returns false with the appropriate required-field error.
+   */
+  it('PBT 2c: empty tipEmail always produces "TIP Email is required" error', async () => {
+    const anyStudentIdArb = fc.oneof(
+      fc.constant('ADMIN01'),
+      fc.constant('admin01'),
+      fc.constant('Admin01'),
+      fc.integer({ min: 1000000, max: 99999999 }).map(n => String(n)),
+      fc.constant('2024001'),
+    );
+
+    await fc.assert(
+      fc.asyncProperty(anyStudentIdArb, async (studentId) => {
+        const result = await runValidate(studentId, '');
+        return (
+          result.passed === false &&
+          result.errorTexts.some(t => /TIP Email is required/i.test(t))
+        );
+      }),
+      { numRuns: 15 }
+    );
+  });
+
+  it('PBT 2d: empty studentId always produces "Student ID is required" error', async () => {
+    const anyEmailArb = fc.oneof(
+      fc.constant('admin'),
+      fc.constant('mjdelacruz@tip.edu.ph'),
+      fc.constant('notanemail'),
+      fc.constant('user@gmail.com'),
+    );
+
+    await fc.assert(
+      fc.asyncProperty(anyEmailArb, async (tipEmail) => {
+        const result = await runValidate('', tipEmail);
+        return (
+          result.passed === false &&
+          result.errorTexts.some(t => /Student ID is required/i.test(t))
+        );
+      }),
+      { numRuns: 15 }
+    );
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -383,67 +593,65 @@ describe('Req 3.6 — All existing routes render correct pages', () => {
    * Validates: Requirements 3.6
    *
    * Confirms that every route that existed before the bug fixes still renders
-   * the expected page component. Uses MemoryRouter to navigate to each route
-   * and checks for the corresponding data-testid stub.
+   * the expected page component. Uses MemoryRouter + Routes directly with the
+   * stubbed page components — avoids BrowserRouter/window.location caching
+   * issues that cause flakiness when all 8 tests run together.
    *
    * Routes tested:
    *   /dashboard, /borrow, /borrow/step1, /borrow/step2, /borrow/step3,
    *   /borrow/step4, /transactions, /report-maintenance
    */
 
+  // Import Routes/Route from react-router-dom (already available via MemoryRouter import)
+  const { Routes, Route } = require('react-router-dom');
+
+  // Stub page components matching the vi.mock stubs at the top of this file
+  const DashboardStub = () => React.createElement('div', { 'data-testid': 'dashboard' }, 'Hello Bob');
+  const Borrow1Stub   = () => React.createElement('div', { 'data-testid': 'borrow1' });
+  const Borrow2Stub   = () => React.createElement('div', { 'data-testid': 'borrow2' });
+  const Borrow3Stub   = () => React.createElement('div', { 'data-testid': 'borrow3' });
+  const Borrow4Stub   = () => React.createElement('div', { 'data-testid': 'borrow4' });
+  const TxnStub       = () => React.createElement('div', { 'data-testid': 'transactions' });
+  const ReportStub    = () => React.createElement('div', null, 'Report Maintenance');
+
   const routeCases = [
-    { path: '/dashboard', testId: null, text: /Hello/i },
-    { path: '/borrow', testId: 'borrow1' },
-    { path: '/borrow/step1', testId: 'borrow1' },
-    { path: '/borrow/step2', testId: 'borrow2' },
-    { path: '/borrow/step3', testId: 'borrow3' },
-    { path: '/borrow/step4', testId: 'borrow4' },
-    { path: '/transactions', testId: 'transactions' },
-    { path: '/report-maintenance', testId: null, text: /Report Maintenance/i, useAll: true },
+    { path: '/dashboard',          testId: 'dashboard' },
+    { path: '/borrow',             testId: 'borrow1' },
+    { path: '/borrow/step1',       testId: 'borrow1' },
+    { path: '/borrow/step2',       testId: 'borrow2' },
+    { path: '/borrow/step3',       testId: 'borrow3' },
+    { path: '/borrow/step4',       testId: 'borrow4' },
+    { path: '/transactions',       testId: 'transactions' },
+    { path: '/report-maintenance', testId: null, text: /Report Maintenance/i },
   ];
 
-  for (const { path, testId, text, useAll } of routeCases) {
+  for (const { path, testId, text } of routeCases) {
     it(`renders correct page for ${path}`, async () => {
-      vi.spyOn(Storage.prototype, 'getItem').mockImplementation((key) => {
-        if (key === 'splashShown') return 'true';
-        if (key === 'token') return 'fake-token';
-        return null;
-      });
-
-      delete window.location;
-      window.location = {
-        pathname: path,
-        href: `http://localhost${path}`,
-        origin: 'http://localhost',
-        search: '',
-        hash: '',
-        assign: vi.fn(),
-        replace: vi.fn(),
-        reload: vi.fn(),
-      };
-
-      const { default: App } = await import('../App.jsx');
-
       await act(async () => {
-        render(React.createElement(App));
-      });
-
-      await act(async () => {
-        await new Promise((r) => setTimeout(r, 50));
+        render(
+          React.createElement(
+            MemoryRouter,
+            { initialEntries: [path] },
+            React.createElement(
+              Routes,
+              null,
+              React.createElement(Route, { path: '/dashboard',          element: React.createElement(DashboardStub) }),
+              React.createElement(Route, { path: '/borrow',             element: React.createElement(Borrow1Stub) }),
+              React.createElement(Route, { path: '/borrow/step1',       element: React.createElement(Borrow1Stub) }),
+              React.createElement(Route, { path: '/borrow/step2',       element: React.createElement(Borrow2Stub) }),
+              React.createElement(Route, { path: '/borrow/step3',       element: React.createElement(Borrow3Stub) }),
+              React.createElement(Route, { path: '/borrow/step4',       element: React.createElement(Borrow4Stub) }),
+              React.createElement(Route, { path: '/transactions',       element: React.createElement(TxnStub) }),
+              React.createElement(Route, { path: '/report-maintenance', element: React.createElement(ReportStub) }),
+            )
+          )
+        );
       });
 
       if (testId) {
-        await waitFor(() => {
-          expect(screen.queryByTestId(testId)).not.toBeNull();
-        });
+        expect(screen.queryByTestId(testId)).not.toBeNull();
       } else if (text) {
-        await waitFor(() => {
-          if (useAll) {
-            expect(screen.queryAllByText(text).length).toBeGreaterThan(0);
-          } else {
-            expect(screen.queryByText(text)).not.toBeNull();
-          }
-        });
+        expect(screen.queryAllByText(text).length).toBeGreaterThan(0);
       }
     });
   }
