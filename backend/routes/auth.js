@@ -14,14 +14,29 @@ router.post('/signup', async (req, res) => {
 
   try {
     // Validate required fields
-    if (!studentId || !fullName || !program) {
+    if (!studentId || !fullName || !program || !tipEmail) {
       return res.status(400).json({
-        error: 'All fields are required: studentId, fullName, program'
+        error: 'All fields are required: studentId, fullName, program, tipEmail'
       });
     }
 
+<<<<<<< HEAD
+    // Validate full name — no numbers
+    if (/\d/.test(fullName)) {
+      return res.status(400).json({ error: 'Full name must not contain numbers.' });
+    }
+
+    // Validate TIP email
+    if (!/^m[a-zA-Z.]+@tip\.edu\.ph$/.test(tipEmail) || /\d/.test(tipEmail.split('@')[0])) {
+      return res.status(400).json({ error: 'Must be a valid TIP Email.' });
+    }
+
+    // Validate Student ID format (7-8 numeric digits)
+    if (!/^\d{7,8}$/.test(studentId)) {
+=======
     // Validate Student ID format (7-8 numeric digits, or admin IDs like ADMIN01)
     if (!/^\d{7,8}$/.test(studentId) && !/^[A-Z]+\d+$/.test(studentId)) {
+>>>>>>> 467547d47c353b81f29c1f83cd22722f22e6e014
       return res.status(400).json({
         error: 'Student ID must be 7-8 numeric digits'
       });
@@ -29,10 +44,10 @@ router.post('/signup', async (req, res) => {
 
     // Insert new user (no password needed)
     const result = await db.query(
-      `INSERT INTO forge_users (student_id, full_name, program, role, tip_email)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING user_id, student_id, full_name, program, role, tip_email, created_at`,
-      [studentId, fullName, program, 'STUDENT', tipEmail || null]
+      `INSERT INTO forge_users (student_id, full_name, program, role)
+       VALUES ($1, $2, $3, $4)
+       RETURNING user_id, student_id, full_name, program, role, created_at`,
+      [studentId, fullName, program, 'STUDENT']
     );
 
     const user = result.rows[0];

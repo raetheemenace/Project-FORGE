@@ -16,20 +16,25 @@ export default function SignIn() {
 
   const handleChange = (e) => {
     let value = e.target.value;
-    if (e.target.name === 'studentId' && value.toUpperCase() !== 'ADMIN01') {
-      value = value.replace(/\D/g, '');
-    }
+    if (e.target.name === 'studentId') value = value.replace(/\D/g, '');
     setFormData({ ...formData, [e.target.name]: value });
     setErrors({});
   };
 
   const validate = () => {
     const errs = {};
+<<<<<<< HEAD
     if (!formData.tipEmail.trim()) errs.tipEmail = 'TIP Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.tipEmail)) errs.tipEmail = 'Must be a valid email address';
+=======
+    if (!formData.tipEmail.trim()) {
+      errs.tipEmail = 'TIP Email is required';
+    } else if (!/^m[a-zA-Z.]+@tip\.edu\.ph$/.test(formData.tipEmail)) {
+      errs.tipEmail = 'Must be a valid TIP email';
+    }
+>>>>>>> 33bca6b65cabc4778de73292e1cd01fc5cdc1880
     if (!formData.studentId.trim()) errs.studentId = 'Student ID is required';
-    else if (formData.studentId.toUpperCase() !== 'ADMIN01' && !/^\d{7,8}$/.test(formData.studentId))
-      errs.studentId = 'Must be 7-8 digits';
+    else if (!/^\d{7,8}$/.test(formData.studentId)) errs.studentId = 'Must be 7-8 digits';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
