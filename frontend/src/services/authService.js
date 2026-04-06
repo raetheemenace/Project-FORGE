@@ -21,13 +21,13 @@ export async function signUp(userData) {
 
 /**
  * Sign in an existing user
- * @param {string} fullName - Full name
+ * @param {string} tipEmail - TIP institutional email address
  * @param {string} studentId - Student ID
  * @returns {Promise<object>} Response with token and user data
  */
-export async function signIn(fullName, studentId) {
+export async function signIn(tipEmail, studentId) {
   const response = await axios.post(`${API_URL}/auth/signin`, {
-    fullName,
+    tipEmail,
     studentId
   });
   

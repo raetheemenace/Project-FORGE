@@ -1,16 +1,19 @@
 /**
  * Bug Condition Exploration Tests
- * Validates: Requirements 1.1, 1.5, 1.6
+ * Validates: Requirements 1.1, 1.5, 1.6, 2.1, 2.2, 2.3
  *
  * These tests MUST FAIL on unfixed code — failure confirms the bugs exist.
  * DO NOT fix the code when these fail.
  *
+ * Bug AI (scope)         req 2.1–2.3 — BASE_SYSTEM_PROMPT deflects general lab questions
  * Bug 1  (TTS)           req 1.1 — speak() never called with dashboard content
  * Bug 5  (QR container)  req 1.5 — #qr-reader has no dimensions after scan starts
  * Bug 6  (missing route) req 1.6 — /equipment/:id has no route; hits wildcard redirect
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import React from 'react';
@@ -304,5 +307,226 @@ describe('Bug 6 — /equipment/:id route renders MachineDetail, not a redirect',
       const machineDetail = screen.queryByTestId('machine-detail');
       expect(machineDetail).not.toBeNull();
     });
+  });
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bug 2 — QR Scanner: camera resource conflict (stopCamera not called before QR)
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Bug 2 — toggleQrMode calls stopCamera before setQrMode(true)', () => {
+  /**
+   * Validates: Requirements 1.4, 2.4
+   *
+   * EXPECTED TO FAIL on unfixed code because toggleQrMode() in BorrowStep3.jsx
+   * calls setQrMode(true) WITHOUT first calling stopCamera() to release the AI
+   * camera stream. This causes a resource conflict when Html5QrcodeScanner
+   * also requests the camera.
+   *
+   * Root cause: In the else branch of toggleQrMode(), the code is:
+   *   setQrMode(true);
+   *   setQrLookupError(null);
+   * — stopCamera() is never called before setQrMode(true).
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected false to be true
+   *   (stopCamera does not appear before setQrMode(true) in the enable-QR branch)
+   */
+  it('stopCamera() is called before setQrMode(true) in the enable-QR branch of toggleQrMode', () => {
+    // process.cwd() is frontend/ when run via `npx vitest run` from frontend/,
+    // or the workspace root when run via `npx vitest run frontend/...` from root.
+    // Resolve relative to this test file's location for robustness.
+    const borrowStep3Path = resolve(__dirname, '../pages/borrow/BorrowStep3.jsx');
+    const source = readFileSync(borrowStep3Path, 'utf-8');
+
+    // Extract the toggleQrMode function body
+    const fnStart = source.indexOf('function toggleQrMode()');
+    expect(fnStart).not.toBe(-1); // function must exist
+
+    // Find the matching closing brace for toggleQrMode
+    let depth = 0;
+    let fnEnd = -1;
+    for (let i = fnStart; i < source.length; i++) {
+      if (source[i] === '{') depth++;
+      else if (source[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          fnEnd = i + 1;
+          break;
+        }
+      }
+    }
+    expect(fnEnd).not.toBe(-1);
+
+    const toggleQrModeBody = source.slice(fnStart, fnEnd);
+
+    // Find the else branch (enable-QR path): the part after the closing brace of the if block
+    // The if block handles qrMode=true (disable), the else handles qrMode=false (enable)
+    const elseIndex = toggleQrModeBody.indexOf('} else {');
+    expect(elseIndex).not.toBe(-1); // else branch must exist
+
+    const enableQrBranch = toggleQrModeBody.slice(elseIndex);
+
+    // Find positions of stopCamera() and setQrMode(true) in the enable-QR branch
+    const stopCameraPos = enableQrBranch.indexOf('stopCamera()');
+    const setQrModePos = enableQrBranch.indexOf('setQrMode(true)');
+
+    // ASSERTION: stopCamera() must appear BEFORE setQrMode(true) in the enable-QR branch.
+    // On UNFIXED code this FAILS — stopCamera() is not called at all in the else branch,
+    // so stopCameraPos === -1 and the condition is false.
+    const stopCameraCalledBeforeQrMode =
+      stopCameraPos !== -1 &&
+      setQrModePos !== -1 &&
+      stopCameraPos < setQrModePos;
+
+    expect(stopCameraCalledBeforeQrMode).toBe(true);
+  });
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bug AI — AI Lab Assistant scope restriction: deflects general lab questions
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Bug AI — BASE_SYSTEM_PROMPT permits general lab questions', () => {
+  /**
+   * Validates: Requirements 2.1, 2.2, 2.3
+   *
+   * EXPECTED TO FAIL on unfixed code because BASE_SYSTEM_PROMPT in
+   * backend/routes/ai.js enumerates only FORGE workflow topics and the
+   * Answer Style Rules instruct the model to deflect anything outside that
+   * list ("If you don't know something specific about FORGE, say so briefly
+   * and suggest contacting the lab admin").
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected false to be true
+   *   (prompt contains no permissive language for general lab questions —
+   *    no "general lab", "equipment usage", "safety procedures", or similar
+   *    in a permissive context; deflection rule is present instead)
+   */
+  it('BASE_SYSTEM_PROMPT grants permission to answer general lab questions', () => {
+    // Read the actual backend source file — no network calls needed
+    // process.cwd() is the frontend/ directory when vitest runs; go up one level to workspace root
+    const aiFilePath = resolve(process.cwd(), '..', 'backend/routes/ai.js');
+    const aiFileContent = readFileSync(aiFilePath, 'utf-8');
+
+    // Extract the BASE_SYSTEM_PROMPT value from the file content.
+    // The constant is defined as a template literal assigned to BASE_SYSTEM_PROMPT.
+    const promptStart = aiFileContent.indexOf('const BASE_SYSTEM_PROMPT = `');
+    const promptEnd = aiFileContent.indexOf('`;', promptStart);
+    const prompt = aiFileContent.slice(promptStart, promptEnd + 2);
+
+    // ASSERTION 1: The prompt must contain permissive language for general lab questions.
+    // On UNFIXED code this FAILS — the prompt only lists FORGE workflow topics.
+    const hasGeneralLabPermission =
+      /general lab/i.test(prompt) ||
+      /equipment usage/i.test(prompt) ||
+      /safety procedures/i.test(prompt) ||
+      /laboratory knowledge/i.test(prompt) ||
+      /any lab.{0,30}question/i.test(prompt) ||
+      /lab.{0,30}related question/i.test(prompt);
+
+    // On UNFIXED code this FAILS — none of these permissive phrases are present
+    expect(hasGeneralLabPermission).toBe(true);
+
+    // ASSERTION 2: The deflection-only rule must NOT be the sole fallback.
+    // On UNFIXED code the Answer Style Rules say:
+    //   "If you don't know something specific about FORGE, say so briefly
+    //    and suggest contacting the lab admin."
+    // This instructs the model to deflect ALL non-FORGE questions.
+    // After the fix, this rule should be replaced or qualified so that
+    // general lab questions are answered rather than deflected.
+    const hasUnqualifiedDeflectionRule =
+      /if you don't know something specific about FORGE, say so briefly and suggest contacting the lab admin/i.test(prompt);
+
+    // On UNFIXED code this FAILS — the unqualified deflection rule is present
+    expect(hasUnqualifiedDeflectionRule).toBe(false);
+  });
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bug 3 — Sign In field mismatch: backend uses fullName, not tipEmail
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Bug 3 — Sign In: backend /signin route uses tipEmail, not fullName', () => {
+  /**
+   * Validates: Requirements 2.5, 2.6
+   *
+   * EXPECTED TO FAIL on unfixed code because:
+   * - backend/routes/auth.js destructures `fullName` from req.body (not `tipEmail`)
+   * - the DB query uses `WHERE full_name = $1` (not `WHERE tip_email = $1`)
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected false to be true
+   *   (route destructures `fullName`, not `tipEmail`)
+   */
+  it('backend /signin route destructures tipEmail from req.body and queries by tip_email', () => {
+    // Resolve relative to this test file: frontend/src/test/ → up 3 levels → workspace root → backend/routes/auth.js
+    const authPath = resolve(__dirname, '..', '..', '..', 'backend/routes/auth.js');
+    const source = readFileSync(authPath, 'utf-8');
+
+    // Find the /signin route handler
+    const signinRouteStart = source.indexOf("router.post('/signin'");
+    expect(signinRouteStart).not.toBe(-1);
+
+    // Extract the signin route body (from its start to the end of the handler)
+    const signinRouteSource = source.slice(signinRouteStart);
+
+    // ASSERTION 1: route must destructure tipEmail, not fullName
+    // On UNFIXED code: `const { fullName, studentId } = req.body;` → FAILS
+    const destructuresTipEmail = /const\s*\{[^}]*tipEmail[^}]*\}\s*=\s*req\.body/.test(signinRouteSource);
+    expect(destructuresTipEmail).toBe(true);
+
+    // ASSERTION 2: route must NOT destructure fullName in the signin handler
+    // On UNFIXED code: fullName is destructured → FAILS
+    const destructuresFullName = /const\s*\{[^}]*fullName[^}]*\}\s*=\s*req\.body/.test(signinRouteSource);
+    expect(destructuresFullName).toBe(false);
+
+    // ASSERTION 3: DB query must use tip_email in WHERE clause
+    // On UNFIXED code: `WHERE full_name = $1` → FAILS
+    const queriesByTipEmail = /WHERE\s+tip_email\s*=\s*\$1/i.test(signinRouteSource);
+    expect(queriesByTipEmail).toBe(true);
+
+    // ASSERTION 4: DB query must NOT use full_name in WHERE clause
+    // On UNFIXED code: `WHERE full_name = $1` → FAILS
+    const queriesByFullName = /WHERE\s+full_name\s*=\s*\$1/i.test(signinRouteSource);
+    expect(queriesByFullName).toBe(false);
+  });
+});
+
+describe('Bug 3 — Sign In: frontend SignIn.jsx uses tipEmail field, not fullName', () => {
+  /**
+   * Validates: Requirements 2.5
+   *
+   * EXPECTED TO FAIL on unfixed code because:
+   * - SignIn.jsx initializes state with `fullName: ''` (not `tipEmail: ''`)
+   * - The form label says "Full Name" (not "TIP Email")
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected false to be true
+   *   (form has fullName field and "Full Name" label, not tipEmail / "TIP Email")
+   */
+  it('SignIn.jsx form has a tipEmail field and a "TIP Email" label, not fullName / "Full Name"', () => {
+    const signInPath = resolve(__dirname, '../pages/SignIn.jsx');
+    const source = readFileSync(signInPath, 'utf-8');
+
+    // ASSERTION 1: state must include tipEmail, not fullName
+    // On UNFIXED code: `fullName: ''` in useState → FAILS
+    const hasTipEmailState = /tipEmail\s*:\s*['"]/.test(source);
+    expect(hasTipEmailState).toBe(true);
+
+    // ASSERTION 2: state must NOT include fullName
+    // On UNFIXED code: `fullName: ''` → FAILS
+    const hasFullNameState = /fullName\s*:\s*['"]/.test(source);
+    expect(hasFullNameState).toBe(false);
+
+    // ASSERTION 3: label must say "TIP Email"
+    // On UNFIXED code: label says "Full Name" → FAILS
+    const hasTipEmailLabel = /TIP\s+Email/i.test(source);
+    expect(hasTipEmailLabel).toBe(true);
+
+    // ASSERTION 4: label must NOT say "Full Name"
+    // On UNFIXED code: "Full Name" label is present → FAILS
+    const hasFullNameLabel = /Full\s+Name/i.test(source);
+    expect(hasFullNameLabel).toBe(false);
   });
 });

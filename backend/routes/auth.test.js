@@ -166,7 +166,7 @@ describe('Auth Routes - HTTP-level unit tests', () => {
     querySpy.mockResolvedValueOnce({ rows: [fakeUser] });
 
     const res = await callRoute('POST', '/signin', {
-      fullName: 'Juan dela Cruz',
+      tipEmail: 'juan@tip.edu.ph',
       studentId: '2021001',
     });
 
@@ -179,7 +179,7 @@ describe('Auth Routes - HTTP-level unit tests', () => {
     querySpy.mockResolvedValueOnce({ rows: [] });
 
     const res = await callRoute('POST', '/signin', {
-      fullName: 'Wrong Name',
+      tipEmail: 'wrong@tip.edu.ph',
       studentId: '9999999',
     });
 
@@ -190,7 +190,7 @@ describe('Auth Routes - HTTP-level unit tests', () => {
   it('7. Signin with missing fields → HTTP 400', async () => {
     // Validates: Requirements 2.3
     const res = await callRoute('POST', '/signin', {
-      // fullName missing
+      // tipEmail missing
       studentId: '2021001',
     });
 
@@ -331,11 +331,11 @@ describe('Authentication Property-Based Tests', () => {
       fc.assert(
         fc.property(
           fc.record({
-            fullName: fc.option(fc.string(), { nil: '' }),
+            tipEmail: fc.option(fc.string(), { nil: '' }),
             studentId: fc.option(fc.string(), { nil: '' })
-          }).filter(form => !form.fullName || !form.studentId),
+          }).filter(form => !form.tipEmail || !form.studentId),
           (form) => {
-            const hasEmptyField = !form.fullName || !form.studentId;
+            const hasEmptyField = !form.tipEmail || !form.studentId;
             expect(hasEmptyField).toBe(true);
           }
         ),
@@ -418,14 +418,14 @@ describe('Property 5: Non-existent credentials are rejected', () => {
     await fc.assert(
       fc.asyncProperty(
         fc.record({
-          fullName: fc.string({ minLength: 1 }),
+          tipEmail: fc.emailAddress(),
           studentId: fc.string({ minLength: 1 }),
         }),
-        async ({ fullName, studentId }) => {
+        async ({ tipEmail, studentId }) => {
           querySpy.mockReset();
           querySpy.mockResolvedValueOnce({ rows: [] });
 
-          const res = await callRoute('POST', '/signin', { fullName, studentId });
+          const res = await callRoute('POST', '/signin', { tipEmail, studentId });
 
           expect(res._status).toBe(401);
           expect(res._body.error).toBe('Invalid credentials');

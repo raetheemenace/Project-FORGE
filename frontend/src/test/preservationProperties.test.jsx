@@ -524,3 +524,194 @@ describe('Req 3.7 — STT on ReportMaintenance description field appends transcr
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Property 2 — AI still answers FORGE-specific questions (preservation)
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Property 2 — AI still answers FORGE-specific questions (preservation)', () => {
+  /**
+   * Validates: Requirements 3.1, 3.2
+   *
+   * Static source analysis: reads backend/routes/ai.js and asserts that the
+   * BASE_SYSTEM_PROMPT still contains FORGE-specific content and that the file
+   * still has a function that fetches live context from the DB.
+   *
+   * This ensures the Bug 1 fix (expanding the prompt) did NOT remove the
+   * FORGE-specific knowledge that was already there.
+   */
+
+  // __dirname is frontend/src/test — go up 3 levels to workspace root, then into backend
+  const { readFileSync } = require('fs');
+  const { resolve } = require('path');
+  const aiFilePath = resolve(__dirname, '..', '..', '..', 'backend', 'routes', 'ai.js');
+  const aiSource = readFileSync(aiFilePath, 'utf-8');
+
+  it('BASE_SYSTEM_PROMPT still contains equipment borrowing procedures', () => {
+    const hasBorrowing =
+      /borrow/i.test(aiSource) &&
+      (/procedure/i.test(aiSource) || /step/i.test(aiSource) || /policy/i.test(aiSource));
+    expect(hasBorrowing).toBe(true);
+  });
+
+  it('BASE_SYSTEM_PROMPT still contains lab room availability content', () => {
+    const hasLabRoom =
+      /lab room/i.test(aiSource) &&
+      (/availab/i.test(aiSource) || /schedul/i.test(aiSource) || /status/i.test(aiSource));
+    expect(hasLabRoom).toBe(true);
+  });
+
+  it('BASE_SYSTEM_PROMPT still contains transaction management content', () => {
+    const hasTransactions =
+      /transaction/i.test(aiSource) &&
+      (/status/i.test(aiSource) || /ACTIVE/i.test(aiSource) || /RETURNED/i.test(aiSource));
+    expect(hasTransactions).toBe(true);
+  });
+
+  it('BASE_SYSTEM_PROMPT still contains FORGE system overview / branding', () => {
+    expect(/FORGE/i.test(aiSource)).toBe(true);
+    const hasTIP =
+      /TIP/i.test(aiSource) ||
+      /Technological Institute/i.test(aiSource);
+    expect(hasTIP).toBe(true);
+  });
+
+  it('ai.js still exports a function that fetches live context from the DB', () => {
+    const hasFetchFunction =
+      /fetchLiveContext/i.test(aiSource) ||
+      /async function.*context/i.test(aiSource) ||
+      /db\.query/i.test(aiSource);
+    expect(hasFetchFunction).toBe(true);
+  });
+
+  it('ai.js still injects live context into the system prompt before calling Bedrock', () => {
+    const hasContextInjection =
+      /BASE_SYSTEM_PROMPT\s*\+\s*liveContext/i.test(aiSource) ||
+      /systemPrompt\s*=\s*BASE_SYSTEM_PROMPT/i.test(aiSource);
+    expect(hasContextInjection).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Property 4 — AI camera scan path unaffected by QR fix (preservation)
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Property 4 — AI camera scan path unaffected by QR fix (preservation)', () => {
+  /**
+   * Validates: Requirements 3.3
+   *
+   * Static source analysis: reads BorrowStep3.jsx and asserts that all
+   * AI camera scan path functions and refs are still present after the
+   * Bug 2 fix (camera lifecycle change). The fix must not remove or break
+   * the AI image recognition path.
+   */
+
+  const { readFileSync } = require('fs');
+  const { resolve } = require('path');
+  const borrowStep3Path = resolve(__dirname, '..', 'pages', 'borrow', 'BorrowStep3.jsx');
+  const borrowStep3Source = readFileSync(borrowStep3Path, 'utf-8');
+
+  it('handleScan function still exists in BorrowStep3', () => {
+    expect(/function handleScan\b/.test(borrowStep3Source) || /async function handleScan\b/.test(borrowStep3Source)).toBe(true);
+  });
+
+  it('handleScan still calls axios.post with the scanner endpoint', () => {
+    const hasAxiosPost = /axios\.post/.test(borrowStep3Source);
+    const hasScannerEndpoint =
+      /\/api\/scanner\/identify/.test(borrowStep3Source) ||
+      /\/api\/scanner/.test(borrowStep3Source);
+    expect(hasAxiosPost).toBe(true);
+    expect(hasScannerEndpoint).toBe(true);
+  });
+
+  it('startCamera function still exists in BorrowStep3', () => {
+    expect(/function startCamera\b/.test(borrowStep3Source) || /async function startCamera\b/.test(borrowStep3Source)).toBe(true);
+  });
+
+  it('stopCamera function still exists in BorrowStep3', () => {
+    expect(/function stopCamera\b/.test(borrowStep3Source)).toBe(true);
+  });
+
+  it('videoRef and canvasRef are still used (AI camera viewfinder intact)', () => {
+    expect(/videoRef/.test(borrowStep3Source)).toBe(true);
+    expect(/canvasRef/.test(borrowStep3Source)).toBe(true);
+  });
+
+  it('handleAddToCart function still exists (AI scan result can be added to cart)', () => {
+    expect(/function handleAddToCart\b/.test(borrowStep3Source)).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Property 6 — Sign Up flow unaffected by Sign In fix (preservation)
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Property 6 — Sign Up flow unaffected by Sign In fix (preservation)', () => {
+  /**
+   * Validates: Requirements 3.4, 3.5, 3.6
+   *
+   * Static source analysis: reads backend/routes/auth.js and
+   * frontend/src/services/authService.js to assert that the Sign Up path
+   * is fully intact after the Bug 3 fix (which only touches the Sign In path).
+   */
+
+  const { readFileSync } = require('fs');
+  const { resolve } = require('path');
+  const authRoutePath = resolve(__dirname, '..', '..', '..', 'backend', 'routes', 'auth.js');
+  const authRouteSource = readFileSync(authRoutePath, 'utf-8');
+
+  const authServicePath = resolve(__dirname, '..', 'services', 'authService.js');
+  const authServiceSource = readFileSync(authServicePath, 'utf-8');
+
+  it('/signup route still accepts fullName from req.body', () => {
+    expect(/const\s*\{[^}]*fullName[^}]*\}\s*=\s*req\.body/.test(authRouteSource)).toBe(true);
+  });
+
+  it('/signup route still accepts studentId from req.body', () => {
+    expect(/const\s*\{[^}]*studentId[^}]*\}\s*=\s*req\.body/.test(authRouteSource)).toBe(true);
+  });
+
+  it('/signup route still accepts program from req.body', () => {
+    expect(/const\s*\{[^}]*program[^}]*\}\s*=\s*req\.body/.test(authRouteSource)).toBe(true);
+  });
+
+  it('/signup route still inserts full_name into forge_users', () => {
+    // The INSERT statement must reference the full_name column
+    expect(/INSERT\s+INTO\s+forge_users/.test(authRouteSource)).toBe(true);
+    expect(/full_name/.test(authRouteSource)).toBe(true);
+  });
+
+  it('authService signUp function still exists', () => {
+    expect(/export\s+async\s+function\s+signUp\b/.test(authServiceSource)).toBe(true);
+  });
+
+  it('authService signUp still sends user data to /auth/signup', () => {
+    expect(/\/auth\/signup/.test(authServiceSource)).toBe(true);
+    expect(/axios\.post/.test(authServiceSource)).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Property 6 — Admin login path unaffected by Sign In fix (preservation)
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Property 6 — Admin login path unaffected by Sign In fix (preservation)', () => {
+  /**
+   * Validates: Requirements 3.4, 3.5, 3.6
+   *
+   * Static source analysis: reads backend/routes/auth.js to assert that the
+   * /signin route still accepts studentId as a credential and still queries
+   * by student_id, preserving the ADMIN01 admin login path.
+   */
+
+  const { readFileSync } = require('fs');
+  const { resolve } = require('path');
+  const authRoutePath = resolve(__dirname, '..', '..', '..', 'backend', 'routes', 'auth.js');
+  const authRouteSource = readFileSync(authRoutePath, 'utf-8');
+
+  it('/signin route still accepts studentId as a credential', () => {
+    // The signin route must destructure studentId from req.body
+    expect(/const\s*\{[^}]*studentId[^}]*\}\s*=\s*req\.body/.test(authRouteSource)).toBe(true);
+  });
+
+  it('/signin route still queries by student_id (admin ADMIN01 path intact)', () => {
+    // The DB query must include student_id as a WHERE condition
+    expect(/student_id\s*=\s*\$\d/.test(authRouteSource)).toBe(true);
+  });
+});

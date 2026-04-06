@@ -10,7 +10,7 @@ const { generateToken } = require('../middleware/auth');
  * Register a new student account
  */
 router.post('/signup', async (req, res) => {
-  const { studentId, fullName, program } = req.body;
+  const { studentId, fullName, program, tipEmail } = req.body;
 
   try {
     // Validate required fields
@@ -29,10 +29,10 @@ router.post('/signup', async (req, res) => {
 
     // Insert new user (no password needed)
     const result = await db.query(
-      `INSERT INTO forge_users (student_id, full_name, program, role)
-       VALUES ($1, $2, $3, $4)
-       RETURNING user_id, student_id, full_name, program, role, created_at`,
-      [studentId, fullName, program, 'STUDENT']
+      `INSERT INTO forge_users (student_id, full_name, program, role, tip_email)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING user_id, student_id, full_name, program, role, tip_email, created_at`,
+      [studentId, fullName, program, 'STUDENT', tipEmail || null]
     );
 
     const user = result.rows[0];
@@ -78,25 +78,25 @@ router.post('/signup', async (req, res) => {
 
 /**
  * POST /api/auth/signin
- * Authenticate user with fullName and studentId
+ * Authenticate user with tipEmail and studentId
  */
 router.post('/signin', async (req, res) => {
-  const { fullName, studentId } = req.body;
+  const { tipEmail, studentId } = req.body;
 
   try {
     // Validate required fields
-    if (!fullName || !studentId) {
+    if (!tipEmail || !studentId) {
       return res.status(400).json({
-        error: 'Full name and student ID are required'
+        error: 'TIP email and student ID are required'
       });
     }
 
-    // Find user by fullName and studentId
+    // Find user by tipEmail and studentId
     const result = await db.query(
       `SELECT user_id, student_id, full_name, program, role
        FROM forge_users
-       WHERE full_name = $1 AND student_id = $2`,
-      [fullName, studentId]
+       WHERE tip_email = $1 AND student_id = $2`,
+      [tipEmail, studentId]
     );
 
     if (result.rows.length === 0) {

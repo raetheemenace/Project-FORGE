@@ -90,7 +90,9 @@ export default function BorrowStep3() {
       stopScanner();
       setQrMode(false);
       setQrLookupError(null);
+      startCamera();
     } else {
+      stopCamera();
       setQrMode(true);
       setQrLookupError(null);
     }
