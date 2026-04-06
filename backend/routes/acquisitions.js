@@ -14,11 +14,14 @@ const VALID_URGENCIES = ['Low', 'Medium', 'High', 'Critical'];
  * Returns: { requestId, message }
  */
 router.post('/request', authenticateToken, async (req, res) => {
-  const { equipment_name, department, quantity = 1, reason, urgency = 'Medium' } = req.body;
+  const { equipment_name, equipment_id, department, quantity = 1, reason, urgency = 'Medium' } = req.body;
   const userId = req.user.userId;
 
   if (!equipment_name || !equipment_name.trim()) {
     return res.status(400).json({ error: 'Equipment name is required.' });
+  }
+  if (!equipment_id || !equipment_id.trim()) {
+    return res.status(400).json({ error: 'Equipment ID is required.' });
   }
   if (!department || !department.trim()) {
     return res.status(400).json({ error: 'Department is required.' });
@@ -36,10 +39,10 @@ router.post('/request', authenticateToken, async (req, res) => {
   try {
     const result = await db.query(
       `INSERT INTO forge_acquisition_requests
-         (user_id, equipment_name, department, quantity, reason, urgency)
-       VALUES ($1, $2, $3, $4, $5, $6)
+         (user_id, equipment_name, equipment_id, department, quantity, reason, urgency)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING request_id`,
-      [userId, equipment_name.trim(), department.trim(), Number(quantity), reason.trim(), urgency]
+      [userId, equipment_name.trim(), equipment_id.trim().toUpperCase(), department.trim(), Number(quantity), reason.trim(), urgency]
     );
     return res.status(201).json({
       requestId: result.rows[0].request_id,
@@ -59,7 +62,9 @@ router.get('/my-requests', authenticateToken, async (req, res) => {
   const userId = req.user.userId;
   try {
     const result = await db.query(
-      `SELECT request_id, equipment_name, department, quantity, reason, urgency,
+      `SELECT request_id, equipment_name,
+              COALESCE(equipment_id, '') AS equipment_id,
+              department, quantity, reason, urgency,
               status, admin_notes, created_at
        FROM forge_acquisition_requests
        WHERE user_id = $1

@@ -20,6 +20,7 @@ router.post('/signup', async (req, res) => {
       });
     }
 
+<<<<<<< HEAD
     // Validate full name — no numbers
     if (/\d/.test(fullName)) {
       return res.status(400).json({ error: 'Full name must not contain numbers.' });
@@ -32,6 +33,10 @@ router.post('/signup', async (req, res) => {
 
     // Validate Student ID format (7-8 numeric digits)
     if (!/^\d{7,8}$/.test(studentId)) {
+=======
+    // Validate Student ID format (7-8 numeric digits, or admin IDs like ADMIN01)
+    if (!/^\d{7,8}$/.test(studentId) && !/^[A-Z]+\d+$/.test(studentId)) {
+>>>>>>> 467547d47c353b81f29c1f83cd22722f22e6e014
       return res.status(400).json({
         error: 'Student ID must be 7-8 numeric digits'
       });

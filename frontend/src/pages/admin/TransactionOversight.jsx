@@ -14,14 +14,15 @@ import {
   Loader2,
   LogOut,
   RefreshCw,
+  Search,
   ShieldCheck,
   X,
 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-const DEPARTMENTS = ['', 'Chemistry', 'Physics', 'Engineering'];
-const STATUSES    = ['', 'ACTIVE', 'PENDING_RETURN', 'CLAIM_ID', 'RETURNED'];
+const DEPARTMENTS = ['Chemistry', 'Physics', 'Engineering'];
+const STATUSES    = ['ACTIVE', 'PENDING_RETURN', 'CLAIM_ID', 'RETURNED'];
 
 const STATUS_STYLES = {
   ACTIVE:         'bg-blue-50 text-blue-700 border-blue-200',
@@ -257,75 +258,81 @@ export default function TransactionOversight() {
           </button>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl border border-[#001254]/10 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Filter className="w-3.5 h-3.5 text-[#001254]/40" />
-            <span className="text-[#001254]/50 uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Filters</span>
-            {hasActiveFilters && (
-              <button
-                onClick={handleClearFilters}
-                className="ml-auto flex items-center gap-1 text-red-500 hover:text-red-600 transition-colors"
-                style={{ fontSize: '0.75rem' }}
-              >
-                <X className="w-3 h-3" /> Clear
-              </button>
-            )}
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-              className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
-              style={{ fontSize: '0.82rem' }}
-            >
-              <option value="">All Statuses</option>
-              {STATUSES.filter(Boolean).map((s) => <option key={s}>{s.replace('_', ' ')}</option>)}
-            </select>
-
-            <select
-              value={filters.department}
-              onChange={(e) => setFilters((f) => ({ ...f, department: e.target.value }))}
-              className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
-              style={{ fontSize: '0.82rem' }}
-            >
-              <option value="">All Departments</option>
-              {DEPARTMENTS.filter(Boolean).map((d) => <option key={d}>{d}</option>)}
-            </select>
-
+        {/* Search + Filters */}
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#001254]/30" />
             <input
               type="text"
-              placeholder="Student name or username"
+              placeholder="Search by student name or username…"
               value={filters.student}
               onChange={(e) => setFilters((f) => ({ ...f, student: e.target.value }))}
-              className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50 col-span-2 md:col-span-1"
-              style={{ fontSize: '0.82rem' }}
-            />
-
-            <input
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
-              className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
-              style={{ fontSize: '0.82rem' }}
-            />
-
-            <input
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))}
-              className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
-              style={{ fontSize: '0.82rem' }}
+              onKeyDown={(e) => e.key === 'Enter' && handleApplyFilters()}
+              className="w-full pl-9 pr-4 py-2.5 border border-[#001254]/15 rounded-xl text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+              style={{ fontSize: '0.85rem' }}
             />
           </div>
-          <div className="mt-3 flex justify-end">
-            <button
-              onClick={handleApplyFilters}
-              className="px-4 py-2 bg-[#0B4EA2] text-white rounded-lg hover:bg-[#0B4EA2]/90 transition-colors"
-              style={{ fontSize: '0.82rem' }}
-            >
-              Apply Filters
-            </button>
+
+          <div className="bg-white rounded-xl border border-[#001254]/10 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="w-3.5 h-3.5 text-[#001254]/40" />
+              <span className="text-[#001254]/50 uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Filters</span>
+              {hasActiveFilters && (
+                <button
+                  onClick={handleClearFilters}
+                  className="ml-auto flex items-center gap-1 text-red-500 hover:text-red-600 transition-colors"
+                  style={{ fontSize: '0.75rem' }}
+                >
+                  <X className="w-3 h-3" /> Clear
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <select
+                value={filters.status}
+                onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
+                className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.82rem' }}
+              >
+                <option value="">All Statuses</option>
+                {STATUSES.map((s) => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+              </select>
+
+              <select
+                value={filters.department}
+                onChange={(e) => setFilters((f) => ({ ...f, department: e.target.value }))}
+                className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.82rem' }}
+              >
+                <option value="">All Departments</option>
+                {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
+              </select>
+
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => setFilters((f) => ({ ...f, dateFrom: e.target.value }))}
+                className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.82rem' }}
+              />
+
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => setFilters((f) => ({ ...f, dateTo: e.target.value }))}
+                className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.82rem' }}
+              />
+            </div>
+            <div className="mt-3 flex justify-end">
+              <button
+                onClick={handleApplyFilters}
+                className="px-4 py-2 bg-[#0B4EA2] text-white rounded-lg hover:bg-[#0B4EA2]/90 transition-colors"
+                style={{ fontSize: '0.82rem' }}
+              >
+                Apply Filters
+              </button>
+            </div>
           </div>
         </div>
 

@@ -181,3 +181,13 @@ SELECT 'Maintenance Reports', COUNT(*) FROM forge_maintenance
 UNION ALL
 SELECT 'Maintenance Tickets', COUNT(*) FROM forge_maintenance_tickets
 ORDER BY table_name;
+
+-- Sample acquisition record
+INSERT INTO forge_acquisitions (supplier_name, acquisition_date, notes, created_by) VALUES
+('TechSupply PH', '2026-03-01', 'Q1 lab equipment procurement batch', 6);
+
+-- Sample acquisition request from a student
+INSERT INTO forge_acquisition_requests (user_id, equipment_name, department, quantity, reason, urgency, status) VALUES
+(1, 'Arduino Mega 2560', 'Computer Engineering', 3,
+ 'Required for CPE 402 embedded systems project. Current stock is insufficient for the class size.',
+ 'High', 'PENDING');

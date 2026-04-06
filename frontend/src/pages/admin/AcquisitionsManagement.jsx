@@ -439,7 +439,9 @@ function RequestsPanel() {
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-[#001254] font-semibold text-sm">{req.equipment_name}</p>
+              <p className="text-[#001254]/40 text-xs font-mono mt-0.5">REQ-{String(req.request_id).padStart(4, '0')}</p>
               <p className="text-[#001254]/45 text-xs mt-0.5">
+                {req.equipment_id && <span className="font-mono">{req.equipment_id} · </span>}
                 {req.department} · Qty {req.quantity} · {req.requested_by} ({req.student_id})
               </p>
               {req.program && <p className="text-[#001254]/35 text-xs">{req.program}</p>}

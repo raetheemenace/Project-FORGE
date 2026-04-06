@@ -12,46 +12,9 @@ const s3 = new S3Client({ region: process.env.AWS_REGION });
 const SEVEN_DAYS_SECONDS = 604800;
 
 /**
- * GET /api/equipment/:id
- * Returns basic equipment details (name, status) by equipment_id.
- */
-router.get('/:id', authenticateToken, async (req, res) => {
-  const { id } = req.params;
-  // Prevent this route from matching /image-url/:id
-  if (id === 'image-url') return res.status(400).json({ error: 'Invalid equipment ID.' });
-
-  try {
-    const result = await db.query(
-      `SELECT equipment_id, name, status,
-              COALESCE(condition, NULL) AS condition,
-              COALESCE(location, NULL) AS location,
-              COALESCE(description, NULL) AS description
-       FROM forge_equipment WHERE equipment_id = $1`,
-      [id]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Equipment not found.' });
-    }
-    const row = result.rows[0];
-    return res.json({
-      equipmentId: row.equipment_id,
-      name: row.name,
-      status: row.status,
-      condition: row.condition ?? null,
-      location: row.location ?? null,
-      description: row.description ?? null,
-    });
-  } catch (err) {
-    console.error('Equipment lookup error:', err);
-    return res.status(500).json({ error: 'Failed to fetch equipment.' });
-  }
-});
-
-/**
  * GET /api/equipment/image-url/:id
  * Returns a pre-signed S3 URL for the equipment image.
  * Expiry: 7 days (604800 seconds)
- * Requirements: 13.1, 13.2, 13.3
  */
 router.get('/image-url/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
@@ -69,7 +32,7 @@ router.get('/image-url/:id', authenticateToken, async (req, res) => {
     const s3Key = result.rows[0].s3_image_key;
 
     const command = new GetObjectCommand({
-      Bucket: process.env.AWS_S3_BUCKET,
+      Bucket: process.env.AWS_S3_BUCKET || process.env.S3_BUCKET_NAME,
       Key: s3Key,
     });
 
@@ -79,6 +42,34 @@ router.get('/image-url/:id', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Equipment image URL error:', err);
     return res.status(500).json({ error: 'Failed to generate image URL.' });
+  }
+});
+
+/**
+ * GET /api/equipment/:id
+ * Returns basic equipment details (name, status, department) by equipment_id.
+ */
+router.get('/:id', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await db.query(
+      `SELECT equipment_id, name, department, status FROM forge_equipment WHERE equipment_id = $1`,
+      [id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Equipment not found.' });
+    }
+    const row = result.rows[0];
+    return res.json({
+      equipmentId: row.equipment_id,
+      name: row.name,
+      department: row.department,
+      status: row.status,
+    });
+  } catch (err) {
+    console.error('Equipment lookup error:', err);
+    return res.status(500).json({ error: 'Failed to fetch equipment.' });
   }
 });
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../hooks/useAuth.jsx';
@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   UserX,
   UserCheck,
+  Filter,
+  Search,
   X,
 } from 'lucide-react';
 
@@ -60,8 +62,14 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
-  const [confirmTarget, setConfirmTarget] = useState(null); // { user, action: 'disable'|'enable' }
+  const [confirmTarget, setConfirmTarget] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Filters
+  const [search, setSearch] = useState('');
+  const [filterProgram, setFilterProgram] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [sortName, setSortName] = useState('');
 
   const token = () => localStorage.getItem('token');
 
@@ -106,6 +114,60 @@ export default function UserManagement() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  // Derive unique programs from loaded users
+  const programs = useMemo(() => {
+    const set = new Set(users.map((u) => u.program || 'Unassigned'));
+    return Array.from(set).sort();
+  }, [users]);
+
+  // Apply search + filters + sort, then group by program
+  const filteredGrouped = useMemo(() => {
+    let list = [...users];
+
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (u) =>
+          u.full_name?.toLowerCase().includes(q) ||
+          u.username?.toLowerCase().includes(q) ||
+          u.student_id?.toLowerCase().includes(q)
+      );
+    }
+
+    if (filterProgram) {
+      list = list.filter((u) => (u.program || 'Unassigned') === filterProgram);
+    }
+
+    if (filterStatus === 'ACTIVE') {
+      list = list.filter((u) => u.role !== 'DISABLED');
+    } else if (filterStatus === 'DISABLED') {
+      list = list.filter((u) => u.role === 'DISABLED');
+    }
+
+    if (sortName === 'asc') {
+      list.sort((a, b) => a.full_name.localeCompare(b.full_name));
+    } else if (sortName === 'desc') {
+      list.sort((a, b) => b.full_name.localeCompare(a.full_name));
+    }
+
+    const groups = {};
+    list.forEach((u) => {
+      const prog = u.program || 'Unassigned';
+      if (!groups[prog]) groups[prog] = [];
+      groups[prog].push(u);
+    });
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [users, search, filterProgram, filterStatus, sortName]);
+
+  const hasActiveFilters = search || filterProgram || filterStatus || sortName;
+
+  const clearFilters = () => {
+    setSearch('');
+    setFilterProgram('');
+    setFilterStatus('');
+    setSortName('');
   };
 
   const displayName = user?.fullName || user?.username || 'Admin';
@@ -165,15 +227,77 @@ export default function UserManagement() {
           </p>
         </div>
 
-        {/* Success banner */}
+        {/* Search + Filters */}
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#001254]/30" />
+            <input
+              type="text"
+              placeholder="Search by name, username, or student ID…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 border border-[#001254]/15 rounded-xl text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+              style={{ fontSize: '0.85rem' }}
+            />
+          </div>
+
+          <div className="bg-white rounded-xl border border-[#001254]/10 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="w-3.5 h-3.5 text-[#001254]/40" />
+              <span className="text-[#001254]/50 uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Filters</span>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="ml-auto flex items-center gap-1 text-red-500 hover:text-red-600 transition-colors"
+                  style={{ fontSize: '0.75rem' }}
+                >
+                  <X className="w-3 h-3" /> Clear
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <select
+                value={filterProgram}
+                onChange={(e) => setFilterProgram(e.target.value)}
+                className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.82rem' }}
+              >
+                <option value="">All Programs</option>
+                {programs.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.82rem' }}
+              >
+                <option value="">All Statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="DISABLED">Disabled</option>
+              </select>
+
+              <select
+                value={sortName}
+                onChange={(e) => setSortName(e.target.value)}
+                className="border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] bg-white focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.82rem' }}
+              >
+                <option value="">Name: Default</option>
+                <option value="asc">Name: A → Z</option>
+                <option value="desc">Name: Z → A</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Banners */}
         {successMsg && (
           <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl px-4 py-3" style={{ fontSize: '0.85rem' }}>
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             {successMsg}
           </div>
         )}
-
-        {/* Error banner */}
         {error && (
           <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3" style={{ fontSize: '0.85rem' }}>
             <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -181,77 +305,84 @@ export default function UserManagement() {
           </div>
         )}
 
-        {/* Users table */}
-        <div className="bg-white rounded-xl border border-[#001254]/10 overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-6 h-6 text-[#0B4EA2] animate-spin" />
-            </div>
-          ) : users.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <Users className="w-10 h-10 text-[#001254]/15" />
-              <p className="text-[#001254]/40" style={{ fontSize: '0.85rem' }}>No users found.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[#001254]/8">
-                    <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Name</th>
-                    <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest hidden md:table-cell" style={{ fontSize: '0.65rem' }}>Student ID</th>
-                    <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest hidden lg:table-cell" style={{ fontSize: '0.65rem' }}>Program</th>
-                    <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Role</th>
-                    <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Status</th>
-                    <th className="text-right px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u, i) => (
-                    <tr
-                      key={u.user_id}
-                      className={`border-b border-[#001254]/5 hover:bg-[#001254]/2 transition-colors ${i === users.length - 1 ? 'border-b-0' : ''}`}
-                    >
-                      <td className="px-5 py-3.5">
-                        <p className="text-[#001254]" style={{ fontSize: '0.85rem' }}>{u.full_name}</p>
-                        <p className="text-[#001254]/40" style={{ fontSize: '0.75rem' }}>{u.username}</p>
-                      </td>
-                      <td className="px-5 py-3.5 text-[#001254]/60 font-mono hidden md:table-cell" style={{ fontSize: '0.8rem' }}>
-                        {u.student_id || '—'}
-                      </td>
-                      <td className="px-5 py-3.5 text-[#001254]/60 hidden lg:table-cell" style={{ fontSize: '0.82rem' }}>
-                        {u.program || '—'}
-                      </td>
-                      <td className="px-5 py-3.5"><RoleBadge role={u.role} /></td>
-                      <td className="px-5 py-3.5"><StatusBadge disabled={u.is_disabled} /></td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center justify-end">
-                          {u.is_disabled ? (
-                            <button
-                              onClick={() => setConfirmTarget({ user: u, action: 'enable' })}
-                              className="p-1.5 hover:bg-emerald-50 rounded-lg transition-colors"
-                              title="Enable account"
-                            >
-                              <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => setConfirmTarget({ user: u, action: 'disable' })}
-                              disabled={u.role === 'LAB_ADMIN'}
-                              className="p-1.5 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
-                              title={u.role === 'LAB_ADMIN' ? 'Cannot disable admin accounts' : 'Disable account'}
-                            >
-                              <UserX className="w-3.5 h-3.5 text-red-500" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
+        {/* Users grouped by program */}
+        {loading ? (
+          <div className="bg-white rounded-xl border border-[#001254]/10 flex items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 text-[#0B4EA2] animate-spin" />
+          </div>
+        ) : filteredGrouped.length === 0 ? (
+          <div className="bg-white rounded-xl border border-[#001254]/10 flex flex-col items-center justify-center py-16 gap-3">
+            <Users className="w-10 h-10 text-[#001254]/15" />
+            <p className="text-[#001254]/40" style={{ fontSize: '0.85rem' }}>
+              {hasActiveFilters ? 'No users match the current filters.' : 'No users found.'}
+            </p>
+          </div>
+        ) : (
+          filteredGrouped.map(([program, programUsers]) => (
+            <div key={program} className="bg-white rounded-xl border border-[#001254]/10 overflow-hidden">
+              <div className="px-5 py-3 border-b border-[#001254]/8 bg-[#001254]/2 flex items-center justify-between">
+                <h2 className="text-[#001254] font-semibold" style={{ fontSize: '0.85rem' }}>{program}</h2>
+                <span className="text-[#001254]/40 text-xs">{programUsers.length} user{programUsers.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-[#001254]/8">
+                      <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Name</th>
+                      <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest hidden md:table-cell" style={{ fontSize: '0.65rem' }}>Student ID</th>
+                      <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Role</th>
+                      <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Status</th>
+                      <th className="text-right px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {programUsers.map((u, i) => {
+                      const isDisabled = u.role === 'DISABLED';
+                      return (
+                        <tr
+                          key={u.user_id}
+                          className={`border-b border-[#001254]/5 hover:bg-[#001254]/2 transition-colors ${i === programUsers.length - 1 ? 'border-b-0' : ''}`}
+                        >
+                          <td className="px-5 py-3.5">
+                            <p className="text-[#001254]" style={{ fontSize: '0.85rem' }}>{u.full_name}</p>
+                            <p className="text-[#001254]/40" style={{ fontSize: '0.75rem' }}>{u.username || u.student_id}</p>
+                          </td>
+                          <td className="px-5 py-3.5 text-[#001254]/60 font-mono hidden md:table-cell" style={{ fontSize: '0.8rem' }}>
+                            {u.student_id || '—'}
+                          </td>
+                          <td className="px-5 py-3.5"><RoleBadge role={isDisabled ? 'STUDENT' : u.role} /></td>
+                          <td className="px-5 py-3.5"><StatusBadge disabled={isDisabled} /></td>
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center justify-end">
+                              {isDisabled ? (
+                                <button
+                                  onClick={() => setConfirmTarget({ user: u, action: 'enable' })}
+                                  className="p-1.5 hover:bg-emerald-50 rounded-lg transition-colors"
+                                  title="Enable account"
+                                >
+                                  <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => setConfirmTarget({ user: u, action: 'disable' })}
+                                  disabled={u.role === 'LAB_ADMIN'}
+                                  className="p-1.5 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30"
+                                  title={u.role === 'LAB_ADMIN' ? 'Cannot disable admin accounts' : 'Disable account'}
+                                >
+                                  <UserX className="w-3.5 h-3.5 text-red-500" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          )}
-        </div>
+          ))
+        )}
       </main>
 
       {/* Confirm disable/enable modal */}
