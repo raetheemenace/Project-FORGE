@@ -8,7 +8,7 @@ export default function SignIn() {
   const navigate = useNavigate();
   const { signIn } = useAuth();
   const [formData, setFormData] = useState({
-    fullName: '',
+    tipEmail: '',
     studentId: ''
   });
   const [errors, setErrors] = useState({});
@@ -16,20 +16,20 @@ export default function SignIn() {
 
   const handleChange = (e) => {
     let value = e.target.value;
-    if (e.target.name === 'studentId' && value.toUpperCase() !== 'ADMIN01') {
-      value = value.replace(/\D/g, '');
-    }
+    if (e.target.name === 'studentId') value = value.replace(/\D/g, '');
     setFormData({ ...formData, [e.target.name]: value });
     setErrors({});
   };
 
   const validate = () => {
     const errs = {};
-    if (!formData.fullName.trim()) errs.fullName = 'Full name is required';
-    else if (/\d/.test(formData.fullName)) errs.fullName = 'Full name must not contain numbers';
+    if (!formData.tipEmail.trim()) {
+      errs.tipEmail = 'TIP Email is required';
+    } else if (!/^m[a-zA-Z.]+@tip\.edu\.ph$/.test(formData.tipEmail)) {
+      errs.tipEmail = 'Must be a valid TIP email';
+    }
     if (!formData.studentId.trim()) errs.studentId = 'Student ID is required';
-    else if (formData.studentId.toUpperCase() !== 'ADMIN01' && !/^\d{7,8}$/.test(formData.studentId))
-      errs.studentId = 'Must be 7-8 digits';
+    else if (!/^\d{7,8}$/.test(formData.studentId)) errs.studentId = 'Must be 7-8 digits';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -41,7 +41,7 @@ export default function SignIn() {
     setLoading(true);
 
     try {
-      const response = await signIn(formData.fullName, formData.studentId);
+      const response = await signIn(formData.tipEmail, formData.studentId);
       if (response.user?.role === 'LAB_ADMIN') {
         navigate('/admin');
       } else {
@@ -117,19 +117,19 @@ export default function SignIn() {
           <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-4 sm:space-y-5">
             <div>
               <label className="block text-[#001254]/70 mb-1.5" style={{ fontSize: '0.8rem' }}>
-                Full Name
+                TIP Email
               </label>
               <input
-                type="text"
-                name="fullName"
-                value={formData.fullName}
+                type="email"
+                name="tipEmail"
+                value={formData.tipEmail}
                 onChange={handleChange}
-                placeholder="Juan Dela Cruz"
+                placeholder="mjdelacruz@tip.edu.ph"
                 className="w-full px-4 py-3 bg-[#f7f7f3] border border-[#001254]/10 rounded-lg focus:outline-none focus:border-[#0B4EA2] focus:ring-1 focus:ring-[#0B4EA2]/30 transition-all placeholder:text-[#001254]/25"
               />
-              {errors.fullName && (
+              {errors.tipEmail && (
                 <p className="mt-1 text-[#d4183d]" style={{ fontSize: '0.75rem' }}>
-                  {errors.fullName}
+                  {errors.tipEmail}
                 </p>
               )}
             </div>

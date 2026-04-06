@@ -36,7 +36,7 @@ export default function SignUp() {
     if (!formData.tipEmail.trim()) {
       errs.tipEmail = 'TIP Email is required';
     } else if (!/^[mMqQ][a-zA-Z0-9._%+-]*@tip\.edu\.ph$/.test(formData.tipEmail)) {
-      errs.tipEmail = 'Must be a valid TIP email starting with m or q (e.g. mjdelacruz@tip.edu.ph)';
+      errs.tipEmail = 'Must be a valid TIP email';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -50,7 +50,7 @@ export default function SignUp() {
 
     try {
       await signUp(formData);
-      navigate('/dashboard');
+      navigate('/signin');
     } catch (err) {
       setErrors({ submit: err.response?.data?.error || 'Registration failed. Please try again.' });
     } finally {
