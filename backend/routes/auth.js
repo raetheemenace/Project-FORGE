@@ -10,29 +10,39 @@ const { generateToken } = require('../middleware/auth');
  * Register a new student account
  */
 router.post('/signup', async (req, res) => {
-  const { studentId, fullName, program } = req.body;
+  const { studentId, fullName, program, tipEmail } = req.body;
 
   try {
     // Validate required fields
-    if (!studentId || !fullName || !program) {
+    if (!studentId || !fullName || !program || !tipEmail) {
       return res.status(400).json({
-        error: 'All fields are required: studentId, fullName, program'
+        error: 'All fields are required: studentId, fullName, program, tipEmail'
       });
     }
 
-    // Validate Student ID format (exactly 7 numeric digits)
-    if (!/^\d{7}$/.test(studentId)) {
+    // Validate full name — no numbers
+    if (/\d/.test(fullName)) {
+      return res.status(400).json({ error: 'Full name must not contain numbers.' });
+    }
+
+    // Validate TIP email
+    if (!/^m[a-zA-Z.]+@tip\.edu\.ph$/.test(tipEmail) || /\d/.test(tipEmail.split('@')[0])) {
+      return res.status(400).json({ error: 'Must be a valid TIP Email.' });
+    }
+
+    // Validate Student ID format (7-8 numeric digits)
+    if (!/^\d{7,8}$/.test(studentId)) {
       return res.status(400).json({
-        error: 'Student ID must be exactly 7 numeric digits'
+        error: 'Student ID must be 7-8 numeric digits'
       });
     }
 
     // Insert new user (no password needed)
     const result = await db.query(
-      `INSERT INTO forge_users (student_id, full_name, program, role)
-       VALUES ($1, $2, $3, $4)
-       RETURNING user_id, student_id, full_name, program, role, created_at`,
-      [studentId, fullName, program, 'STUDENT']
+      `INSERT INTO forge_users (student_id, full_name, program, tip_email, role)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING user_id, student_id, full_name, program, tip_email, role, created_at`,
+      [studentId, fullName, program, tipEmail, 'STUDENT']
     );
 
     const user = result.rows[0];
