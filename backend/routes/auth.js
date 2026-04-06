@@ -1,7 +1,6 @@
 // Authentication Routes
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const db = require('../db/pool');
 const { generateToken } = require('../middleware/auth');
 
@@ -20,23 +19,18 @@ router.post('/signup', async (req, res) => {
       });
     }
 
-<<<<<<< HEAD
     // Validate full name — no numbers
     if (/\d/.test(fullName)) {
       return res.status(400).json({ error: 'Full name must not contain numbers.' });
     }
 
-    // Validate TIP email
+    // Validate TIP email format
     if (!/^m[a-zA-Z.]+@tip\.edu\.ph$/.test(tipEmail) || /\d/.test(tipEmail.split('@')[0])) {
       return res.status(400).json({ error: 'Must be a valid TIP Email.' });
     }
 
     // Validate Student ID format (7-8 numeric digits)
     if (!/^\d{7,8}$/.test(studentId)) {
-=======
-    // Validate Student ID format (7-8 numeric digits, or admin IDs like ADMIN01)
-    if (!/^\d{7,8}$/.test(studentId) && !/^[A-Z]+\d+$/.test(studentId)) {
->>>>>>> 467547d47c353b81f29c1f83cd22722f22e6e014
       return res.status(400).json({
         error: 'Student ID must be 7-8 numeric digits'
       });
@@ -44,10 +38,10 @@ router.post('/signup', async (req, res) => {
 
     // Insert new user (no password needed)
     const result = await db.query(
-      `INSERT INTO forge_users (student_id, full_name, program, role)
-       VALUES ($1, $2, $3, $4)
-       RETURNING user_id, student_id, full_name, program, role, created_at`,
-      [studentId, fullName, program, 'STUDENT']
+      `INSERT INTO forge_users (student_id, full_name, program, role, tip_email)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING user_id, student_id, full_name, program, role, tip_email, created_at`,
+      [studentId, fullName, program, 'STUDENT', tipEmail]
     );
 
     const user = result.rows[0];
@@ -76,18 +70,16 @@ router.post('/signup', async (req, res) => {
   } catch (error) {
     console.error('Signup error:', error);
 
-    // Handle unique constraint violations
-    if (error.code === '23505') { // PostgreSQL unique violation
+    if (error.code === '23505') {
       if (error.constraint === 'forge_users_student_id_key') {
-        return res.status(409).json({
-          error: 'Student ID already registered'
-        });
+        return res.status(409).json({ error: 'Student ID already registered' });
+      }
+      if (error.constraint === 'forge_users_tip_email_key') {
+        return res.status(409).json({ error: 'TIP email already registered' });
       }
     }
 
-    res.status(500).json({
-      error: 'Failed to create account'
-    });
+    res.status(500).json({ error: 'Failed to create account' });
   }
 });
 
@@ -115,14 +107,11 @@ router.post('/signin', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(401).json({
-        error: 'Invalid credentials'
-      });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     const user = result.rows[0];
 
-    // Generate JWT token
     const token = generateToken({
       userId: user.user_id,
       studentId: user.student_id,
@@ -145,9 +134,7 @@ router.post('/signin', async (req, res) => {
 
   } catch (error) {
     console.error('Signin error:', error);
-    res.status(500).json({
-      error: 'Failed to sign in'
-    });
+    res.status(500).json({ error: 'Failed to sign in' });
   }
 });
 
