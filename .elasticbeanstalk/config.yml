@@ -1,0 +1,5 @@
+branch-defaults:
+  main:
+    environment: forge-production
+global:
+  profile: eb-cli
