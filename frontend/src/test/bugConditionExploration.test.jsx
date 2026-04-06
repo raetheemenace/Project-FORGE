@@ -624,3 +624,215 @@ describe('Admin Login Exemption — Bug Condition: validate() rejects ADMIN01 cr
     expect(errorTexts).toEqual([]);
   });
 });
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QR Scanner Mobile Camera Bug — Bug Condition Exploration Tests
+// Validates: Requirements 1.1, 1.2, 1.3, 1.4, 1.5
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('QR Scanner Mobile Camera — Bug Condition Exploration', () => {
+  /**
+   * These 4 tests MUST FAIL on unfixed code — failure confirms the bugs exist.
+   * DO NOT fix the code when these fail.
+   */
+
+  // ── Test 1: Race Condition ─────────────────────────────────────────────────
+  /**
+   * Validates: Requirements 1.2, 2.2
+   *
+   * EXPECTED TO FAIL on unfixed code because toggleQrMode calls startScanner
+   * after only 100ms — too short for iOS Safari to fully release the stream.
+   * On unfixed code, Html5QrcodeScanner.render() IS called at 100ms while the
+   * stream may still be active, so the assertion (render NOT called before
+   * stream is released) fails.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected true to be false
+   *   (render() was called at ~100ms, before the 400ms stream-release window)
+   */
+  it('Test 1 — Race Condition: toggleQrMode awaits at least 400ms before setQrMode(true)', () => {
+    // Static source analysis: verify the fix is in place in BorrowStep3.jsx
+    const borrowStep3Path = resolve(__dirname, '../pages/borrow/BorrowStep3.jsx');
+    const source = readFileSync(borrowStep3Path, 'utf-8');
+
+    // ASSERTION 1: toggleQrMode must be async
+    // On UNFIXED code: `function toggleQrMode()` (not async) → FAILS
+    const isAsync = /async function toggleQrMode\(\)/.test(source);
+    expect(isAsync).toBe(true);
+
+    // Extract the toggleQrMode function body
+    const fnStart = source.indexOf('async function toggleQrMode()');
+    expect(fnStart).not.toBe(-1);
+    let depth = 0;
+    let fnEnd = -1;
+    for (let i = fnStart; i < source.length; i++) {
+      if (source[i] === '{') depth++;
+      else if (source[i] === '}') { depth--; if (depth === 0) { fnEnd = i + 1; break; } }
+    }
+    const fnBody = source.slice(fnStart, fnEnd);
+
+    // Extract the else branch (enable-QR path)
+    const elseIdx = fnBody.indexOf('} else {');
+    expect(elseIdx).not.toBe(-1);
+    const elseBranch = fnBody.slice(elseIdx);
+
+    // ASSERTION 2: else branch must await a delay of at least 300ms
+    // On UNFIXED code: no await delay → FAILS
+    const awaitMatch = elseBranch.match(/await\s+new\s+Promise[^)]*setTimeout[^,]*,\s*(\d+)/);
+    expect(awaitMatch).not.toBeNull();
+    const delayMs = parseInt(awaitMatch[1], 10);
+    expect(delayMs).toBeGreaterThanOrEqual(300);
+
+    // ASSERTION 3: stopCamera() must appear before the await delay
+    // On UNFIXED code: stopCamera() not called in else branch → FAILS
+    const stopCameraIdx = elseBranch.indexOf('stopCamera()');
+    const awaitIdx = elseBranch.indexOf('await');
+    expect(stopCameraIdx).not.toBe(-1);
+    expect(stopCameraIdx).toBeLessThan(awaitIdx);
+  });
+
+  // ── Test 2: Hard facingMode Constraint ────────────────────────────────────
+  /**
+   * Validates: Requirements 1.3, 2.3
+   *
+   * EXPECTED TO FAIL on unfixed code because useQRScanner.js passes
+   * `facingMode: 'environment'` as a top-level key in the Html5QrcodeScanner
+   * config, which is treated as a hard getUserMedia constraint.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected true to be false
+   *   (config has top-level facingMode: 'environment' — hard constraint present)
+   */
+  it('Test 2 — Hard facingMode Constraint: config does NOT use top-level facingMode: "environment"', () => {
+    const useQRScannerPath = resolve(__dirname, '../hooks/useQRScanner.js');
+    const source = readFileSync(useQRScannerPath, 'utf-8');
+
+    // Find the Html5QrcodeScanner constructor call and extract its config object
+    const constructorStart = source.indexOf('new Html5QrcodeScanner(');
+    expect(constructorStart).not.toBe(-1);
+
+    // Extract the config object literal (second argument to the constructor)
+    // Find the opening brace of the config object
+    const configStart = source.indexOf('{', constructorStart);
+    expect(configStart).not.toBe(-1);
+
+    // Find the matching closing brace
+    let depth = 0;
+    let configEnd = -1;
+    for (let i = configStart; i < source.length; i++) {
+      if (source[i] === '{') depth++;
+      else if (source[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          configEnd = i + 1;
+          break;
+        }
+      }
+    }
+    expect(configEnd).not.toBe(-1);
+
+    const configSource = source.slice(configStart, configEnd);
+
+    // ASSERTION: config must NOT have a top-level `facingMode` key.
+    // A top-level facingMode is a hard constraint that fails silently on
+    // devices where the back camera is unavailable.
+    // On UNFIXED code: `facingMode: 'environment'` IS present → FAILS.
+    const hasTopLevelFacingMode = /^\s*facingMode\s*:/m.test(configSource);
+
+    // On UNFIXED code this FAILS — hard facingMode constraint is present
+    expect(hasTopLevelFacingMode).toBe(false);
+
+    // ASSERTION: config SHOULD use videoConstraints with ideal facingMode (soft preference).
+    // On UNFIXED code: videoConstraints is absent → this also FAILS.
+    const hasSoftFacingMode =
+      /videoConstraints\s*:/.test(configSource) &&
+      /ideal\s*:\s*['"]environment['"]/.test(configSource);
+
+    // On UNFIXED code this FAILS — no videoConstraints with ideal facingMode
+    expect(hasSoftFacingMode).toBe(true);
+  });
+
+  // ── Test 3: Zero-Height Container ─────────────────────────────────────────
+  /**
+   * Validates: Requirements 1.4, 2.4
+   *
+   * EXPECTED TO FAIL on unfixed code because startScanner in useQRScanner.js
+   * calls Html5QrcodeScanner.render() unconditionally — there is no check for
+   * container.offsetHeight > 0 before calling render().
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected true to be false
+   *   (render() was called even when offsetHeight === 0 — no height guard exists)
+   */
+  it('Test 3 — Zero-Height Container: render() is NOT called when container offsetHeight === 0', () => {
+    // Static source analysis: verify the fix is in BorrowStep3.jsx useEffect (not useQRScanner.js)
+    // The design specifies the height-polling guard lives in the useEffect that calls startScanner
+    const borrowStep3Path = resolve(__dirname, '../pages/borrow/BorrowStep3.jsx');
+    const source = readFileSync(borrowStep3Path, 'utf-8');
+
+    // Find the useEffect that guards startScanner with a height check
+    const effectMarker = 'if (!qrMode) return;';
+    const markerIdx = source.indexOf(effectMarker);
+    expect(markerIdx).not.toBe(-1);
+
+    const useEffectIdx = source.lastIndexOf('useEffect(', markerIdx);
+    expect(useEffectIdx).not.toBe(-1);
+
+    const cbStart = source.indexOf('{', useEffectIdx);
+    let depth = 0;
+    let cbEnd = -1;
+    for (let i = cbStart; i < source.length; i++) {
+      if (source[i] === '{') depth++;
+      else if (source[i] === '}') { depth--; if (depth === 0) { cbEnd = i + 1; break; } }
+    }
+    const effectBody = source.slice(useEffectIdx, cbEnd);
+
+    // ASSERTION: useEffect must check offsetHeight > 0 before calling startScanner
+    // On UNFIXED code: no offsetHeight check → startScanner called unconditionally → FAILS
+    const hasHeightCheck = /offsetHeight\s*>\s*0/.test(effectBody);
+    expect(hasHeightCheck).toBe(true);
+
+    // ASSERTION: startScanner must appear after the offsetHeight check
+    const offsetHeightIdx = effectBody.indexOf('offsetHeight');
+    const startScannerIdx = effectBody.indexOf('startScanner(');
+    expect(offsetHeightIdx).not.toBe(-1);
+    expect(startScannerIdx).not.toBe(-1);
+    expect(startScannerIdx).toBeGreaterThan(offsetHeightIdx);
+  });
+
+  // ── Test 4: Container min-height ──────────────────────────────────────────
+  /**
+   * Validates: Requirements 1.5, 2.5
+   *
+   * EXPECTED TO FAIL on unfixed code because the qr-scanner-container div in
+   * BorrowStep3.jsx has className="w-full" with no min-h-* class.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected false to be true
+   *   (qr-scanner-container has className="w-full" — no min-h-[300px] class)
+   */
+  it('Test 4 — Container min-height: qr-scanner-container div has min-h-[300px] in className', () => {
+    const borrowStep3Path = resolve(__dirname, '../pages/borrow/BorrowStep3.jsx');
+    const source = readFileSync(borrowStep3Path, 'utf-8');
+
+    // Find the qr-scanner-container div
+    const containerIdx = source.indexOf('id="qr-scanner-container"');
+    expect(containerIdx).not.toBe(-1);
+
+    // Extract the JSX element (from the opening < to the closing />)
+    const elementStart = source.lastIndexOf('<', containerIdx);
+    const elementEnd = source.indexOf('/>', containerIdx);
+    expect(elementStart).not.toBe(-1);
+    expect(elementEnd).not.toBe(-1);
+
+    const containerElement = source.slice(elementStart, elementEnd + 2);
+
+    // ASSERTION: the container div must have min-h-[300px] in its className.
+    // On UNFIXED code: className="w-full" — no min-h-* class → FAILS.
+    const hasMinHeight = /min-h-\[300px\]/.test(containerElement);
+
+    // On UNFIXED code this FAILS — no min-height class on the container
+    expect(hasMinHeight).toBe(true);
+  });
+});

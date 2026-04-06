@@ -40,7 +40,7 @@ export function useQRScanner(onScanSuccess, onScanError) {
         fps: 10,
         qrbox: { width: 250, height: 250 },
         aspectRatio: 1.0,
-        facingMode: 'environment',
+        videoConstraints: { facingMode: { ideal: 'environment' } },
         rememberLastUsedCamera: true,
         showTorchButtonIfSupported: true,
       },
