@@ -252,7 +252,7 @@ router.post('/chat', authenticateToken, async (req, res) => {
   const systemPrompt = BASE_SYSTEM_PROMPT + liveContext;
 
   const bedrockInput = {
-    modelId: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0',
+    modelId: process.env.BEDROCK_MODEL_ID || 'apac.anthropic.claude-3-haiku-20240307-v1:0',
     contentType: 'application/json',
     accept: 'application/json',
     body: JSON.stringify({

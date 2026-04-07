@@ -112,7 +112,7 @@ app.post('/api/forge', async (req, res) => {
   const { prompt } = req.body;
 
   const input = {
-    modelId: process.env.BEDROCK_MODEL_ID || "anthropic.claude-3-haiku-20240307-v1:0",
+    modelId: process.env.BEDROCK_MODEL_ID || "apac.anthropic.claude-3-haiku-20240307-v1:0",
     contentType: "application/json",
     accept: "application/json",
     body: JSON.stringify({

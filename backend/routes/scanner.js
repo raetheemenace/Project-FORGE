@@ -61,7 +61,7 @@ Respond ONLY with a JSON object in this exact format (no markdown, no extra text
 If you cannot identify any lab equipment, set name to "Unknown Equipment", condition to "Fair", confidence to 0, and equipmentId to null.`;
 
   const bedrockInput = {
-    modelId: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0',
+    modelId: process.env.BEDROCK_MODEL_ID || 'apac.anthropic.claude-3-haiku-20240307-v1:0',
     contentType: 'application/json',
     accept: 'application/json',
     body: JSON.stringify({
@@ -95,14 +95,19 @@ If you cannot identify any lab equipment, set name to "Unknown Equipment", condi
     bedrockRaw = JSON.parse(new TextDecoder().decode(response.body));
     const text = bedrockRaw.content?.[0]?.text ?? '';
 
+    // Extract JSON — Bedrock sometimes wraps output in markdown code fences
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonText = jsonMatch ? jsonMatch[0] : text;
+
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(jsonText);
     } catch {
       // Bedrock returned non-JSON — treat as unidentified
+      console.warn('Bedrock non-JSON response:', text);
       parsed = { name: 'Unknown Equipment', condition: 'Fair', confidence: 0, equipmentId: null };
     }
   } catch (bedrockErr) {
-    console.error('Bedrock error:', bedrockErr);
+    console.error('Bedrock error:', bedrockErr.name, bedrockErr.message);
     
     // Handle specific AWS errors
     let errorMessage = 'AI Scanner is temporarily unavailable. Please retry.';
@@ -112,14 +117,20 @@ If you cannot identify any lab equipment, set name to "Unknown Equipment", condi
       errorMessage = 'Too many scan requests. Please wait 30 seconds and try again.';
       statusCode = 429;
     } else if (bedrockErr.name === 'ValidationException') {
-      errorMessage = 'Invalid image format. Please try a different image.';
+      errorMessage = `Invalid image or request: ${bedrockErr.message}`;
       statusCode = 400;
+    } else if (bedrockErr.name === 'AccessDeniedException') {
+      errorMessage = 'Bedrock model access denied. Check model access in AWS console.';
+      statusCode = 403;
+    } else if (bedrockErr.name === 'ResourceNotFoundException') {
+      errorMessage = 'Bedrock model not found. Check BEDROCK_MODEL_ID configuration.';
+      statusCode = 404;
     }
     
     // Log the failed attempt
     await logScan({ 
       userId, 
-      bedrockResponse: JSON.stringify({ error: bedrockErr.message }), 
+      bedrockResponse: JSON.stringify({ error: bedrockErr.message, name: bedrockErr.name }), 
       predictedName: null, 
       confidenceScore: 0, 
       equipmentId: null 
