@@ -26,7 +26,7 @@ router.post('/identify', authenticateToken, async (req, res) => {
   let catalogRows = [];
   try {
     const catalogResult = await db.query(
-      'SELECT equipment_id, name, department FROM forge_equipment WHERE status = \'AVAILABLE\' ORDER BY equipment_id'
+      'SELECT equipment_id, name, status, department FROM forge_equipment WHERE status != \'DISPOSED\' ORDER BY equipment_id'
     );
     catalogRows = catalogResult.rows;
   } catch {
@@ -41,16 +41,16 @@ router.post('/identify', authenticateToken, async (req, res) => {
 
   // Step 2 — Inject catalog into prompt
   const catalogList = catalogRows.length > 0
-    ? catalogRows.map((r, i) => `${i + 1}. ${r.equipment_id} — ${r.name} (${r.department})`).join('\n')
-    : '(no equipment available)';
+    ? catalogRows.map((r, i) => `${i + 1}. ${r.equipment_id} — ${r.name} [${r.status}] (${r.department})`).join('\n')
+    : '(no equipment registered)';
 
   const prompt = `You are a laboratory equipment identification assistant.
 Analyze the image and identify the lab equipment shown.
 
-Here is the list of registered AVAILABLE equipment in the system:
+Here is the list of all registered equipment in the system (including items currently under maintenance or otherwise unavailable):
 ${catalogList}
 
-Match the equipment in the image against this list. Return the exact equipment_id from the list above if you find a match, or null if none match.
+Match the equipment in the image against this list. Return the exact equipment_id from the list above if you find a match, or null if none match. You should identify the equipment regardless of its current availability status.
 Respond ONLY with a JSON object in this exact format (no markdown, no extra text):
 {
   "name": "<equipment name>",
@@ -145,7 +145,7 @@ If you cannot identify any lab equipment, set name to "Unknown Equipment", condi
     try {
       const nameMatch = await db.query(
         `SELECT equipment_id FROM forge_equipment
-         WHERE status = 'AVAILABLE'
+         WHERE status != 'DISPOSED'
            AND LOWER(name) LIKE LOWER($1)
          LIMIT 1`,
         [`%${parsed.name}%`]
