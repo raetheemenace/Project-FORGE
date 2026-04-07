@@ -836,3 +836,167 @@ describe('QR Scanner Mobile Camera — Bug Condition Exploration', () => {
     expect(hasMinHeight).toBe(true);
   });
 });
+
+
+// =============================================================================
+// Scanner and System Debug — Bug Condition Exploration Tests
+// Spec: .kiro/specs/scanner-and-system-debug/
+//
+// These 4 tests MUST FAIL on unfixed code — failure confirms the bugs exist.
+// DO NOT fix the code when these fail.
+//
+// Bug A: BorrowStep3.jsx API_BASE fallback missing /api suffix
+// Bug B: BorrowStep4.jsx API_BASE fallback missing /api suffix
+// Bug C: axios calls in BorrowStep3/4 contain doubled /api/api/ path
+// Bug D: scanner.js catalog query filters only AVAILABLE equipment
+// =============================================================================
+
+describe('Scanner Bug A — BorrowStep3.jsx API_BASE fallback ends with /api', () => {
+  /**
+   * Validates: Requirements 2.1, 2.2, 3.5
+   *
+   * EXPECTED TO FAIL on unfixed code because BorrowStep3.jsx defines:
+   *   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+   * The fallback does NOT end with /api, so local dev requests hit the wrong base.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected false to be true
+   *   (fallback is 'http://localhost:5000' — does not end with /api)
+   */
+  it('API_BASE fallback string ends with /api (i.e. http://localhost:5000/api)', () => {
+    const filePath = resolve(__dirname, '../pages/borrow/BorrowStep3.jsx');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // Extract the API_BASE constant definition line
+    const apiBaseMatch = source.match(/const\s+API_BASE\s*=\s*import\.meta\.env\.VITE_API_URL\s*\|\|\s*['"]([^'"]+)['"]/);
+    expect(apiBaseMatch).not.toBeNull();
+
+    const fallback = apiBaseMatch[1];
+
+    // ASSERTION: fallback must end with /api
+    // On UNFIXED code: fallback is 'http://localhost:5000' → FAILS
+    expect(fallback.endsWith('/api')).toBe(true);
+  });
+});
+
+
+describe('Scanner Bug B — BorrowStep4.jsx API_BASE fallback ends with /api', () => {
+  /**
+   * Validates: Requirements 2.3, 3.5
+   *
+   * EXPECTED TO FAIL on unfixed code because BorrowStep4.jsx defines:
+   *   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+   * The fallback does NOT end with /api.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected false to be true
+   *   (fallback is 'http://localhost:5000' — does not end with /api)
+   */
+  it('API_BASE fallback string ends with /api (i.e. http://localhost:5000/api)', () => {
+    const filePath = resolve(__dirname, '../pages/borrow/BorrowStep4.jsx');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // Extract the API_BASE constant definition line
+    const apiBaseMatch = source.match(/const\s+API_BASE\s*=\s*import\.meta\.env\.VITE_API_URL\s*\|\|\s*['"]([^'"]+)['"]/);
+    expect(apiBaseMatch).not.toBeNull();
+
+    const fallback = apiBaseMatch[1];
+
+    // ASSERTION: fallback must end with /api
+    // On UNFIXED code: fallback is 'http://localhost:5000' → FAILS
+    expect(fallback.endsWith('/api')).toBe(true);
+  });
+});
+
+
+describe('Scanner Bug C — No doubled /api/api/ path in BorrowStep3.jsx or BorrowStep4.jsx axios calls', () => {
+  /**
+   * Validates: Requirements 2.1, 2.2, 2.3
+   *
+   * EXPECTED TO FAIL on unfixed code because axios calls in both files use:
+   *   `${API_BASE}/api/scanner/identify`
+   *   `${API_BASE}/api/equipment/${equipmentId}`
+   *   `${API_BASE}/api/transactions`
+   * When VITE_API_URL ends in /api (production), these produce /api/api/... paths.
+   *
+   * The test asserts that no axios call path (the string literal after the
+   * template variable) starts with /api/ — which would double the prefix.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected true to be false
+   *   (source contains `${API_BASE}/api/` — doubled path present)
+   */
+  it('BorrowStep3.jsx contains no axios call path starting with /api/ after the template variable', () => {
+    const filePath = resolve(__dirname, '../pages/borrow/BorrowStep3.jsx');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // ASSERTION: no occurrence of `${API_BASE}/api/` in the source
+    // This pattern produces /api/api/... in production where VITE_API_URL ends in /api
+    // On UNFIXED code: `${API_BASE}/api/scanner/identify` and `${API_BASE}/api/equipment/` exist → FAILS
+    const hasDoubledPath = source.includes('${API_BASE}/api/');
+    expect(hasDoubledPath).toBe(false);
+  });
+
+  it('BorrowStep4.jsx contains no axios call path starting with /api/ after the template variable', () => {
+    const filePath = resolve(__dirname, '../pages/borrow/BorrowStep4.jsx');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // ASSERTION: no occurrence of `${API_BASE}/api/` in the source
+    // On UNFIXED code: `${API_BASE}/api/transactions` exists → FAILS
+    const hasDoubledPath = source.includes('${API_BASE}/api/');
+    expect(hasDoubledPath).toBe(false);
+  });
+});
+
+
+describe('Scanner Bug D — scanner.js catalog query does not use status = \'AVAILABLE\' as sole filter', () => {
+  /**
+   * Validates: Requirements 2.4
+   *
+   * EXPECTED TO FAIL on unfixed code because scanner.js Step 1 catalog query uses:
+   *   WHERE status = 'AVAILABLE'
+   * and the Step 4 name-match fallback also uses:
+   *   WHERE status = 'AVAILABLE'
+   * This excludes MAINTENANCE and other non-DISPOSED equipment from the AI catalog.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected true to be false
+   *   (catalog query contains "status = 'AVAILABLE'" — overly restrictive filter)
+   */
+  it('Step 1 catalog query does NOT contain status = \'AVAILABLE\'', () => {
+    const filePath = resolve(__dirname, '..', '..', '..', 'backend/routes/scanner.js');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // Find the Step 1 catalog query block
+    const step1Marker = source.indexOf('Step 1');
+    expect(step1Marker).not.toBe(-1);
+
+    // Extract a window of source around Step 1 (up to Step 2 marker)
+    const step2Marker = source.indexOf('Step 2', step1Marker);
+    const catalogSection = step2Marker !== -1
+      ? source.slice(step1Marker, step2Marker)
+      : source.slice(step1Marker, step1Marker + 500);
+
+    // ASSERTION: catalog query must NOT filter by status = 'AVAILABLE'
+    // On UNFIXED code: WHERE status = 'AVAILABLE' is present → FAILS
+    const hasAvailableOnlyFilter = /status\s*=\s*'AVAILABLE'/.test(catalogSection);
+    expect(hasAvailableOnlyFilter).toBe(false);
+  });
+
+  it('Step 4 name-match fallback does NOT contain status = \'AVAILABLE\'', () => {
+    const filePath = resolve(__dirname, '..', '..', '..', 'backend/routes/scanner.js');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // Find the Step 4 name-match fallback block
+    const step4Marker = source.indexOf('Step 4');
+    expect(step4Marker).not.toBe(-1);
+
+    // Extract a window of source from Step 4 to end of file (or next major block)
+    const nameMatchSection = source.slice(step4Marker, step4Marker + 600);
+
+    // ASSERTION: name-match fallback must NOT filter by status = 'AVAILABLE'
+    // On UNFIXED code: WHERE status = 'AVAILABLE' is present → FAILS
+    const hasAvailableOnlyFilter = /status\s*=\s*'AVAILABLE'/.test(nameMatchSection);
+    expect(hasAvailableOnlyFilter).toBe(false);
+  });
+});

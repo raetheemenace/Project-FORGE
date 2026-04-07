@@ -1124,3 +1124,172 @@ describe('Property 2 — QR Decode Logic Unchanged (Preservation)', () => {
     );
   });
 });
+
+// ═════════════════════════════════════════════════════════════════════════════
+// scanner-and-system-debug Preservation Tests (Tasks 6.1, 6.2, 6.3)
+// These tests verify unchanged behaviors that must hold on BOTH unfixed and
+// fixed code (except 6.3 which verifies the correct fixed fallback value).
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Task 6.1 — QR round-trip: qrGenerator.js produces FORGE_EQUIPMENT JSON and
+//            useQRScanner.js parses it correctly
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Task 6.1 — QR round-trip preservation (qrGenerator → useQRScanner)', () => {
+  /**
+   * Validates: Requirements 3.2, 3.3
+   *
+   * Static source analysis confirming that:
+   *   1. qrGenerator.js produces a JSON payload with type: "FORGE_EQUIPMENT"
+   *      and an equipmentId field.
+   *   2. useQRScanner.js parses the equipmentId from the decoded JSON and
+   *      calls the success callback.
+   *
+   * Must pass on BOTH unfixed and fixed code.
+   */
+
+  const { readFileSync } = require('fs');
+  const { resolve } = require('path');
+
+  const qrGenSource = readFileSync(
+    resolve(__dirname, '..', '..', '..', 'backend', 'utils', 'qrGenerator.js'),
+    'utf-8'
+  );
+
+  const qrScannerSource = readFileSync(
+    resolve(__dirname, '../hooks/useQRScanner.js'),
+    'utf-8'
+  );
+
+  it('qrGenerator.js produces a JSON payload with type: "FORGE_EQUIPMENT"', () => {
+    expect(/FORGE_EQUIPMENT/.test(qrGenSource)).toBe(true);
+    // The payload must be built via JSON.stringify (not a plain string)
+    expect(/JSON\.stringify/.test(qrGenSource)).toBe(true);
+  });
+
+  it('qrGenerator.js includes equipmentId in the JSON payload', () => {
+    // The object literal passed to JSON.stringify must contain an equipmentId key
+    expect(/equipmentId/.test(qrGenSource)).toBe(true);
+  });
+
+  it('useQRScanner.js checks for type === "FORGE_EQUIPMENT" when parsing', () => {
+    expect(/FORGE_EQUIPMENT/.test(qrScannerSource)).toBe(true);
+  });
+
+  it('useQRScanner.js extracts equipmentId from the decoded JSON', () => {
+    expect(/data\.equipmentId/.test(qrScannerSource)).toBe(true);
+  });
+
+  it('useQRScanner.js calls the success callback with the equipmentId', () => {
+    // onSuccessRef.current(data.equipmentId) or equivalent
+    expect(/onSuccessRef\.current\(data\.equipmentId\)/.test(qrScannerSource)).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Task 6.2 — Scan log: logScan is called with predicted_name, confidence_score,
+//            and equipment_id after a scan
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Task 6.2 — Scan log preservation (logScan in scanner.js)', () => {
+  /**
+   * Validates: Requirements 3.4
+   *
+   * Static source analysis confirming that:
+   *   1. The logScan function in scanner.js inserts into forge_scan_log with
+   *      predicted_name, confidence_score, and equipment_id columns.
+   *   2. The logScan call after a successful scan passes predictedName and
+   *      confidenceScore.
+   *
+   * Must pass on BOTH unfixed and fixed code.
+   */
+
+  const { readFileSync } = require('fs');
+  const { resolve } = require('path');
+
+  const scannerSource = readFileSync(
+    resolve(__dirname, '..', '..', '..', 'backend/routes/scanner.js'),
+    'utf-8'
+  );
+
+  it('scanner.js defines a logScan function', () => {
+    expect(/async function logScan\b/.test(scannerSource) || /function logScan\b/.test(scannerSource)).toBe(true);
+  });
+
+  it('logScan inserts into forge_scan_log', () => {
+    expect(/INSERT\s+INTO\s+forge_scan_log/.test(scannerSource)).toBe(true);
+  });
+
+  it('logScan INSERT includes the predicted_name column', () => {
+    expect(/predicted_name/.test(scannerSource)).toBe(true);
+  });
+
+  it('logScan INSERT includes the confidence_score column', () => {
+    expect(/confidence_score/.test(scannerSource)).toBe(true);
+  });
+
+  it('logScan INSERT includes the equipment_id column', () => {
+    expect(/equipment_id/.test(scannerSource)).toBe(true);
+  });
+
+  it('logScan is called after a successful scan with predictedName', () => {
+    // The successful-scan logScan call must pass predictedName
+    expect(/logScan\(/.test(scannerSource)).toBe(true);
+    expect(/predictedName/.test(scannerSource)).toBe(true);
+  });
+
+  it('logScan is called after a successful scan with confidenceScore', () => {
+    expect(/confidenceScore/.test(scannerSource)).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Task 6.3 — Dev fallback: BorrowStep3 and BorrowStep4 fall back to
+//            http://localhost:5000/api when VITE_API_URL is unset
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Task 6.3 — Dev fallback preservation (BorrowStep3 and BorrowStep4)', () => {
+  /**
+   * Validates: Requirements 3.5
+   *
+   * Static source analysis confirming that:
+   *   - BorrowStep3.jsx API_BASE fallback is exactly 'http://localhost:5000/api'
+   *   - BorrowStep4.jsx API_BASE fallback is exactly 'http://localhost:5000/api'
+   *
+   * NOTE: This test verifies the CORRECT (fixed) behavior. It will FAIL on
+   * unfixed code (where the fallback is 'http://localhost:5000' without /api)
+   * and PASS on fixed code. It is included as a preservation test to ensure
+   * the correct fallback is never accidentally reverted.
+   */
+
+  const { readFileSync } = require('fs');
+  const { resolve } = require('path');
+
+  const step3Source = readFileSync(
+    resolve(__dirname, '../pages/borrow/BorrowStep3.jsx'),
+    'utf-8'
+  );
+
+  const step4Source = readFileSync(
+    resolve(__dirname, '../pages/borrow/BorrowStep4.jsx'),
+    'utf-8'
+  );
+
+  it("BorrowStep3.jsx API_BASE fallback is exactly 'http://localhost:5000/api'", () => {
+    // The fallback string must end with /api (not bare :5000)
+    expect(/import\.meta\.env\.VITE_API_URL\s*\|\|\s*['"]http:\/\/localhost:5000\/api['"]/.test(step3Source)).toBe(true);
+  });
+
+  it("BorrowStep4.jsx API_BASE fallback is exactly 'http://localhost:5000/api'", () => {
+    expect(/import\.meta\.env\.VITE_API_URL\s*\|\|\s*['"]http:\/\/localhost:5000\/api['"]/.test(step4Source)).toBe(true);
+  });
+
+  it("BorrowStep3.jsx API_BASE fallback does NOT use bare 'http://localhost:5000' (without /api)", () => {
+    // Must not have the buggy fallback (bare port without /api suffix)
+    const hasBuggyFallback = /import\.meta\.env\.VITE_API_URL\s*\|\|\s*['"]http:\/\/localhost:5000['"](?!\/api)/.test(step3Source);
+    expect(hasBuggyFallback).toBe(false);
+  });
+
+  it("BorrowStep4.jsx API_BASE fallback does NOT use bare 'http://localhost:5000' (without /api)", () => {
+    const hasBuggyFallback = /import\.meta\.env\.VITE_API_URL\s*\|\|\s*['"]http:\/\/localhost:5000['"](?!\/api)/.test(step4Source);
+    expect(hasBuggyFallback).toBe(false);
+  });
+});

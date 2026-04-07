@@ -16,7 +16,7 @@ import TTSToggle from '../../components/ui/TTSToggle';
 const TOTAL_STEPS = 4;
 const CURRENT_STEP = 3;
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const CONDITION_COLORS = {
   Excellent: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -56,7 +56,7 @@ export default function BorrowStep3() {
     try {
       const token = localStorage.getItem('token');
       const { data } = await axios.get(
-        `${API_BASE}/api/equipment/${equipmentId}`,
+        `${API_BASE}/equipment/${equipmentId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const item = {
@@ -191,7 +191,7 @@ export default function BorrowStep3() {
 
       const token = localStorage.getItem('token');
       const { data } = await axios.post(
-        `${API_BASE}/api/scanner/identify`,
+        `${API_BASE}/scanner/identify`,
         { imageBase64, mediaType: 'image/jpeg' },
         { headers: { Authorization: `Bearer ${token}` } }
       );
