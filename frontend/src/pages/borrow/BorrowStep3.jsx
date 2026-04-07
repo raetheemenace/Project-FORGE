@@ -85,27 +85,48 @@ export default function BorrowStep3() {
   const { startScanner, stopScanner } = useQRScanner(handleQRSuccess, handleQRError);
 
   // Toggle QR mode on/off
-  function toggleQrMode() {
+  async function toggleQrMode() {
     if (qrMode) {
       stopScanner();
       setQrMode(false);
       setQrLookupError(null);
+      startCamera();
     } else {
+      stopCamera();
+      await new Promise(resolve => setTimeout(resolve, 400));
       setQrMode(true);
       setQrLookupError(null);
     }
   }
 
-  // Start QR scanner once the container div is mounted
+  // Start QR scanner once the container div is mounted and has non-zero height.
+  // On mobile, layout may not be complete immediately — poll until offsetHeight > 0
+  // (max 20 retries × 50ms = 1s) before calling startScanner to avoid silent failures.
   useEffect(() => {
-    if (qrMode) {
-      // Small delay to ensure the DOM element is rendered
-      const t = setTimeout(() => startScanner('qr-scanner-container'), 100);
-      return () => {
-        clearTimeout(t);
-        stopScanner();
-      };
+    if (!qrMode) return;
+
+    let timeoutId;
+    let retries = 0;
+    const MAX_RETRIES = 20;
+    const POLL_INTERVAL = 50;
+
+    function pollForContainer() {
+      const el = document.getElementById('qr-scanner-container');
+      if (el && el.offsetHeight > 0) {
+        startScanner('qr-scanner-container');
+      } else if (retries < MAX_RETRIES) {
+        retries += 1;
+        timeoutId = setTimeout(pollForContainer, POLL_INTERVAL);
+      }
+      // If max retries exceeded, give up silently (avoids infinite loop)
     }
+
+    timeoutId = setTimeout(pollForContainer, POLL_INTERVAL);
+
+    return () => {
+      clearTimeout(timeoutId);
+      stopScanner();
+    };
   }, [qrMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Read instructions aloud when TTS enabled (req 6.8)
@@ -409,7 +430,7 @@ export default function BorrowStep3() {
                 </div>
                 <p className="text-xs text-[#001254]/40">Point at equipment QR code to auto-add</p>
               </div>
-              <div id="qr-scanner-container" className="w-full" />
+              <div id="qr-scanner-container" className="w-full min-h-[300px]" />
               {qrLookupError && (
                 <div className="px-4 py-3 border-t border-[#001254]/8 flex items-center gap-2 bg-red-50">
                   <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />

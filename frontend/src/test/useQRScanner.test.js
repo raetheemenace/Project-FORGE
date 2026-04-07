@@ -62,7 +62,7 @@ describe('useQRScanner', () => {
   });
 
   // Test 1: Constructor called with correct config
-  it('calls Html5QrcodeScanner constructor with fps:10, qrbox 250x250, facingMode environment', () => {
+  it('calls Html5QrcodeScanner constructor with fps:10, qrbox 250x250, videoConstraints facingMode ideal environment', () => {
     const { startScanner } = useQRScanner(onScanSuccess, onScanError);
     startScanner('qr-reader');
 
@@ -70,8 +70,10 @@ describe('useQRScanner', () => {
     expect(MockHtml5QrcodeScanner.lastConfig).toMatchObject({
       fps: 10,
       qrbox: { width: 250, height: 250 },
-      facingMode: 'environment',
+      videoConstraints: { facingMode: { ideal: 'environment' } },
     });
+    // Must NOT have a top-level facingMode key (hard constraint removed in fix 3.1)
+    expect(MockHtml5QrcodeScanner.lastConfig).not.toHaveProperty('facingMode');
   });
 
   // Test 2: scanner.clear() called when stopScanner is invoked

@@ -1,7 +1,6 @@
 // Authentication Routes
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const db = require('../db/pool');
 const { generateToken } = require('../middleware/auth');
 
@@ -25,7 +24,7 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'Full name must not contain numbers.' });
     }
 
-    // Validate TIP email
+    // Validate TIP email format
     if (!/^m[a-zA-Z.]+@tip\.edu\.ph$/.test(tipEmail) || /\d/.test(tipEmail.split('@')[0])) {
       return res.status(400).json({ error: 'Must be a valid TIP Email.' });
     }
@@ -39,10 +38,10 @@ router.post('/signup', async (req, res) => {
 
     // Insert new user (no password needed)
     const result = await db.query(
-      `INSERT INTO forge_users (student_id, full_name, program, tip_email, role)
+      `INSERT INTO forge_users (student_id, full_name, program, role, tip_email)
        VALUES ($1, $2, $3, $4, $5)
-       RETURNING user_id, student_id, full_name, program, tip_email, role, created_at`,
-      [studentId, fullName, program, tipEmail, 'STUDENT']
+       RETURNING user_id, student_id, full_name, program, role, tip_email, created_at`,
+      [studentId, fullName, program, 'STUDENT', tipEmail]
     );
 
     const user = result.rows[0];
@@ -71,33 +70,33 @@ router.post('/signup', async (req, res) => {
   } catch (error) {
     console.error('Signup error:', error);
 
-    // Handle unique constraint violations
-    if (error.code === '23505') { // PostgreSQL unique violation
+    if (error.code === '23505') {
       if (error.constraint === 'forge_users_student_id_key') {
-        return res.status(409).json({
-          error: 'Student ID already registered'
-        });
+        return res.status(409).json({ error: 'Student ID already registered' });
+      }
+      if (error.constraint === 'forge_users_tip_email_key') {
+        return res.status(409).json({ error: 'TIP email already registered' });
       }
     }
 
-    res.status(500).json({
-      error: 'Failed to create account'
-    });
+    res.status(500).json({ error: 'Failed to create account' });
   }
 });
 
 /**
  * POST /api/auth/signin
- * Authenticate user with fullName and studentId
+ * Authenticate user with tipEmail and studentId
  */
 router.post('/signin', async (req, res) => {
   const { tipEmail, studentId } = req.body;
 
   try {
+    // Validate required fields
     if (!tipEmail || !studentId) {
       return res.status(400).json({ error: 'TIP Email and Student ID are required' });
     }
 
+    // Find user by tipEmail and studentId
     const result = await db.query(
       `SELECT user_id, student_id, full_name, program, role
        FROM forge_users
@@ -111,7 +110,6 @@ router.post('/signin', async (req, res) => {
 
     const user = result.rows[0];
 
-    // Generate JWT token
     const token = generateToken({
       userId: user.user_id,
       studentId: user.student_id,
@@ -134,9 +132,7 @@ router.post('/signin', async (req, res) => {
 
   } catch (error) {
     console.error('Signin error:', error);
-    res.status(500).json({
-      error: 'Failed to sign in'
-    });
+    res.status(500).json({ error: 'Failed to sign in' });
   }
 });
 

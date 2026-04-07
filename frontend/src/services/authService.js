@@ -21,7 +21,7 @@ export async function signUp(userData) {
 
 /**
  * Sign in an existing user
- * @param {string} fullName - Full name
+ * @param {string} tipEmail - TIP institutional email address
  * @param {string} studentId - Student ID
  * @returns {Promise<object>} Response with token and user data
  */
