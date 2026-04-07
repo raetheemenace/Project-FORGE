@@ -22,6 +22,7 @@ export default function SignIn() {
   };
 
   const validate = () => {
+  const validate = () => {
     const errs = {};
     if (!formData.tipEmail.trim()) {
       errs.tipEmail = 'TIP Email is required';
@@ -176,4 +177,3 @@ export default function SignIn() {
       </motion.div>
     </div>
   );
-}
