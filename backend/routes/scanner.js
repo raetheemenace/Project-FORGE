@@ -185,7 +185,48 @@ If you cannot identify any lab equipment, set name to "Unknown Equipment", condi
   });
 });
 
-async function logScan({ userId, bedrockResponse, predictedName, confidenceScore, equipmentId }) {
+/**
+ * GET /api/scanner/debug
+ * Returns the current Bedrock model ID and AWS region being used.
+ * Useful for verifying configuration without making a Bedrock call.
+ */
+router.get('/debug', authenticateToken, async (req, res) => {
+  const modelId = process.env.BEDROCK_MODEL_ID || 'apac.anthropic.claude-3-haiku-20240307-v1:0';
+  const region = process.env.AWS_REGION || '(not set)';
+
+  // Try a minimal Bedrock call with a text-only message to verify connectivity
+  try {
+    const testInput = {
+      modelId,
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: JSON.stringify({
+        anthropic_version: 'bedrock-2023-05-31',
+        max_tokens: 10,
+        messages: [{ role: 'user', content: 'Say OK' }],
+      }),
+    };
+    const command = new InvokeModelCommand(testInput);
+    const response = await bedrock.send(command);
+    const result = JSON.parse(new TextDecoder().decode(response.body));
+    return res.json({
+      status: 'ok',
+      modelId,
+      region,
+      bedrockResponse: result.content?.[0]?.text ?? '(empty)',
+    });
+  } catch (err) {
+    return res.status(500).json({
+      status: 'error',
+      modelId,
+      region,
+      errorName: err.name,
+      errorMessage: err.message,
+    });
+  }
+});
+
+({ userId, bedrockResponse, predictedName, confidenceScore, equipmentId }) {
   try {
     await db.query(
       `INSERT INTO forge_scan_log (user_id, equipment_id, bedrock_response, predicted_name, confidence_score)

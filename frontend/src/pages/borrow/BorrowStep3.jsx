@@ -200,9 +200,12 @@ export default function BorrowStep3() {
       // Announce result via TTS (req 6.8)
       speak(`Identified: ${data.name}. Condition: ${data.condition}. Tap Add to Cart to include this item.`);
     } catch (err) {
-      const msg =
-        err.response?.data?.error ?? 'Could not identify equipment. Please retry.';
-      setScanError(msg); // req 6.6
+      const status = err.response?.status;
+      const serverMsg = err.response?.data?.error;
+      const msg = serverMsg
+        ? `[${status}] ${serverMsg}`
+        : err.message ?? 'Could not identify equipment. Please retry.';
+      setScanError(msg);
       speak('Scanner error. ' + msg);
     } finally {
       setScanning(false);
