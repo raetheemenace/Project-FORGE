@@ -42,11 +42,11 @@ export default function BorrowStep2() {
 
   const { ttsEnabled, toggleTTS, speak, stop } = useTTS(ttsFromStep1);
   const [fields, setFields] = useState({
-    course: '',
-    timeSlot: '',
-    date: '',
-    labRoom: '',
-    adviser: '',
+    course:   location.state?.course    ?? '',
+    timeSlot: location.state?.timeSlot  ?? '',
+    date:     location.state?.date      ?? '',
+    labRoom:  location.state?.labRoom   ?? '',
+    adviser:  location.state?.adviser   ?? '',
   });
   const [errors, setErrors] = useState({});
 

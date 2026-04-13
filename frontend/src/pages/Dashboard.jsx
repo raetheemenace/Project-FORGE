@@ -6,6 +6,8 @@ import { useAuth } from '../hooks/useAuth.jsx';
 import { useClock } from '../hooks/useClock.js';
 import { useTTS } from '../hooks/useTTS.js';
 import logo from '../assets/logo_landingpage.png';
+import AIAssistant from '../components/AIAssistant.jsx';
+import NotificationBell from '../components/NotificationBell.jsx';
 import {
   ScanLine,
   QrCode,
@@ -118,11 +120,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // AI Q&A state
-  const [aiQuestion, setAiQuestion] = useState('');
-  const [aiAnswer, setAiAnswer] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState(null);
+  // AI Q&A state removed — moved to AIAssistant component
 
   // Fetch dashboard data
   useEffect(() => {
@@ -175,28 +173,6 @@ export default function Dashboard() {
     speak(summary);
   }, [loading, ttsEnabled]);
 
-  const handleAiAsk = async () => {
-    if (!aiQuestion.trim()) return;
-    setAiLoading(true);
-    setAiError(null);
-    setAiAnswer('');
-    try {
-      const token = localStorage.getItem('token');
-      const res = await axios.post(
-        `${API_URL}/ai/chat`,
-        { question: aiQuestion },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const answer = res.data.answer;
-      setAiAnswer(answer);
-      if (ttsEnabled) speak(answer);
-    } catch (err) {
-      setAiError(err.response?.data?.error || 'Failed to get an answer. Please try again.');
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
   const handleLogout = () => {
     signOut();
     navigate('/signin');
@@ -245,6 +221,7 @@ export default function Dashboard() {
                 <Activity className="w-3 h-3 text-green-600" />
                 <span className="text-[#001254]/60" style={{ fontSize: '0.7rem' }}>LIVE</span>
               </div>
+              <NotificationBell />
               <div className="text-right hidden sm:block mr-1">
                 <p className="text-[#001254]/90" style={{ fontSize: '0.8rem' }}>{displayName}</p>
                 <p className="text-[#001254]/40" style={{ fontSize: '0.65rem' }}>{displayProgram}</p>
@@ -576,6 +553,11 @@ export default function Dashboard() {
                           <span className="px-2 py-0.5 bg-amber-50 text-amber-600 rounded-full border border-amber-200" style={{ fontSize: '0.65rem' }}>MAINTENANCE</span>
                         )}
                       </div>
+                      {item.availableUnits != null && item.totalUnits != null && (
+                        <p className="text-[#001254]/40 mb-1" style={{ fontSize: '0.7rem' }}>
+                          {item.availableUnits} / {item.totalUnits} available
+                        </p>
+                      )}
 
                       {isBorrowed && (
                         <div className="space-y-1.5">
@@ -606,102 +588,11 @@ export default function Dashboard() {
           </motion.div>
         </div>
 
-        {/* AI Q&A Widget */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
-          className="rounded-2xl overflow-hidden"
-          style={{
-            background: 'linear-gradient(135deg, #001254 0%, #0B4EA2 100%)',
-            boxShadow: '0 4px 24px rgba(0,18,84,0.18)',
-          }}
-        >
-          {/* Header */}
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10">
-            <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center shrink-0">
-              <Zap className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <h3 className="text-white font-semibold" style={{ fontSize: '0.95rem' }}>AI Lab Assistant</h3>
-              <p className="text-white/40" style={{ fontSize: '0.65rem' }}>Ask about equipment, borrowing, or lab policies</p>
-            </div>
-          </div>
-
-          {/* Answer area — only shown when there's a response */}
-          <AnimatePresence>
-            {(aiAnswer || aiError) && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="px-5 pt-4"
-              >
-                {aiError ? (
-                  <div className="flex items-start gap-3 bg-red-500/20 border border-red-400/30 rounded-xl px-4 py-3 mb-1">
-                    <AlertTriangle className="w-4 h-4 text-red-300 shrink-0 mt-0.5" />
-                    <p className="text-red-200" style={{ fontSize: '0.85rem' }}>{aiError}</p>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    {/* Answer bubble */}
-                    <div
-                      className="bg-white/10 border border-white/15 rounded-xl px-4 py-3.5 backdrop-blur-sm"
-                    >
-                      {/* "FORGE" label */}
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <div className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center">
-                          <Zap className="w-2.5 h-2.5 text-white" />
-                        </div>
-                        <span className="text-white/50 font-medium" style={{ fontSize: '0.65rem', letterSpacing: '0.08em' }}>FORGE ASSISTANT</span>
-                      </div>
-                      <p className="text-white/90 whitespace-pre-wrap" style={{ fontSize: '0.875rem', lineHeight: '1.65' }}>
-                        {aiAnswer}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Input row */}
-          <div className="px-5 py-4">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={aiQuestion}
-                onChange={(e) => setAiQuestion(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !aiLoading && handleAiAsk()}
-                placeholder="Ask a question…"
-                className="flex-1 rounded-xl px-4 py-2.5 text-white placeholder-white/30 outline-none transition-all"
-                style={{
-                  fontSize: '0.875rem',
-                  background: 'rgba(255,255,255,0.10)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                }}
-                onFocus={(e) => { e.target.style.background = 'rgba(255,255,255,0.15)'; e.target.style.borderColor = 'rgba(255,255,255,0.35)'; }}
-                onBlur={(e) => { e.target.style.background = 'rgba(255,255,255,0.10)'; e.target.style.borderColor = 'rgba(255,255,255,0.15)'; }}
-                disabled={aiLoading}
-              />
-              <button
-                onClick={handleAiAsk}
-                disabled={aiLoading || !aiQuestion.trim()}
-                className="px-4 py-2.5 rounded-xl font-semibold transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
-                style={{
-                  fontSize: '0.85rem',
-                  background: aiLoading || !aiQuestion.trim() ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,1)',
-                  color: aiLoading || !aiQuestion.trim() ? 'rgba(255,255,255,0.5)' : '#001254',
-                }}
-              >
-                {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Ask'}
-              </button>
-            </div>
-          </div>
-        </motion.div>
+        {/* AI Q&A Widget — moved to floating AIAssistant */}
 
       </main>
+
+      <AIAssistant ttsEnabled={ttsEnabled} speak={speak} />
     </div>
   );
 }

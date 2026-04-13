@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Volume2, Camera, Plus, ChevronRight,
-  AlertCircle, RefreshCw, BookOpen, Trash2, Mic, QrCode
+  AlertCircle, RefreshCw, Trash2, Mic, QrCode, PenLine
 } from 'lucide-react';
 import axios from 'axios';
 import logo from '../../assets/logo_landingpage.png';
@@ -45,6 +45,16 @@ export default function BorrowStep3() {
   const [cartItems, setCartItems] = useState([]);
   const [qrMode, setQrMode] = useState(false);
   const [qrLookupError, setQrLookupError] = useState(null);
+
+  // Manual entry state
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualName, setManualName] = useState('');
+  const [manualQty, setManualQty] = useState('1');
+  const [manualCondition, setManualCondition] = useState('Good');
+  const [manualConditionNote, setManualConditionNote] = useState('');
+  const [manualErrors, setManualErrors] = useState({});
+  const conditionTextareaRef = useRef(null);
+  const { sttActive: sttConditionActive, listen: listenCondition, stop: stopCondition } = useSTT();
 
   const speak_ref = useRef(speak);
   speak_ref.current = speak;
@@ -242,6 +252,42 @@ export default function BorrowStep3() {
     });
   }
 
+  // Manual entry: add item(s) to cart
+  function handleManualAdd() {
+    const errs = {};
+    if (!manualName.trim()) errs.name = 'Equipment name is required.';
+    const qty = parseInt(manualQty, 10);
+    if (!manualQty || isNaN(qty) || qty < 1) errs.qty = 'Enter a valid quantity (min 1).';
+    if (Object.keys(errs).length > 0) { setManualErrors(errs); return; }
+    setManualErrors({});
+
+    const newItems = Array.from({ length: qty }, () => ({
+      name: manualName.trim(),
+      condition: manualCondition,
+      conditionNote: manualConditionNote.trim() || null,
+      equipmentId: null,
+    }));
+    setCartItems((prev) => {
+      const next = [...prev, ...newItems];
+      speak(`${qty} × ${manualName.trim()} added to cart. ${next.length} item${next.length !== 1 ? 's' : ''} in cart.`);
+      return next;
+    });
+    setManualName('');
+    setManualQty('1');
+    setManualCondition('Good');
+    setManualConditionNote('');
+    setManualOpen(false);
+  }
+
+  // STT → fills the condition note textarea with the full transcript
+  function handleConditionMic() {
+    if (sttConditionActive) { stopCondition(); return; }
+    listenCondition((transcript) => {
+      if (!transcript) return;
+      setManualConditionNote(transcript.trim());
+    });
+  }
+
   // Navigate to step 4 (req 6.5)
   function handleReviewAndConfirm() {
     navigate('/borrow/step4', {
@@ -297,57 +343,81 @@ export default function BorrowStep3() {
           </div>
         </motion.div>
 
-        {/* Camera viewfinder (req 6.1) */}
+        {/* Camera viewfinder / QR scanner (req 6.1) */}
         <motion.div
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.05 }}
-          className="relative w-full aspect-video rounded-2xl overflow-hidden bg-[#001254]/10 border border-[#001254]/10"
+          className="relative w-full rounded-2xl overflow-hidden bg-[#001254]/10 border border-[#001254]/10"
+          style={{ minHeight: '220px' }}
         >
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-full object-cover"
-            aria-label="Camera viewfinder"
-          />
-          <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
+          {/* Camera feed — hidden when QR mode is active */}
+          <div className={qrMode ? 'hidden' : 'block'} style={{ aspectRatio: '16/9' }}>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+              aria-label="Camera viewfinder"
+            />
+            <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
 
-          {/* Scanning overlay */}
-          {scanning && (
-            <div className="absolute inset-0 bg-[#001254]/40 flex items-center justify-center">
-              <div className="flex flex-col items-center gap-3 text-white">
-                <div className="w-10 h-10 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span className="text-sm font-medium">Identifying equipment…</span>
+            {/* Scanning overlay */}
+            {scanning && (
+              <div className="absolute inset-0 bg-[#001254]/40 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3 text-white">
+                  <div className="w-10 h-10 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span className="text-sm font-medium">Identifying equipment…</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Camera error */}
-          {cameraError && (
-            <div className="absolute inset-0 bg-[#001254]/80 flex items-center justify-center p-6">
-              <div className="text-center text-white space-y-3">
-                <AlertCircle className="w-10 h-10 mx-auto text-red-300" />
-                <p className="text-sm">{cameraError}</p>
-                <button
-                  onClick={startCamera}
-                  className="flex items-center gap-2 mx-auto px-4 py-2 rounded-lg bg-white/20 hover:bg-white/30 text-sm transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" /> Retry Camera
-                </button>
+            {/* Camera error */}
+            {cameraError && (
+              <div className="absolute inset-0 bg-[#001254]/80 flex items-center justify-center p-6">
+                <div className="text-center text-white space-y-3">
+                  <AlertCircle className="w-10 h-10 mx-auto text-red-300" />
+                  <p className="text-sm">{cameraError}</p>
+                  <button
+                    onClick={startCamera}
+                    className="flex items-center gap-2 mx-auto px-4 py-2 rounded-lg bg-white/20 hover:bg-white/30 text-sm transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4" /> Retry Camera
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Corner guides */}
-          {cameraReady && !scanning && (
-            <>
-              <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-white/60 rounded-tl-sm" />
-              <div className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-white/60 rounded-tr-sm" />
-              <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-white/60 rounded-bl-sm" />
-              <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-white/60 rounded-br-sm" />
-            </>
+            {/* Corner guides */}
+            {cameraReady && !scanning && (
+              <>
+                <div className="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-white/60 rounded-tl-sm" />
+                <div className="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-white/60 rounded-tr-sm" />
+                <div className="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-white/60 rounded-bl-sm" />
+                <div className="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-white/60 rounded-br-sm" />
+              </>
+            )}
+          </div>
+
+          {/* QR scanner — shown inside the viewfinder when QR mode is active */}
+          {qrMode && (
+            <div>
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#001254]/8 bg-white/60">
+                <div className="flex items-center gap-2">
+                  <QrCode className="w-4 h-4 text-[#0B4EA2]" />
+                  <p className="text-xs font-semibold text-[#001254]/60 uppercase tracking-wide">QR Code Scanner</p>
+                </div>
+                <p className="text-xs text-[#001254]/40">Point at equipment QR code</p>
+              </div>
+              <div id="qr-scanner-container" className="w-full min-h-[300px]" />
+              {qrLookupError && (
+                <div className="px-4 py-3 border-t border-[#001254]/8 flex items-center gap-2 bg-red-50">
+                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+                  <p className="text-xs text-red-700">{qrLookupError}</p>
+                </div>
+              )}
+            </div>
           )}
         </motion.div>
 
@@ -411,36 +481,6 @@ export default function BorrowStep3() {
           )}
         </AnimatePresence>
 
-        {/* QR scanner panel */}
-        <AnimatePresence>
-          {qrMode && (
-            <motion.div
-              key="qr-panel"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="bg-white rounded-2xl border border-[#001254]/10 overflow-hidden"
-            >
-              <div className="px-4 py-3 border-b border-[#001254]/8 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <QrCode className="w-4 h-4 text-[#0B4EA2]" />
-                  <p className="text-xs font-semibold text-[#001254]/60 uppercase tracking-wide">
-                    QR Code Scanner
-                  </p>
-                </div>
-                <p className="text-xs text-[#001254]/40">Point at equipment QR code to auto-add</p>
-              </div>
-              <div id="qr-scanner-container" className="w-full min-h-[300px]" />
-              {qrLookupError && (
-                <div className="px-4 py-3 border-t border-[#001254]/8 flex items-center gap-2 bg-red-50">
-                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-                  <p className="text-xs text-red-700">{qrLookupError}</p>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Action buttons */}
         <div className="flex gap-3">
           {/* Scan button (req 6.2) */}
@@ -468,29 +508,151 @@ export default function BorrowStep3() {
             <QrCode className="w-4 h-4" />
           </button>
 
-          {/* STT button (req 11.3) */}
+          {/* Manual entry toggle */}
           <button
-            onClick={handleSTT}
+            type="button"
+            onClick={() => setManualOpen((v) => !v)}
             className={`p-3.5 rounded-xl border transition-all ${
-              sttActive
-                ? 'bg-[#0B4EA2] border-[#0B4EA2] text-white'
-                : 'bg-white border-[#001254]/15 text-[#001254]/60 hover:border-[#0B4EA2]/30'
+              manualOpen
+                ? 'bg-[#001254] border-[#001254] text-white'
+                : 'bg-white border-[#001254]/15 text-[#001254]/60 hover:border-[#001254]/30'
             }`}
-            aria-label={sttActive ? 'Listening…' : 'Voice input'}
-            aria-pressed={sttActive}
+            aria-label={manualOpen ? 'Close manual entry' : 'Manual entry'}
+            aria-pressed={manualOpen}
           >
-            <Mic className="w-4 h-4" />
-          </button>
-
-          {/* Read instructions (req 6.7) */}
-          <button
-            onClick={handleReadInstructions}
-            className="p-3.5 rounded-xl border bg-white border-[#001254]/15 text-[#001254]/60 hover:border-[#0B4EA2]/30 transition-all"
-            aria-label="Read instructions aloud"
-          >
-            <BookOpen className="w-4 h-4" />
+            <PenLine className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Manual entry panel */}
+        <AnimatePresence initial={false}>
+          {manualOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="bg-white rounded-2xl border border-[#001254]/10 p-5 space-y-4">
+                <p className="text-xs font-semibold text-[#001254]/50 uppercase tracking-wide">Manual Equipment Entry</p>
+
+                {/* Equipment name */}
+                <div>
+                  <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
+                    Equipment Name <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={manualName}
+                    onChange={(e) => { setManualName(e.target.value); setManualErrors((p) => ({ ...p, name: '' })); }}
+                    placeholder="e.g. Digital Oscilloscope"
+                    className={`w-full px-4 py-3 rounded-xl border text-sm text-[#001254] bg-[#f7f7f3] outline-none focus:ring-2 focus:ring-[#0B4EA2]/20 transition-colors ${
+                      manualErrors.name ? 'border-red-400' : 'border-[#001254]/15 focus:border-[#0B4EA2]/50'
+                    }`}
+                  />
+                  {manualErrors.name && <p className="mt-1 text-xs text-red-500">{manualErrors.name}</p>}
+                </div>
+
+                {/* Quantity */}
+                <div>
+                  <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
+                    Quantity <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={manualQty}
+                    onChange={(e) => { setManualQty(e.target.value); setManualErrors((p) => ({ ...p, qty: '' })); }}
+                    className={`w-full px-4 py-3 rounded-xl border text-sm text-[#001254] bg-[#f7f7f3] outline-none focus:ring-2 focus:ring-[#0B4EA2]/20 transition-colors ${
+                      manualErrors.qty ? 'border-red-400' : 'border-[#001254]/15 focus:border-[#0B4EA2]/50'
+                    }`}
+                  />
+                  {manualErrors.qty && <p className="mt-1 text-xs text-red-500">{manualErrors.qty}</p>}
+                </div>
+
+                {/* Condition */}
+                <div>
+                  <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
+                    Condition
+                  </label>
+
+                  {/* Chips */}
+                  <div className="flex gap-1.5 flex-wrap">
+                    {['Excellent', 'Good', 'Fair', 'Poor'].map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => {
+                          setManualCondition(c);
+                          if (c === 'Excellent') setManualConditionNote('');
+                        }}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
+                          manualCondition === c
+                            ? CONDITION_COLORS[c]
+                            : 'bg-white border-[#001254]/15 text-[#001254]/50 hover:border-[#001254]/30'
+                        }`}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Description textarea — only for Good / Fair / Poor */}
+                  <AnimatePresence initial={false}>
+                    {manualCondition !== 'Excellent' && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="overflow-hidden mt-2"
+                      >
+                        <div className="flex gap-2 items-start">
+                          <textarea
+                            ref={conditionTextareaRef}
+                            rows={2}
+                            value={manualConditionNote}
+                            onChange={(e) => setManualConditionNote(e.target.value)}
+                            placeholder="Describe the condition in detail, or use the mic…"
+                            className="flex-1 px-3 py-2.5 rounded-xl border border-[#001254]/15 text-sm text-[#001254] bg-[#f7f7f3] outline-none focus:ring-2 focus:ring-[#0B4EA2]/20 focus:border-[#0B4EA2]/50 resize-none transition-colors"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleConditionMic}
+                            className={`p-2.5 rounded-xl border transition-all shrink-0 mt-0.5 ${
+                              sttConditionActive
+                                ? 'bg-[#0B4EA2] border-[#0B4EA2] text-white'
+                                : 'bg-white border-[#001254]/15 text-[#001254]/50 hover:border-[#0B4EA2]/30'
+                            }`}
+                            aria-label={sttConditionActive ? 'Listening…' : 'Speak to describe condition'}
+                          >
+                            <Mic className="w-4 h-4" />
+                          </button>
+                        </div>
+                        {sttConditionActive && (
+                          <p className="mt-1.5 flex items-center gap-1.5 text-xs text-[#0B4EA2]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#0B4EA2] animate-pulse" />
+                            Listening… your speech will be transcribed here
+                          </p>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleManualAdd}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm hover:bg-emerald-700 active:scale-[0.98] transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add to Cart
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* STT indicator (req 11.4) */}
         <AnimatePresence>

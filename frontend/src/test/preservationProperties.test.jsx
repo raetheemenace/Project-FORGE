@@ -1124,3 +1124,631 @@ describe('Property 2 — QR Decode Logic Unchanged (Preservation)', () => {
     );
   });
 });
+
+// =============================================================================
+// NOTIFICATIONS-QUANTITY-FIXES — Preservation Property Tests
+// Validates: Requirements 3.1, 3.2, 3.3, 3.4, 3.5, 3.6
+//
+// These tests MUST PASS on unfixed code — they confirm baseline behaviors
+// that must remain intact after all bug fixes are applied.
+//
+// NOTE: LogUpdated, EquipmentManagement, Dashboard are mocked at the top of
+// this file. We use vi.importActual() to get the real implementations.
+// =============================================================================
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Property 5 — NotificationBell: no audio/vibrate when unreadCount unchanged
+// Validates: Requirements 3.1, 3.2
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Property 5 — NotificationBell: no audio/vibrate when count unchanged (Req 3.1, 3.2)', () => {
+  /**
+   * Validates: Requirements 3.1, 3.2
+   *
+   * For all unreadCount values that have NOT increased since last poll:
+   * assert no audio call, no vibrate call, badge count unchanged.
+   *
+   * Observation-first: on unfixed code, NotificationBell never calls audio or
+   * vibrate at all — so these preservation tests PASS on unfixed code.
+   */
+
+  let audioPlayMock;
+  let vibrateMock;
+
+  beforeEach(() => {
+    audioPlayMock = vi.fn().mockResolvedValue(undefined);
+    vibrateMock = vi.fn();
+
+    // Stub Audio constructor
+    global.Audio = vi.fn(() => ({ play: audioPlayMock }));
+
+    // Stub navigator.vibrate
+    Object.defineProperty(global.navigator, 'vibrate', {
+      value: vibrateMock,
+      writable: true,
+      configurable: true,
+    });
+
+    // Stub Web Audio API
+    global.AudioContext = vi.fn(() => ({
+      createOscillator: vi.fn(() => ({
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+        frequency: { setValueAtTime: vi.fn() },
+        type: 'sine',
+      })),
+      createGain: vi.fn(() => ({
+        connect: vi.fn(),
+        gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+      })),
+      destination: {},
+      currentTime: 0,
+      close: vi.fn(),
+    }));
+  });
+
+  /**
+   * PBT 5a: For all unreadCount values (stable — same count returned each poll),
+   * no audio play and no vibrate are called.
+   * Validates: Requirements 3.1
+   */
+  it('PBT 5a: stable unreadCount → no audio, no vibrate', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.integer({ min: 0, max: 50 }),
+        async (count) => {
+          audioPlayMock.mockClear();
+          vibrateMock.mockClear();
+
+          // Mock axios for this test: always return the same count
+          const axiosMod = await import('axios');
+          axiosMod.default.get.mockResolvedValue({
+            data: { notifications: [], unreadCount: count },
+          });
+
+          const { default: NotificationBell } = await import('../components/NotificationBell.jsx');
+
+          const { unmount } = render(
+            React.createElement(MemoryRouter, null, React.createElement(NotificationBell))
+          );
+
+          await act(async () => {
+            await new Promise((r) => setTimeout(r, 50));
+          });
+
+          unmount();
+
+          // On unfixed code: no audio/vibrate ever called → passes
+          // After fix: audio/vibrate only called when count INCREASES → still passes for stable count
+          expect(audioPlayMock).not.toHaveBeenCalled();
+          expect(vibrateMock).not.toHaveBeenCalled();
+        }
+      ),
+      { numRuns: 10 }
+    );
+  });
+
+  /**
+   * Obs 5b: unreadCount = 0 → bell renders with no badge, dropdown shows "No notifications yet"
+   * Validates: Requirements 3.1
+   */
+  it('Obs 5b: unreadCount=0 → no badge rendered', async () => {
+    const axiosMod = await import('axios');
+    axiosMod.default.get.mockResolvedValue({
+      data: { notifications: [], unreadCount: 0 },
+    });
+
+    const { default: NotificationBell } = await import('../components/NotificationBell.jsx');
+
+    await act(async () => {
+      render(React.createElement(MemoryRouter, null, React.createElement(NotificationBell)));
+    });
+
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+
+    // No badge span should be present when unreadCount is 0
+    const badge = document.querySelector('span.bg-red-500');
+    expect(badge).toBeNull();
+  });
+
+  /**
+   * Obs 5c: opening dropdown when unreadCount > 0 calls PATCH /api/notifications/read-all
+   * and clears the badge.
+   * Validates: Requirements 3.2
+   */
+  it('Obs 5c: opening dropdown with unreadCount>0 calls PATCH read-all and clears badge', async () => {
+    const axiosMod = await import('axios');
+    axiosMod.default.get.mockResolvedValue({
+      data: {
+        notifications: [
+          { notification_id: 1, type: 'BORROW', message: 'Your item is ready', created_at: new Date().toISOString(), is_read: false },
+        ],
+        unreadCount: 1,
+      },
+    });
+    // Add patch mock if not present
+    if (!axiosMod.default.patch) {
+      axiosMod.default.patch = vi.fn().mockResolvedValue({ data: {} });
+    } else {
+      axiosMod.default.patch.mockResolvedValue({ data: {} });
+    }
+
+    const { default: NotificationBell } = await import('../components/NotificationBell.jsx');
+
+    await act(async () => {
+      render(React.createElement(MemoryRouter, null, React.createElement(NotificationBell)));
+    });
+
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+
+    // Badge should be visible
+    const badge = document.querySelector('span.bg-red-500');
+    expect(badge).not.toBeNull();
+
+    // Click the bell button to open dropdown
+    const bellBtn = screen.getByRole('button', { name: /notifications/i });
+    await act(async () => { fireEvent.click(bellBtn); });
+
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+
+    // PATCH should have been called
+    expect(axiosMod.default.patch).toHaveBeenCalledWith(
+      expect.stringContaining('/notifications/read-all'),
+      expect.anything(),
+      expect.anything()
+    );
+
+    // Badge should now be gone
+    const badgeAfter = document.querySelector('span.bg-red-500');
+    expect(badgeAfter).toBeNull();
+  });
+
+  /**
+   * PBT 5d: For all non-empty notification arrays, dropdown renders each notification's
+   * message and timeAgo string.
+   * Validates: Requirements 3.2
+   */
+  it('PBT 5d: non-empty notifications → dropdown renders each message', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.uniqueArray(
+          fc.record({
+            notification_id: fc.integer({ min: 1, max: 9999 }),
+            type: fc.constantFrom('BORROW', 'MAINTENANCE', 'ACQUISITION', 'STATUS_UPDATE'),
+            message: fc.string({ minLength: 5, maxLength: 60 }).filter(s => s.trim().length >= 3),
+            created_at: fc.constant(new Date(Date.now() - 60000).toISOString()),
+            is_read: fc.boolean(),
+          }),
+          { minLength: 1, maxLength: 5, selector: (n) => n.notification_id }
+        ),
+        async (notifications) => {
+          const axiosMod = await import('axios');
+          axiosMod.default.get.mockResolvedValue({
+            data: { notifications, unreadCount: notifications.filter(n => !n.is_read).length },
+          });
+
+          const { default: NotificationBell } = await import('../components/NotificationBell.jsx');
+
+          const { unmount } = render(
+            React.createElement(MemoryRouter, null, React.createElement(NotificationBell))
+          );
+
+          await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+
+          // Open the dropdown
+          const bellBtn = screen.getByRole('button', { name: /notifications/i });
+          await act(async () => { fireEvent.click(bellBtn); });
+
+          await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
+
+          // Each notification message must appear in the DOM
+          for (const n of notifications) {
+            const trimmedMsg = n.message.trim();
+            const found = screen.queryAllByText((content) => 
+              typeof content === 'string' && content.includes(trimmedMsg)
+            );
+            if (found.length === 0) {
+              unmount();
+              return false;
+            }
+          }
+
+          unmount();
+          return true;
+        }
+      ),
+      { numRuns: 8 }
+    );
+  }, 30000);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Property 6 — LogUpdated: display fields match location.state exactly
+// Validates: Requirements 3.3
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Property 6 — LogUpdated: display fields match location.state (Req 3.3)', () => {
+  /**
+   * Validates: Requirements 3.3
+   *
+   * For all location.state objects with valid fields, assert rendered text
+   * matches input values exactly. "Back to Dashboard" button must navigate.
+   *
+   * Observation-first: on unfixed code, LogUpdated renders txnId, department,
+   * labRoom, itemCount from location.state — these tests PASS on unfixed code.
+   */
+
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  /**
+   * Obs 6a: LogUpdated renders txnId, department, labRoom, itemCount from location.state
+   */
+  it('Obs 6a: renders txnId, department, labRoom, itemCount from location.state', async () => {
+    const { default: LogUpdated } = await vi.importActual('../pages/LogUpdated.jsx');
+
+    const state = { txnId: 'TXN-2025-001', department: 'Electronics Engineering', labRoom: 'EE Lab 3', itemCount: 4 };
+
+    await act(async () => {
+      render(
+        React.createElement(
+          MemoryRouter,
+          { initialEntries: [{ pathname: '/log-updated', state }] },
+          React.createElement(LogUpdated)
+        )
+      );
+    });
+
+    expect(screen.getByText('TXN-2025-001')).toBeTruthy();
+    expect(screen.getByText('Electronics Engineering')).toBeTruthy();
+    expect(screen.getByText('EE Lab 3')).toBeTruthy();
+    expect(screen.getByText(/4 items/i)).toBeTruthy();
+  });
+
+  /**
+   * Obs 6b: "Back to Dashboard" button is present
+   */
+  it('Obs 6b: "Back to Dashboard" button is present', async () => {
+    const { default: LogUpdated } = await vi.importActual('../pages/LogUpdated.jsx');
+
+    await act(async () => {
+      render(
+        React.createElement(
+          MemoryRouter,
+          { initialEntries: [{ pathname: '/log-updated', state: { txnId: 'T1', department: 'CS', labRoom: 'R1', itemCount: 1 } }] },
+          React.createElement(LogUpdated)
+        )
+      );
+    });
+
+    // LogUpdated has two "Back to dashboard" buttons (header arrow + main CTA)
+    const backBtns = screen.getAllByRole('button', { name: /back to dashboard/i });
+    expect(backBtns.length).toBeGreaterThanOrEqual(1);
+  });
+
+  /**
+   * PBT 6c: For all location.state objects with valid fields, rendered text
+   * matches input values exactly.
+   * Validates: Requirements 3.3
+   */
+  it('PBT 6c: rendered text always matches location.state fields exactly', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.record({
+          txnId: fc.constantFrom('TXN-001', 'TXN-2025-ABC', 'TXN-XYZ-999'),
+          department: fc.constantFrom('Chemistry Laboratory', 'Computer Engineering', 'Electronics Engineering'),
+          labRoom: fc.constantFrom('Lab 1', 'EE Lab 3', 'Chem Lab A'),
+          itemCount: fc.integer({ min: 1, max: 20 }),
+        }),
+        async (state) => {
+          const { default: LogUpdated } = await vi.importActual('../pages/LogUpdated.jsx');
+
+          const { unmount } = render(
+            React.createElement(
+              MemoryRouter,
+              { initialEntries: [{ pathname: '/log-updated', state }] },
+              React.createElement(LogUpdated)
+            )
+          );
+
+          await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
+
+          const txnEl = screen.queryByText(state.txnId);
+          const deptEl = screen.queryByText(state.department);
+          const roomEl = screen.queryByText(state.labRoom);
+          const countPattern = new RegExp(`${state.itemCount}\\s+item`);
+          const countEl = screen.queryAllByText(countPattern);
+
+          unmount();
+
+          return (
+            txnEl !== null &&
+            deptEl !== null &&
+            roomEl !== null &&
+            countEl.length > 0
+          );
+        }
+      ),
+      { numRuns: 10 }
+    );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Property 7 — EquipmentManagement: existing columns render without availableUnits/totalUnits
+// Validates: Requirements 3.4, 3.5
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Property 7 — EquipmentManagement: existing columns render (Req 3.4, 3.5)', () => {
+  /**
+   * Validates: Requirements 3.4, 3.5
+   *
+   * For all equipment arrays without availableUnits/totalUnits:
+   * assert existing columns (ID, name, status, actions) still render.
+   *
+   * Observation-first: on unfixed code, the table renders ID, name, StatusBadge,
+   * and action buttons (QR, edit, dispose) — these tests PASS on unfixed code.
+   */
+
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  /**
+   * Obs 7a: equipment table renders equipment_id, name, StatusBadge, and action buttons
+   */
+  it('Obs 7a: table renders equipment_id, name, status badge, and action buttons', async () => {
+    const axiosMod = await import('axios');
+    axiosMod.default.get.mockImplementation((url) => {
+      if (url && url.includes('/admin/equipment')) {
+        return Promise.resolve({
+          data: {
+            equipment: [
+              { equipment_id: 'EQ-001', name: 'Bunsen Burner', department: 'Chemistry Laboratory', status: 'AVAILABLE', s3_image_key: null },
+              { equipment_id: 'EQ-002', name: 'Bunsen Burner', department: 'Chemistry Laboratory', status: 'BORROWED', s3_image_key: null },
+            ],
+          },
+        });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const { default: EquipmentManagement } = await vi.importActual('../pages/admin/EquipmentManagement.jsx');
+    await act(async () => {
+      render(
+        React.createElement(
+          MemoryRouter,
+          { initialEntries: ['/admin/equipment'] },
+          React.createElement(EquipmentManagement)
+        )
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('EQ-001')).not.toBeNull();
+    });
+
+    expect(screen.getByText('EQ-001')).toBeTruthy();
+    expect(screen.getByText('EQ-002')).toBeTruthy();
+    expect(screen.getAllByText('Bunsen Burner').length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText('AVAILABLE').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('BORROWED').length).toBeGreaterThanOrEqual(1);
+  });
+
+  /**
+   * PBT 7b: For all equipment arrays without availableUnits/totalUnits,
+   * existing columns (ID, name, status) still render for each row.
+   * Validates: Requirements 3.4
+   */
+  it('PBT 7b: equipment without availableUnits/totalUnits → ID, name, status still render', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.array(
+          fc.record({
+            equipment_id: fc.integer({ min: 1, max: 9999 }).map(n => `EQ-${String(n).padStart(4, '0')}`),
+            name: fc.constantFrom('Oscilloscope', 'Bunsen Burner', 'Multimeter', 'Centrifuge'),
+            department: fc.constant('Chemistry Laboratory'),
+            status: fc.constantFrom('AVAILABLE', 'BORROWED', 'MAINTENANCE'),
+            s3_image_key: fc.constant(null),
+          }),
+          { minLength: 1, maxLength: 4 }
+        ),
+        async (equipmentList) => {
+          const axiosMod = await import('axios');
+          axiosMod.default.get.mockImplementation((url) => {
+            if (url && url.includes('/admin/equipment')) {
+              return Promise.resolve({ data: { equipment: equipmentList } });
+            }
+            return Promise.resolve({ data: {} });
+          });
+
+          const { default: EquipmentManagement } = await vi.importActual('../pages/admin/EquipmentManagement.jsx');
+
+          const { unmount } = render(
+            React.createElement(
+              MemoryRouter,
+              { initialEntries: ['/admin/equipment'] },
+              React.createElement(EquipmentManagement)
+            )
+          );
+
+          await waitFor(() => {
+            const firstId = equipmentList[0].equipment_id;
+            return screen.queryByText(firstId) !== null;
+          }, { timeout: 2000 }).catch(() => {});
+
+          // Check each row's ID and name appear
+          let allPresent = true;
+          for (const eq of equipmentList) {
+            if (!screen.queryByText(eq.equipment_id)) { allPresent = false; break; }
+          }
+
+          unmount();
+          return allPresent;
+        }
+      ),
+      { numRuns: 5 }
+    );
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Property 8 — Dashboard high-demand panel: name and borrower/availability display
+// Validates: Requirements 3.6
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Property 8 — Dashboard high-demand panel: name and borrower/availability display (Req 3.6)', () => {
+  /**
+   * Validates: Requirements 3.6
+   *
+   * For all highDemandEquipment items:
+   * - assert name renders
+   * - assert borrower info renders when isBorrowed is true
+   * - assert AVAILABLE badge renders when not borrowed
+   *
+   * Observation-first: on unfixed code, Dashboard renders item.name and
+   * borrowerName/AVAILABLE badge — these tests PASS on unfixed code.
+   */
+
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  /**
+   * Obs 8a: high-demand item with isBorrowed=true renders borrowerName
+   */
+  it('Obs 8a: borrowed item renders borrowerName', async () => {
+    const axiosMod = await import('axios');
+    axiosMod.default.get.mockResolvedValue({
+      data: {
+        activeTransactions: [],
+        labRooms: [],
+        highDemandEquipment: [
+          {
+            equipmentId: 'EQ-001',
+            name: 'Oscilloscope',
+            status: 'BORROWED',
+            borrowerName: 'Maria Santos',
+            timeSlot: '10:00-12:00',
+            txnDate: new Date().toISOString(),
+            roomLocation: 'EE Lab 1',
+          },
+        ],
+      },
+    });
+
+    const { default: Dashboard } = await import('../pages/Dashboard.jsx');
+
+    await act(async () => {
+      render(
+        React.createElement(MemoryRouter, { initialEntries: ['/dashboard'] }, React.createElement(Dashboard))
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Oscilloscope')).not.toBeNull();
+    });
+
+    expect(screen.getByText('Oscilloscope')).toBeTruthy();
+    expect(screen.getByText('Maria Santos')).toBeTruthy();
+  });
+
+  /**
+   * Obs 8b: non-borrowed item renders AVAILABLE badge
+   */
+  it('Obs 8b: non-borrowed item renders AVAILABLE badge', async () => {
+    const axiosMod = await import('axios');
+    axiosMod.default.get.mockResolvedValue({
+      data: {
+        activeTransactions: [],
+        labRooms: [],
+        highDemandEquipment: [
+          {
+            equipmentId: 'EQ-002',
+            name: 'Centrifuge',
+            status: 'AVAILABLE',
+            borrowerName: null,
+            timeSlot: null,
+            txnDate: null,
+            roomLocation: null,
+          },
+        ],
+      },
+    });
+
+    const { default: Dashboard } = await import('../pages/Dashboard.jsx');
+
+    await act(async () => {
+      render(
+        React.createElement(MemoryRouter, { initialEntries: ['/dashboard'] }, React.createElement(Dashboard))
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Centrifuge')).not.toBeNull();
+    });
+
+    expect(screen.getByText('Centrifuge')).toBeTruthy();
+    expect(screen.getByText('AVAILABLE')).toBeTruthy();
+  });
+
+  /**
+   * PBT 8c: For all highDemandEquipment items, name and borrower/availability
+   * display is unchanged.
+   * Validates: Requirements 3.6
+   */
+  it('PBT 8c: highDemandEquipment items always render name and borrower/availability', async () => {
+    await fc.assert(
+      fc.asyncProperty(
+        fc.array(
+          fc.oneof(
+            // Borrowed item
+            fc.record({
+              equipmentId: fc.integer({ min: 1, max: 999 }).map(n => `EQ-${n}`),
+              name: fc.constantFrom('Oscilloscope', 'Multimeter', 'Centrifuge', 'Bunsen Burner'),
+              status: fc.constant('BORROWED'),
+              borrowerName: fc.constantFrom('Maria Santos', 'Juan Cruz', 'Ana Reyes'),
+              timeSlot: fc.constant('10:00-12:00'),
+              txnDate: fc.constant(new Date().toISOString()),
+              roomLocation: fc.constant(null),
+            }),
+            // Available item
+            fc.record({
+              equipmentId: fc.integer({ min: 1000, max: 1999 }).map(n => `EQ-${n}`),
+              name: fc.constantFrom('Oscilloscope', 'Multimeter', 'Centrifuge', 'Bunsen Burner'),
+              status: fc.constant('AVAILABLE'),
+              borrowerName: fc.constant(null),
+              timeSlot: fc.constant(null),
+              txnDate: fc.constant(null),
+              roomLocation: fc.constant(null),
+            })
+          ),
+          { minLength: 1, maxLength: 2 }
+        ),
+        async (items) => {
+          const axiosMod = await import('axios');
+          axiosMod.default.get.mockResolvedValue({
+            data: { activeTransactions: [], labRooms: [], highDemandEquipment: items },
+          });
+
+          const { default: Dashboard } = await import('../pages/Dashboard.jsx');
+
+          const { unmount } = render(
+            React.createElement(MemoryRouter, { initialEntries: ['/dashboard'] }, React.createElement(Dashboard))
+          );
+
+          // Wait for data to load
+          await act(async () => { await new Promise((r) => setTimeout(r, 100)); });
+
+          let allPresent = true;
+          for (const item of items) {
+            if (screen.queryAllByText(item.name).length === 0) { allPresent = false; break; }
+            if (item.borrowerName && screen.queryAllByText(item.borrowerName).length === 0) { allPresent = false; break; }
+          }
+
+          unmount();
+          return allPresent;
+        }
+      ),
+      { numRuns: 3 }
+    );
+  }, 60000);
+});

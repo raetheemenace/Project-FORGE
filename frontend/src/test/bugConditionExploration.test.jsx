@@ -836,3 +836,463 @@ describe('QR Scanner Mobile Camera — Bug Condition Exploration', () => {
     expect(hasMinHeight).toBe(true);
   });
 });
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notifications & Quantity Bugs — Bug Condition Exploration Tests (Task 1)
+// Validates: Requirements 1.1, 1.2, 1.3, 1.4
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Test 1a — NotificationBell chime ─────────────────────────────────────────
+describe('Test 1a — NotificationBell: audio chime plays when unreadCount increases', () => {
+  /**
+   * Validates: Requirements 1.1
+   *
+   * EXPECTED TO FAIL on unfixed code because NotificationBell.jsx never calls
+   * Audio.play() or any Web Audio API when unreadCount increases between polls.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected 0 to be greater than 0
+   *   (no Audio constructor called, no oscillator started — no audio feedback)
+   */
+  it('Audio.play or Web Audio oscillator is called when unreadCount increases from 0 to 1', async () => {
+    // Track Audio constructor calls
+    const audioPlayMock = vi.fn().mockResolvedValue(undefined);
+    const AudioMock = vi.fn(() => ({ play: audioPlayMock, pause: vi.fn() }));
+    vi.stubGlobal('Audio', AudioMock);
+
+    // Track Web Audio API usage
+    const oscillatorStartMock = vi.fn();
+    const oscillatorConnectMock = vi.fn();
+    const oscillatorStopMock = vi.fn();
+    const gainConnectMock = vi.fn();
+    const AudioContextMock = vi.fn(function() {
+      return {
+        createOscillator: vi.fn(() => ({
+          connect: oscillatorConnectMock,
+          start: oscillatorStartMock,
+          stop: oscillatorStopMock,
+          frequency: { value: 0, setValueAtTime: vi.fn() },
+          type: 'sine',
+        })),
+        createGain: vi.fn(() => ({
+          connect: gainConnectMock,
+          gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+        })),
+        destination: {},
+        currentTime: 0,
+      };
+    });
+    vi.stubGlobal('AudioContext', AudioContextMock);
+    vi.stubGlobal('webkitAudioContext', AudioContextMock);
+
+    // Mock navigator.vibrate
+    const vibrateMock = vi.fn();
+    Object.defineProperty(navigator, 'vibrate', { value: vibrateMock, writable: true, configurable: true });
+
+    // First poll returns unreadCount=0, second poll returns unreadCount=1
+    const axiosMock = await import('axios');
+    let callCount = 0;
+    axiosMock.default.get.mockImplementation((url) => {
+      if (url.includes('/notifications')) {
+        callCount++;
+        const count = callCount === 1 ? 0 : 1;
+        return Promise.resolve({
+          data: { notifications: [], unreadCount: count },
+        });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    // Use the real NotificationBell (unmock it for this test)
+    vi.unmock('../components/NotificationBell.jsx');
+    const { default: RealNotificationBell } = await vi.importActual('../components/NotificationBell.jsx');
+
+    // Use fake timers so we can control the poll interval
+    vi.useFakeTimers();
+
+    await act(async () => {
+      render(
+        React.createElement(MemoryRouter, null,
+          React.createElement(RealNotificationBell)
+        )
+      );
+    });
+
+    // Let the initial fetch (count=0) complete
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Advance 30 seconds to trigger the poll interval (count=1 → audio should fire)
+    await act(async () => {
+      vi.advanceTimersByTime(30000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    vi.useRealTimers();
+
+    // ASSERTION: either Audio constructor was called (and play invoked)
+    // OR Web Audio API oscillator was started
+    // On UNFIXED code this FAILS — no audio call is made
+    const audioConstructorCalled = AudioMock.mock.calls.length > 0;
+    const audioPlayCalled = audioPlayMock.mock.calls.length > 0;
+    const oscillatorStarted = oscillatorStartMock.mock.calls.length > 0;
+    const audioContextCreated = AudioContextMock.mock.calls.length > 0;
+
+    const audioFeedbackTriggered =
+      (audioConstructorCalled && audioPlayCalled) ||
+      (audioContextCreated && oscillatorStarted);
+
+    // On UNFIXED code this FAILS — no audio feedback is triggered
+    expect(audioFeedbackTriggered).toBe(true);
+
+    vi.unstubAllGlobals();
+  });
+});
+
+
+// ── Test 1b — NotificationBell vibration ─────────────────────────────────────
+describe('Test 1b — NotificationBell: vibration triggered when unreadCount increases', () => {
+  /**
+   * Validates: Requirements 1.1
+   *
+   * EXPECTED TO FAIL on unfixed code because NotificationBell.jsx never calls
+   * navigator.vibrate() when unreadCount increases between polls.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected 0 to be greater than 0
+   *   (navigator.vibrate was never called)
+   */
+  it('navigator.vibrate is called with a non-empty pattern when unreadCount increases from 0 to 1', async () => {
+    const vibrateMock = vi.fn();
+    Object.defineProperty(navigator, 'vibrate', { value: vibrateMock, writable: true, configurable: true });
+
+    // Stub Audio to avoid errors
+    vi.stubGlobal('Audio', vi.fn(() => ({ play: vi.fn().mockResolvedValue(undefined) })));
+    vi.stubGlobal('AudioContext', vi.fn(function() {
+      return {
+        createOscillator: vi.fn(() => ({ connect: vi.fn(), start: vi.fn(), stop: vi.fn(), frequency: { value: 0, setValueAtTime: vi.fn() }, type: 'sine' })),
+        createGain: vi.fn(() => ({ connect: vi.fn(), gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() } })),
+        destination: {},
+        currentTime: 0,
+      };
+    }));
+    vi.stubGlobal('webkitAudioContext', vi.fn(function() {
+      return {
+        createOscillator: vi.fn(() => ({ connect: vi.fn(), start: vi.fn(), stop: vi.fn(), frequency: { value: 0, setValueAtTime: vi.fn() }, type: 'sine' })),
+        createGain: vi.fn(() => ({ connect: vi.fn(), gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() } })),
+        destination: {},
+        currentTime: 0,
+      };
+    }));
+
+    const axiosMock = await import('axios');
+    let callCount = 0;
+    axiosMock.default.get.mockImplementation((url) => {
+      if (url.includes('/notifications')) {
+        callCount++;
+        const count = callCount === 1 ? 0 : 1;
+        return Promise.resolve({ data: { notifications: [], unreadCount: count } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    vi.unmock('../components/NotificationBell.jsx');
+    const { default: RealNotificationBell } = await vi.importActual('../components/NotificationBell.jsx');
+
+    // Use fake timers so we can control the poll interval
+    vi.useFakeTimers();
+
+    await act(async () => {
+      render(
+        React.createElement(MemoryRouter, null,
+          React.createElement(RealNotificationBell)
+        )
+      );
+    });
+
+    // Let the initial fetch (count=0) complete
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Advance 30 seconds to trigger the poll interval (count=1 → vibrate should fire)
+    await act(async () => {
+      vi.advanceTimersByTime(30000);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    vi.useRealTimers();
+
+    // ASSERTION: navigator.vibrate must have been called with a non-empty pattern
+    // On UNFIXED code this FAILS — vibrate is never called
+    expect(vibrateMock).toHaveBeenCalled();
+    const calledWithPattern = vibrateMock.mock.calls.some(([pattern]) => {
+      if (Array.isArray(pattern)) return pattern.length > 0;
+      return typeof pattern === 'number' && pattern > 0;
+    });
+    expect(calledWithPattern).toBe(true);
+
+    vi.unstubAllGlobals();
+  });
+});
+
+
+// ── Test 1c — LogUpdated mount chime ─────────────────────────────────────────
+describe('Test 1c — LogUpdated: audio chime plays on mount', () => {
+  /**
+   * Validates: Requirements 1.2
+   *
+   * EXPECTED TO FAIL on unfixed code because LogUpdated.jsx has no useEffect
+   * that plays audio on mount — it is a pure display component.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected false to be true
+   *   (no Audio constructor called, no AudioContext created on mount)
+   */
+  it('Audio.play or Web Audio oscillator is called when LogUpdated mounts', async () => {
+    const audioPlayMock = vi.fn().mockResolvedValue(undefined);
+    const AudioMock = vi.fn(() => ({ play: audioPlayMock, pause: vi.fn() }));
+    vi.stubGlobal('Audio', AudioMock);
+
+    const oscillatorStartMock = vi.fn();
+    const AudioContextMock = vi.fn(function() {
+      return {
+        createOscillator: vi.fn(() => ({
+          connect: vi.fn(),
+          start: oscillatorStartMock,
+          stop: vi.fn(),
+          frequency: { value: 0, setValueAtTime: vi.fn() },
+          type: 'sine',
+        })),
+        createGain: vi.fn(() => ({
+          connect: vi.fn(),
+          gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+        })),
+        destination: {},
+        currentTime: 0,
+      };
+    });
+    vi.stubGlobal('AudioContext', AudioContextMock);
+    vi.stubGlobal('webkitAudioContext', AudioContextMock);
+
+    // Use the real LogUpdated component
+    vi.unmock('../pages/LogUpdated.jsx');
+    const { default: RealLogUpdated } = await vi.importActual('../pages/LogUpdated.jsx');
+
+    await act(async () => {
+      render(
+        React.createElement(
+          MemoryRouter,
+          { initialEntries: [{ pathname: '/log-updated', state: { txnId: 'TXN-001', department: 'CS', labRoom: 'R1', itemCount: 2 } }] },
+          React.createElement(Routes, null,
+            React.createElement(Route, { path: '/log-updated', element: React.createElement(RealLogUpdated) })
+          )
+        )
+      );
+    });
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    // ASSERTION: audio must have been triggered on mount
+    // On UNFIXED code this FAILS — no audio call exists in LogUpdated
+    const audioConstructorCalled = AudioMock.mock.calls.length > 0;
+    const audioPlayCalled = audioPlayMock.mock.calls.length > 0;
+    const oscillatorStarted = oscillatorStartMock.mock.calls.length > 0;
+    const audioContextCreated = AudioContextMock.mock.calls.length > 0;
+
+    const audioFeedbackTriggered =
+      (audioConstructorCalled && audioPlayCalled) ||
+      (audioContextCreated && oscillatorStarted);
+
+    // On UNFIXED code this FAILS — LogUpdated has no audio on mount
+    expect(audioFeedbackTriggered).toBe(true);
+
+    vi.unstubAllGlobals();
+  });
+});
+
+
+// ── Test 1d — LogUpdated toast ────────────────────────────────────────────────
+describe('Test 1d — LogUpdated: "Request Submitted" toast is present in DOM', () => {
+  /**
+   * Validates: Requirements 1.2
+   *
+   * EXPECTED TO FAIL on unfixed code because LogUpdated.jsx has no toast/banner
+   * element — it renders a static success card with no "Request Submitted" text.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected null not to be null
+   *   (no element with "Request Submitted" text found in the DOM)
+   */
+  it('a toast or banner element with "Request Submitted" text is present after mount', async () => {
+    vi.stubGlobal('Audio', vi.fn(() => ({ play: vi.fn().mockResolvedValue(undefined) })));
+    vi.stubGlobal('AudioContext', vi.fn(() => ({
+      createOscillator: vi.fn(() => ({ connect: vi.fn(), start: vi.fn(), stop: vi.fn(), frequency: { value: 0 }, type: 'sine' })),
+      createGain: vi.fn(() => ({ connect: vi.fn(), gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() } })),
+      destination: {},
+      currentTime: 0,
+    })));
+
+    vi.unmock('../pages/LogUpdated.jsx');
+    const { default: RealLogUpdated } = await vi.importActual('../pages/LogUpdated.jsx');
+
+    await act(async () => {
+      render(
+        React.createElement(
+          MemoryRouter,
+          { initialEntries: [{ pathname: '/log-updated', state: { txnId: 'TXN-001', department: 'CS', labRoom: 'R1', itemCount: 2 } }] },
+          React.createElement(Routes, null,
+            React.createElement(Route, { path: '/log-updated', element: React.createElement(RealLogUpdated) })
+          )
+        )
+      );
+    });
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 50));
+    });
+
+    // ASSERTION: a toast/banner with "Request Submitted" text must be in the DOM
+    // On UNFIXED code this FAILS — no such element exists in LogUpdated
+    const toastElement = screen.queryByText(/Request Submitted/i);
+    expect(toastElement).not.toBeNull();
+
+    vi.unstubAllGlobals();
+  });
+});
+
+
+// ── Test 1e — Admin equipment counts ─────────────────────────────────────────
+describe('Test 1e — EquipmentManagement: availableUnits/totalUnits rendered in table', () => {
+  /**
+   * Validates: Requirements 1.3
+   *
+   * EXPECTED TO FAIL on unfixed code because EquipmentManagement.jsx has no
+   * "Available" column and never renders eq.availableUnits or eq.totalUnits.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected null not to be null
+   *   ("3 / 5" text not found in the DOM — column does not exist)
+   */
+  it('"3 / 5" or equivalent appears in the table when mock data has availableUnits:3, totalUnits:5', async () => {
+    const axiosMock = await import('axios');
+    axiosMock.default.get.mockImplementation((url) => {
+      if (url.includes('/admin/equipment')) {
+        return Promise.resolve({
+          data: {
+            equipment: [
+              {
+                equipment_id: 'EQ-001',
+                name: 'Bunsen Burner',
+                department: 'Chemistry Laboratory',
+                status: 'AVAILABLE',
+                availableUnits: 3,
+                totalUnits: 5,
+              },
+              {
+                equipment_id: 'EQ-002',
+                name: 'Bunsen Burner',
+                department: 'Chemistry Laboratory',
+                status: 'BORROWED',
+                availableUnits: 3,
+                totalUnits: 5,
+              },
+            ],
+          },
+        });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    // Use the real EquipmentManagement component
+    vi.unmock('../pages/admin/EquipmentManagement.jsx');
+    const { default: RealEquipmentManagement } = await vi.importActual('../pages/admin/EquipmentManagement.jsx');
+
+    await act(async () => {
+      render(
+        React.createElement(MemoryRouter, null,
+          React.createElement(RealEquipmentManagement)
+        )
+      );
+    });
+
+    // Wait for the equipment list to load
+    await waitFor(() => {
+      expect(screen.queryByText('Bunsen Burner')).not.toBeNull();
+    });
+
+    // ASSERTION: "3 / 5" must appear in the rendered table
+    // On UNFIXED code this FAILS — no availableUnits/totalUnits column exists
+    const quantityText = screen.queryByText(/3\s*\/\s*5/);
+    expect(quantityText).not.toBeNull();
+  });
+});
+
+
+// ── Test 1f — Dashboard quantity ──────────────────────────────────────────────
+describe('Test 1f — Dashboard: availableUnits/totalUnits rendered in high-demand panel', () => {
+  /**
+   * Validates: Requirements 1.4
+   *
+   * EXPECTED TO FAIL on unfixed code because Dashboard.jsx never reads
+   * item.availableUnits or item.totalUnits in the high-demand equipment panel JSX.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected null not to be null
+   *   ("2 / 5" text not found in the DOM — fields are silently ignored)
+   */
+  it('"2 / 5" appears in the high-demand panel when API returns availableUnits:2, totalUnits:5', async () => {
+    const axiosMock = await import('axios');
+    axiosMock.default.get.mockImplementation((url) => {
+      if (url.includes('/dashboard')) {
+        return Promise.resolve({
+          data: {
+            activeTransactions: [],
+            labRooms: [],
+            highDemandEquipment: [
+              {
+                equipmentId: 'EQ-001',
+                name: 'Oscilloscope',
+                status: 'AVAILABLE',
+                availableUnits: 2,
+                totalUnits: 5,
+              },
+            ],
+          },
+        });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    // Use the real Dashboard component (already imported via the top-level mock override)
+    // We need to unmock it for this test
+    vi.unmock('../pages/Dashboard.jsx');
+    const { default: RealDashboard } = await vi.importActual('../pages/Dashboard.jsx');
+
+    await act(async () => {
+      render(
+        React.createElement(MemoryRouter, null,
+          React.createElement(RealDashboard)
+        )
+      );
+    });
+
+    // Wait for the high-demand panel to load
+    await waitFor(() => {
+      expect(screen.queryByText('Oscilloscope')).not.toBeNull();
+    });
+
+    // ASSERTION: "2 / 5" must appear in the rendered panel
+    // On UNFIXED code this FAILS — availableUnits/totalUnits are never rendered
+    const quantityText = screen.queryByText(/2\s*\/\s*5/);
+    expect(quantityText).not.toBeNull();
+  });
+});

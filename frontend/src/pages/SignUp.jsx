@@ -15,6 +15,7 @@ export default function SignUp() {
   });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const handleChange = (e) => {
     let value = e.target.value;
@@ -38,6 +39,7 @@ export default function SignUp() {
     } else if (!/^[mMqQ][a-zA-Z0-9._%+-]*@tip\.edu\.ph$/.test(formData.tipEmail)) {
       errs.tipEmail = 'Must be a valid TIP email';
     }
+    if (!agreedToTerms) errs.terms = 'You must agree to the Terms and Conditions and Privacy Policy';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -215,6 +217,30 @@ export default function SignUp() {
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                 <p className="text-red-600 text-sm text-center">{errors.submit}</p>
               </div>
+            )}
+
+            <div className="flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                id="agreeTerms"
+                checked={agreedToTerms}
+                onChange={(e) => {
+                  setAgreedToTerms(e.target.checked);
+                  setErrors((prev) => ({ ...prev, terms: undefined }));
+                }}
+                className="mt-0.5 w-4 h-4 accent-[#001254] cursor-pointer flex-shrink-0"
+              />
+              <label htmlFor="agreeTerms" className="text-[#001254]/60 cursor-pointer leading-snug" style={{ fontSize: '0.75rem' }}>
+                By signing up, you agree to the{' '}
+                <span className="text-[#0B4EA2] underline underline-offset-2 cursor-pointer">Terms and Conditions</span>
+                {' '}and{' '}
+                <span className="text-[#0B4EA2] underline underline-offset-2 cursor-pointer">Privacy Policy</span>
+              </label>
+            </div>
+            {errors.terms && (
+              <p className="text-[#d4183d]" style={{ fontSize: '0.75rem' }}>
+                {errors.terms}
+              </p>
             )}
 
             <button

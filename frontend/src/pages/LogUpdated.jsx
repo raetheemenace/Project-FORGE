@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle2, ArrowLeft, LayoutDashboard } from 'lucide-react';
@@ -8,6 +9,36 @@ export default function LogUpdated() {
   const location = useLocation();
   const { txnId = '—', department = '—', labRoom = '—', itemCount = 0 } =
     location.state ?? {};
+
+  const [showToast, setShowToast] = useState(false);
+
+  useEffect(() => {
+    // Play confirmation chime via Web Audio API
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) throw new Error('No AudioContext');
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.4);
+    } catch (_) {
+      // Audio not available in this environment
+    }
+
+    // Vibrate
+    navigator.vibrate?.([100, 50, 100]);
+
+    // Show toast and auto-dismiss after 3 seconds
+    setShowToast(true);
+    const timer = setTimeout(() => setShowToast(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#EFEFE9] flex flex-col">
@@ -115,6 +146,17 @@ export default function LogUpdated() {
           Back to Dashboard
         </motion.button>
       </main>
+
+      {/* Request Submitted toast */}
+      {showToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow-lg z-50"
+        >
+          Request Submitted
+        </div>
+      )}
     </div>
   );
 }
