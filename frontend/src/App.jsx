@@ -49,7 +49,13 @@ function AdminRoute({ children }) {
 }
 
 function App() {
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(() => {
+    // Skip splash in test environment
+    if (import.meta.env.MODE === 'test') return false;
+    // Skip splash if already shown this session
+    if (sessionStorage.getItem('splashShown')) return false;
+    return true;
+  });
 
   // Check if splash has been shown in this session
   useEffect(() => {

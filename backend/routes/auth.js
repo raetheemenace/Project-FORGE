@@ -241,7 +241,15 @@ describe('Auth Routes - HTTP-level unit tests', () => {
 // Validates: Requirements 1.3, 1.4, 1.1
 // ---------------------------------------------------------------------------
 
+<<<<<<< HEAD
 describe('Authentication Property-Based Tests', () => {
+=======
+  try {
+    // Validate required fields
+    if (!tipEmail || !studentId) {
+      return res.status(400).json({ error: 'TIP Email and Student ID are required' });
+    }
+>>>>>>> f175e4e23c6295c8544a55b7dc8952cd79d86ff0
 
   // **Feature: forge-system, Property 1: Student ID format rejection**
   // **Validates: Requirements 1.4**
@@ -373,7 +381,41 @@ describe('Property 2: Invalid studentId format is rejected', () => {
       ),
       { numRuns: 100 }
     );
+<<<<<<< HEAD
   });
+=======
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'TIP Email and Student ID do not match.' });
+    }
+
+    const user = result.rows[0];
+
+    const token = generateToken({
+      userId: user.user_id,
+      studentId: user.student_id,
+      role: user.role,
+      fullName: user.full_name,
+      program: user.program
+    });
+
+    res.json({
+      message: 'Sign in successful',
+      token,
+      user: {
+        userId: user.user_id,
+        studentId: user.student_id,
+        fullName: user.full_name,
+        program: user.program,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Signin error:', error);
+    res.status(500).json({ error: 'Failed to sign in' });
+  }
+>>>>>>> f175e4e23c6295c8544a55b7dc8952cd79d86ff0
 });
 
 // Feature: lab-system-full-integration, Property 3: Missing required signup fields are rejected

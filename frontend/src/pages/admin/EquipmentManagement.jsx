@@ -305,6 +305,21 @@ export default function EquipmentManagement() {
       list = list.filter((eq) => (eq.status || '') === filterStatus);
     }
 
+    // When the backend returns availableUnits/totalUnits (window function counts),
+    // deduplicate by name within each department — keep the first row per name
+    // since all rows with the same name share the same counts.
+    // When counts are absent, show all individual rows (preserves original behavior).
+    const hasUnitCounts = list.some((eq) => eq.availableUnits != null);
+    if (hasUnitCounts) {
+      const seen = new Set();
+      list = list.filter((eq) => {
+        const key = `${eq.department || 'Uncategorized'}::${eq.name || ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+
     const groups = {};
     list.forEach((eq) => {
       const dept = eq.department || 'Uncategorized';
@@ -491,6 +506,7 @@ export default function EquipmentManagement() {
                         <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>ID</th>
                         <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Name</th>
                         <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Status</th>
+                        <th className="text-left px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Available</th>
                         <th className="text-right px-5 py-3 text-[#001254]/40 font-medium uppercase tracking-widest" style={{ fontSize: '0.65rem' }}>Actions</th>
                       </tr>
                     </thead>
@@ -503,6 +519,11 @@ export default function EquipmentManagement() {
                           <td className="px-5 py-3.5 text-[#001254]/50 font-mono" style={{ fontSize: '0.8rem' }}>{eq.equipment_id}</td>
                           <td className="px-5 py-3.5 text-[#001254]" style={{ fontSize: '0.85rem' }}>{eq.name}</td>
                           <td className="px-5 py-3.5"><StatusBadge status={eq.status} /></td>
+                          <td className="px-5 py-3.5">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium bg-blue-50 text-blue-700 border-blue-200">
+                              {eq.availableUnits ?? '—'} / {eq.totalUnits ?? '—'}
+                            </span>
+                          </td>
                           <td className="px-5 py-3.5">
                             <div className="flex items-center justify-end gap-1">
                               <button

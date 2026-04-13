@@ -8,10 +8,11 @@ import {
   Loader2,
   CreditCard,
   CheckCircle2,
-  ChevronRight,
   ChevronDown,
   AlertTriangle,
   ClipboardList,
+  Calendar,
+  Filter,
 } from 'lucide-react';
 import logo from '../assets/logo_landingpage.png';
 
@@ -164,6 +165,12 @@ export default function MyTransactions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Filter state
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [datePreset, setDatePreset] = useState('ALL');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     axios
@@ -178,10 +185,46 @@ export default function MyTransactions() {
       .finally(() => setLoading(false));
   }, []);
 
+  // Apply preset → set dateFrom/dateTo
+  const applyPreset = (preset) => {
+    setDatePreset(preset);
+    const today = new Date();
+    const fmt = (d) => d.toISOString().slice(0, 10);
+    if (preset === 'TODAY') {
+      setDateFrom(fmt(today));
+      setDateTo(fmt(today));
+    } else if (preset === 'WEEK') {
+      const start = new Date(today);
+      start.setDate(today.getDate() - today.getDay());
+      setDateFrom(fmt(start));
+      setDateTo(fmt(today));
+    } else if (preset === 'MONTH') {
+      setDateFrom(fmt(new Date(today.getFullYear(), today.getMonth(), 1)));
+      setDateTo(fmt(today));
+    } else {
+      setDateFrom('');
+      setDateTo('');
+    }
+  };
+
+  // Filtered list
+  const filtered = transactions.filter((t) => {
+    if (statusFilter !== 'ALL' && t.status !== statusFilter) return false;
+    if (dateFrom) {
+      const txnDate = t.txn_date ? t.txn_date.slice(0, 10) : '';
+      if (txnDate < dateFrom) return false;
+    }
+    if (dateTo) {
+      const txnDate = t.txn_date ? t.txn_date.slice(0, 10) : '';
+      if (txnDate > dateTo) return false;
+    }
+    return true;
+  });
+
   // Summary counters (req 9.3)
-  const activeCount = transactions.filter((t) => t.status === 'ACTIVE').length;
-  const pendingCount = transactions.filter((t) => t.status === 'PENDING_RETURN').length;
-  const claimCount = transactions.filter((t) => t.status === 'CLAIM_ID').length;
+  const activeCount = filtered.filter((t) => t.status === 'ACTIVE').length;
+  const pendingCount = filtered.filter((t) => t.status === 'PENDING_RETURN').length;
+  const claimCount = filtered.filter((t) => t.status === 'CLAIM_ID').length;
 
   return (
     <div className="min-h-screen bg-[#EFEFE9]">
@@ -234,6 +277,81 @@ export default function MyTransactions() {
           ))}
         </motion.div>
 
+        {/* ── Filters ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white border border-[#001254]/8 rounded-xl px-4 py-3.5 space-y-3"
+        >
+          {/* Date presets */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Calendar className="w-3.5 h-3.5 text-[#001254]/40 shrink-0" />
+            {[
+              { key: 'ALL', label: 'All Time' },
+              { key: 'TODAY', label: 'Today' },
+              { key: 'WEEK', label: 'This Week' },
+              { key: 'MONTH', label: 'This Month' },
+              { key: 'CUSTOM', label: 'Custom' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => applyPreset(key)}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  datePreset === key
+                    ? 'bg-[#001254] text-white border-[#001254]'
+                    : 'bg-transparent text-[#001254]/50 border-[#001254]/15 hover:border-[#001254]/30'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Custom date range */}
+          {datePreset === 'CUSTOM' && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="flex-1 min-w-[130px] px-3 py-1.5 rounded-lg border border-[#001254]/15 text-[#001254] bg-[#f7f7f3] text-xs focus:outline-none focus:border-[#0B4EA2]"
+              />
+              <span className="text-[#001254]/30 text-xs">to</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="flex-1 min-w-[130px] px-3 py-1.5 rounded-lg border border-[#001254]/15 text-[#001254] bg-[#f7f7f3] text-xs focus:outline-none focus:border-[#0B4EA2]"
+              />
+            </div>
+          )}
+
+          {/* Status filter */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Filter className="w-3.5 h-3.5 text-[#001254]/40 shrink-0" />
+            {[
+              { key: 'ALL', label: 'All Status' },
+              { key: 'ACTIVE', label: 'Active' },
+              { key: 'PENDING_RETURN', label: 'Pending Return' },
+              { key: 'CLAIM_ID', label: 'Claim ID' },
+              { key: 'RETURNED', label: 'Returned' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setStatusFilter(key)}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  statusFilter === key
+                    ? 'bg-[#0B4EA2] text-white border-[#0B4EA2]'
+                    : 'bg-transparent text-[#001254]/50 border-[#001254]/15 hover:border-[#001254]/30'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+
         {/* Error banner */}
         {error && (
           <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
@@ -272,15 +390,36 @@ export default function MyTransactions() {
           </motion.div>
         )}
 
-        {/* Transaction list (req 9.1, 9.2, 9.4) */}
-        {!loading && transactions.length > 0 && (
+        {/* No results after filtering */}
+        {!loading && !error && transactions.length > 0 && filtered.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center justify-center py-16 gap-3"
+          >
+            <Filter className="w-8 h-8 text-[#001254]/20" />
+            <p className="text-[#001254]/40 text-sm">No transactions match the selected filters.</p>
+            <button
+              onClick={() => { applyPreset('ALL'); setStatusFilter('ALL'); }}
+              className="text-[#0B4EA2] text-xs underline underline-offset-2"
+            >
+              Clear filters
+            </button>
+          </motion.div>
+        )}
+
+        {/* Transaction list */}
+        {!loading && filtered.length > 0 && (
           <div className="space-y-2.5">
             <div className="flex items-center justify-between px-1">
               <p className="text-[#001254]/40 text-xs uppercase tracking-wide">
-                {transactions.length} transaction{transactions.length !== 1 ? 's' : ''}
+                {filtered.length} transaction{filtered.length !== 1 ? 's' : ''}
+                {filtered.length !== transactions.length && (
+                  <span className="ml-1 text-[#001254]/25">of {transactions.length}</span>
+                )}
               </p>
             </div>
-            {transactions.map((txn, i) => (
+            {filtered.map((txn, i) => (
               <TransactionRow key={txn.txn_id} txn={txn} index={i} />
             ))}
           </div>

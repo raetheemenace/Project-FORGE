@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import {
   ArrowLeft, ShoppingCart, Plus, CheckCircle2, AlertTriangle,
-  Loader2, Clock, LayoutDashboard,
+  Loader2, Clock, LayoutDashboard, TrendingUp, Zap, Trash2, ChevronDown,
+  Mic, MicOff,
 } from 'lucide-react';
 import logo from '../assets/logo_landingpage.png';
+import { useSTT } from '../hooks/useSTT';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -41,17 +43,16 @@ const STATUS_LABELS = {
   FULFILLED: 'Fulfilled',
 };
 
+const emptyItem = () => ({ equipmentName: '', equipmentId: '', quantity: '1' });
+
 export default function RequestAcquisition() {
   const navigate = useNavigate();
 
-  // View: 'form' | 'history'
   const [view, setView] = useState('form');
 
-  // Form state
-  const [equipmentName, setEquipmentName] = useState('');
-  const [equipmentId, setEquipmentId] = useState('');
+  // Multi-item form state
+  const [items, setItems] = useState([emptyItem()]);
   const [department, setDepartment] = useState('');
-  const [quantity, setQuantity] = useState('1');
   const [reason, setReason] = useState('');
   const [urgency, setUrgency] = useState('Medium');
   const [errors, setErrors] = useState({});
@@ -64,15 +65,27 @@ export default function RequestAcquisition() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
 
+  // STT for reason field
+  const { sttActive, listen, stop: stopSTT, error: sttError } = useSTT();
+
+  // High-demand equipment
+  const [highDemand, setHighDemand] = useState([]);
+  const [highDemandOpen, setHighDemandOpen] = useState(false);
+
   const token = () => localStorage.getItem('token');
+
+  useEffect(() => {
+    axios
+      .get(`${API_URL}/dashboard`, { headers: { Authorization: `Bearer ${token()}` } })
+      .then((res) => setHighDemand(res.data.highDemandEquipment || []))
+      .catch(() => {});
+  }, []);
 
   const fetchHistory = () => {
     setHistoryLoading(true);
     setHistoryError('');
     axios
-      .get(`${API_URL}/acquisitions/my-requests`, {
-        headers: { Authorization: `Bearer ${token()}` },
-      })
+      .get(`${API_URL}/acquisitions/my-requests`, { headers: { Authorization: `Bearer ${token()}` } })
       .then((res) => setRequests(res.data))
       .catch(() => setHistoryError('Could not load your requests.'))
       .finally(() => setHistoryLoading(false));
@@ -82,15 +95,59 @@ export default function RequestAcquisition() {
     if (view === 'history') fetchHistory();
   }, [view]);
 
+  // ── Item helpers ──────────────────────────────────────────────────────────
+
+  const updateItem = (index, field, value) => {
+    setItems((prev) => prev.map((it, i) => i === index ? { ...it, [field]: value } : it));
+    // clear that item's error
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[`${field}_${index}`];
+      return next;
+    });
+  };
+
+  const addItem = () => setItems((prev) => [...prev, emptyItem()]);
+
+  const removeItem = (index) => {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+    // clear errors for removed item
+    setErrors((prev) => {
+      const next = { ...prev };
+      ['equipmentName', 'equipmentId', 'quantity'].forEach((f) => delete next[`${f}_${index}`]);
+      return next;
+    });
+  };
+
+  const prefillFromEquipment = (eq) => {
+    // Fill the first empty item, or add a new one
+    const firstEmpty = items.findIndex((it) => !it.equipmentName && !it.equipmentId);
+    if (firstEmpty !== -1) {
+      setItems((prev) => prev.map((it, i) =>
+        i === firstEmpty ? { ...it, equipmentName: eq.name || '', equipmentId: eq.equipmentId || '' } : it
+      ));
+    } else {
+      setItems((prev) => [...prev, { ...emptyItem(), equipmentName: eq.name || '', equipmentId: eq.equipmentId || '' }]);
+    }
+    setErrors({});
+    setSubmitError('');
+  };
+
+  // ── Validation ────────────────────────────────────────────────────────────
+
   const validate = () => {
     const e = {};
-    if (!equipmentName.trim()) e.equipmentName = 'Equipment name is required.';
-    if (!equipmentId.trim()) e.equipmentId = 'Equipment ID is required.';
+    items.forEach((it, i) => {
+      if (!it.equipmentName.trim()) e[`equipmentName_${i}`] = 'Required.';
+      if (!it.equipmentId.trim()) e[`equipmentId_${i}`] = 'Required.';
+      if (!it.quantity || isNaN(it.quantity) || Number(it.quantity) < 1) e[`quantity_${i}`] = 'Min 1.';
+    });
     if (!department) e.department = 'Department is required.';
-    if (!quantity || isNaN(quantity) || Number(quantity) < 1) e.quantity = 'Enter a valid quantity (min 1).';
     if (!reason.trim()) e.reason = 'Please describe why this equipment is needed.';
     return e;
   };
+
+  // ── Submit ────────────────────────────────────────────────────────────────
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -100,17 +157,22 @@ export default function RequestAcquisition() {
     setErrors({});
     setSubmitting(true);
     try {
-      await axios.post(
-        `${API_URL}/acquisitions/request`,
-        {
-          equipment_name: equipmentName.trim(),
-          equipment_id: equipmentId.trim().toUpperCase(),
-          department,
-          quantity: Number(quantity),
-          reason: reason.trim(),
-          urgency,
-        },
-        { headers: { Authorization: `Bearer ${token()}` } }
+      // Submit one request per item (backend expects individual requests)
+      await Promise.all(
+        items.map((it) =>
+          axios.post(
+            `${API_URL}/acquisitions/request`,
+            {
+              equipment_name: it.equipmentName.trim(),
+              equipment_id: it.equipmentId.trim().toUpperCase(),
+              department,
+              quantity: Number(it.quantity),
+              reason: reason.trim(),
+              urgency,
+            },
+            { headers: { Authorization: `Bearer ${token()}` } }
+          )
+        )
       );
       setSubmitted(true);
     } catch (err) {
@@ -121,10 +183,8 @@ export default function RequestAcquisition() {
   };
 
   const handleNewRequest = () => {
-    setEquipmentName('');
-    setEquipmentId('');
+    setItems([emptyItem()]);
     setDepartment('');
-    setQuantity('1');
     setReason('');
     setUrgency('Medium');
     setErrors({});
@@ -132,7 +192,12 @@ export default function RequestAcquisition() {
     setSubmitted(false);
   };
 
-  const fieldClass = (field) =>
+  const inputClass = (errKey) =>
+    `w-full px-4 py-3 rounded-xl border text-sm text-[#001254] bg-white transition-colors outline-none focus:ring-2 focus:ring-[#0B4EA2]/20 ${
+      errors[errKey] ? 'border-red-400 focus:border-red-400' : 'border-[#001254]/15 focus:border-[#0B4EA2]/50'
+    }`;
+
+  const sharedInputClass = (field) =>
     `w-full px-4 py-3 rounded-xl border text-sm text-[#001254] bg-white transition-colors outline-none focus:ring-2 focus:ring-[#0B4EA2]/20 ${
       errors[field] ? 'border-red-400 focus:border-red-400' : 'border-[#001254]/15 focus:border-[#0B4EA2]/50'
     }`;
@@ -157,9 +222,11 @@ export default function RequestAcquisition() {
             transition={{ delay: 0.15 }}
             className="text-center space-y-2"
           >
-            <h1 className="text-3xl font-bold text-[#001254]">Request Submitted!</h1>
+            <h1 className="text-3xl font-bold text-[#001254]">
+              {items.length > 1 ? `${items.length} Requests Submitted!` : 'Request Submitted!'}
+            </h1>
             <p className="text-[#001254]/55 text-sm max-w-xs">
-              Your equipment acquisition request has been sent to the Lab Admin for review.
+              Your equipment acquisition request{items.length > 1 ? 's have' : ' has'} been sent to the Lab Admin for review.
             </p>
           </motion.div>
           <motion.div
@@ -204,7 +271,6 @@ export default function RequestAcquisition() {
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
 
-        {/* Page title + tab switcher */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
           <h1 className="text-2xl font-semibold text-[#001254]">Request Equipment</h1>
           <p className="text-[#001254]/50 text-sm mt-1">
@@ -217,9 +283,7 @@ export default function RequestAcquisition() {
           <button
             onClick={() => setView('form')}
             className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-              view === 'form'
-                ? 'bg-[#0B4EA2] text-white shadow-sm'
-                : 'text-[#001254]/50 hover:text-[#001254]/70'
+              view === 'form' ? 'bg-[#0B4EA2] text-white shadow-sm' : 'text-[#001254]/50 hover:text-[#001254]/70'
             }`}
           >
             New Request
@@ -227,9 +291,7 @@ export default function RequestAcquisition() {
           <button
             onClick={() => setView('history')}
             className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-              view === 'history'
-                ? 'bg-[#0B4EA2] text-white shadow-sm'
-                : 'text-[#001254]/50 hover:text-[#001254]/70'
+              view === 'history' ? 'bg-[#0B4EA2] text-white shadow-sm' : 'text-[#001254]/50 hover:text-[#001254]/70'
             }`}
           >
             My Requests
@@ -238,55 +300,178 @@ export default function RequestAcquisition() {
 
         {/* ── New Request Form ── */}
         {view === 'form' && (
-          <motion.form
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            onSubmit={handleSubmit}
-            noValidate
-            className="space-y-5"
-          >
-            <div className="bg-white rounded-2xl border border-[#001254]/10 p-6 space-y-5">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
 
-              {/* Equipment Name */}
-              <div>
-                <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
-                  Equipment Name <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={equipmentName}
-                  onChange={(e) => { setEquipmentName(e.target.value); if (errors.equipmentName) setErrors((p) => ({ ...p, equipmentName: '' })); }}
-                  placeholder="e.g. Digital Oscilloscope, Bunsen Burner"
-                  className={fieldClass('equipmentName')}
-                />
-                {errors.equipmentName && <p className="mt-1 text-xs text-red-500">{errors.equipmentName}</p>}
+            {/* High-demand quick-pick */}
+            {highDemand.length > 0 && (
+              <div className="bg-white border border-[#001254]/10 rounded-2xl overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setHighDemandOpen((v) => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#F2F0DB]/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-[#0B4EA2]" />
+                    <span className="text-sm font-medium text-[#001254]/70">High-Demand Equipment Available</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-[#0B4EA2]/10 text-[#0B4EA2] font-medium">
+                      {highDemand.length}
+                    </span>
+                  </div>
+                  <ChevronDown
+                    className={`w-4 h-4 text-[#001254]/30 transition-transform duration-200 ${highDemandOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {highDemandOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-4 pb-4 pt-1 border-t border-[#001254]/6 flex flex-wrap gap-2">
+                        {highDemand.map((eq) => (
+                          <button
+                            key={eq.equipmentId}
+                            type="button"
+                            onClick={() => { prefillFromEquipment(eq); setHighDemandOpen(false); }}
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[#001254]/12 bg-[#f7f7f3] hover:border-[#0B4EA2]/40 hover:bg-[#0B4EA2]/5 transition-all text-left group"
+                          >
+                            <div className="w-6 h-6 rounded-lg bg-[#001254]/6 flex items-center justify-center shrink-0 group-hover:bg-[#0B4EA2]/10 transition-colors">
+                              <Zap className="w-3 h-3 text-[#001254]/40 group-hover:text-[#0B4EA2] transition-colors" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[#001254] text-xs font-medium truncate max-w-[140px]">{eq.name}</p>
+                              <p className="text-[#001254]/35 text-xs font-mono">{eq.equipmentId}</p>
+                            </div>
+                            <div className="flex flex-col items-end gap-0.5 shrink-0">
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${eq.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                                {eq.status === 'AVAILABLE' ? 'Free' : 'In Use'}
+                              </span>
+                              {eq.availableUnits != null && (
+                                <span className="text-[#001254]/35 text-xs">
+                                  {eq.availableUnits}/{eq.totalUnits} avail.
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
+            )}
 
-              {/* Equipment ID */}
-              <div>
-                <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
-                  Equipment ID <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={equipmentId}
-                  onChange={(e) => { setEquipmentId(e.target.value); if (errors.equipmentId) setErrors((p) => ({ ...p, equipmentId: '' })); }}
-                  placeholder="e.g. EQ-7167"
-                  className={fieldClass('equipmentId')}
-                />
-                {errors.equipmentId && <p className="mt-1 text-xs text-red-500">{errors.equipmentId}</p>}
-              </div>
+            <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
-              {/* Department + Quantity row */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* ── Equipment items ── */}
+              <AnimatePresence initial={false}>
+                {items.map((item, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                    transition={{ duration: 0.18 }}
+                    className="bg-white rounded-2xl border border-[#001254]/10 p-5 space-y-4"
+                  >
+                    {/* Item header */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-[#001254]/50 uppercase tracking-wide">
+                        Equipment {items.length > 1 ? `#${index + 1}` : ''}
+                      </span>
+                      {items.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeItem(index)}
+                          className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
+                          aria-label="Remove item"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Name */}
+                    <div>
+                      <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
+                        Equipment Name <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={item.equipmentName}
+                        onChange={(e) => updateItem(index, 'equipmentName', e.target.value)}
+                        placeholder="e.g. Digital Oscilloscope, Bunsen Burner"
+                        className={inputClass(`equipmentName_${index}`)}
+                      />
+                      {errors[`equipmentName_${index}`] && (
+                        <p className="mt-1 text-xs text-red-500">{errors[`equipmentName_${index}`]}</p>
+                      )}
+                    </div>
+
+                    {/* ID + Quantity row */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
+                          Equipment ID <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={item.equipmentId}
+                          onChange={(e) => updateItem(index, 'equipmentId', e.target.value)}
+                          placeholder="e.g. EQ-7167"
+                          className={inputClass(`equipmentId_${index}`)}
+                        />
+                        {errors[`equipmentId_${index}`] && (
+                          <p className="mt-1 text-xs text-red-500">{errors[`equipmentId_${index}`]}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
+                          Quantity <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => updateItem(index, 'quantity', e.target.value)}
+                          className={inputClass(`quantity_${index}`)}
+                        />
+                        {errors[`quantity_${index}`] && (
+                          <p className="mt-1 text-xs text-red-500">{errors[`quantity_${index}`]}</p>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              {/* Add another button */}
+              <button
+                type="button"
+                onClick={addItem}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-[#001254]/20 text-[#001254]/50 text-sm font-medium hover:border-[#0B4EA2]/40 hover:text-[#0B4EA2] hover:bg-[#0B4EA2]/3 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                Add Another Equipment
+              </button>
+
+              {/* ── Shared fields ── */}
+              <div className="bg-white rounded-2xl border border-[#001254]/10 p-5 space-y-5">
+                <p className="text-xs font-semibold text-[#001254]/50 uppercase tracking-wide">Request Details</p>
+
+                {/* Department */}
                 <div>
                   <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
                     Department <span className="text-red-400">*</span>
                   </label>
                   <select
                     value={department}
-                    onChange={(e) => { setDepartment(e.target.value); if (errors.department) setErrors((p) => ({ ...p, department: '' })); }}
-                    className={fieldClass('department')}
+                    onChange={(e) => { setDepartment(e.target.value); setErrors((p) => { const n = { ...p }; delete n.department; return n; }); }}
+                    className={sharedInputClass('department')}
                   >
                     <option value="">Select…</option>
                     {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
@@ -294,84 +479,97 @@ export default function RequestAcquisition() {
                   {errors.department && <p className="mt-1 text-xs text-red-500">{errors.department}</p>}
                 </div>
 
+                {/* Urgency */}
                 <div>
-                  <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
-                    Quantity <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={quantity}
-                    onChange={(e) => { setQuantity(e.target.value); if (errors.quantity) setErrors((p) => ({ ...p, quantity: '' })); }}
-                    className={fieldClass('quantity')}
+                  <label className="block text-xs font-medium text-[#001254]/60 mb-2 uppercase tracking-wide">Urgency</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {URGENCIES.map((u) => (
+                      <button
+                        key={u}
+                        type="button"
+                        onClick={() => setUrgency(u)}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
+                          urgency === u ? URGENCY_COLORS[u] : 'bg-white border-[#001254]/15 text-[#001254]/50 hover:border-[#001254]/30'
+                        }`}
+                      >
+                        {u}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Reason */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-medium text-[#001254]/60 uppercase tracking-wide">
+                      Reason / Justification <span className="text-red-400">*</span>
+                    </label>
+                    {!sttActive ? (
+                      <button
+                        type="button"
+                        onClick={() => listen((text) => {
+                          setReason((prev) => prev ? `${prev} ${text}` : text);
+                          setErrors((p) => { const n = { ...p }; delete n.reason; return n; });
+                        })}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#001254]/6 text-[#001254]/60 hover:bg-[#001254]/10 transition-all"
+                        aria-label="Start voice input"
+                      >
+                        <Mic className="w-3.5 h-3.5" />
+                        Speak
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={stopSTT}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200 transition-all"
+                        aria-label="Done speaking"
+                      >
+                        <MicOff className="w-3.5 h-3.5" />
+                        Done Speaking
+                      </button>
+                    )}
+                  </div>
+                  <textarea
+                    rows={4}
+                    value={reason}
+                    onChange={(e) => { setReason(e.target.value); setErrors((p) => { const n = { ...p }; delete n.reason; return n; }); }}
+                    placeholder="Describe why this equipment is needed, for which course or experiment, and any relevant context… or tap Speak"
+                    className={`${sharedInputClass('reason')} resize-none`}
                   />
-                  {errors.quantity && <p className="mt-1 text-xs text-red-500">{errors.quantity}</p>}
+                  {sttError && <p className="mt-1 text-xs text-amber-600">{sttError}</p>}
+                  {errors.reason && <p className="mt-1 text-xs text-red-500">{errors.reason}</p>}
                 </div>
               </div>
 
-              {/* Urgency */}
-              <div>
-                <label className="block text-xs font-medium text-[#001254]/60 mb-2 uppercase tracking-wide">
-                  Urgency
-                </label>
-                <div className="flex gap-2 flex-wrap">
-                  {URGENCIES.map((u) => (
-                    <button
-                      key={u}
-                      type="button"
-                      onClick={() => setUrgency(u)}
-                      className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
-                        urgency === u
-                          ? URGENCY_COLORS[u]
-                          : 'bg-white border-[#001254]/15 text-[#001254]/50 hover:border-[#001254]/30'
-                      }`}
-                    >
-                      {u}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Submit error */}
+              <AnimatePresence>
+                {submitError && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm"
+                  >
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    {submitError}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-              {/* Reason */}
-              <div>
-                <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
-                  Reason / Justification <span className="text-red-400">*</span>
-                </label>
-                <textarea
-                  rows={4}
-                  value={reason}
-                  onChange={(e) => { setReason(e.target.value); if (errors.reason) setErrors((p) => ({ ...p, reason: '' })); }}
-                  placeholder="Describe why this equipment is needed, for which course or experiment, and any relevant context…"
-                  className={`${fieldClass('reason')} resize-none`}
-                />
-                {errors.reason && <p className="mt-1 text-xs text-red-500">{errors.reason}</p>}
-              </div>
-            </div>
-
-            {/* Submit error */}
-            <AnimatePresence>
-              {submitError && (
-                <motion.div
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm"
-                >
-                  <AlertTriangle className="w-4 h-4 shrink-0" />
-                  {submitError}
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#0B4EA2] text-white font-semibold text-sm hover:bg-[#0a3f8a] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
-            >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
-              {submitting ? 'Submitting…' : 'Submit Request'}
-            </button>
-          </motion.form>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#0B4EA2] text-white font-semibold text-sm hover:bg-[#0a3f8a] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+              >
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
+                {submitting
+                  ? 'Submitting…'
+                  : items.length > 1
+                  ? `Submit ${items.length} Requests`
+                  : 'Submit Request'}
+              </button>
+            </form>
+          </motion.div>
         )}
 
         {/* ── My Requests History ── */}
@@ -390,10 +588,7 @@ export default function RequestAcquisition() {
               <div className="flex flex-col items-center justify-center py-16 gap-3">
                 <ShoppingCart className="w-10 h-10 text-[#001254]/15" />
                 <p className="text-[#001254]/40 text-sm">No requests yet.</p>
-                <button
-                  onClick={() => setView('form')}
-                  className="text-[#0B4EA2] text-sm underline underline-offset-2"
-                >
+                <button onClick={() => setView('form')} className="text-[#0B4EA2] text-sm underline underline-offset-2">
                   Submit your first request
                 </button>
               </div>
@@ -411,9 +606,7 @@ export default function RequestAcquisition() {
                         <p className="text-[#001254] font-semibold text-sm truncate">{req.equipment_name}</p>
                         <p className="text-[#001254]/40 text-xs font-mono mt-0.5">{req.equipment_id}</p>
                         <p className="text-[#001254]/40 text-xs font-mono mt-0.5">REQ-{String(req.request_id).padStart(4, '0')}</p>
-                        <p className="text-[#001254]/45 text-xs mt-0.5">
-                          {req.department} · Qty {req.quantity}
-                        </p>
+                        <p className="text-[#001254]/45 text-xs mt-0.5">{req.department} · Qty {req.quantity}</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${URGENCY_COLORS[req.urgency]}`}>
@@ -424,16 +617,13 @@ export default function RequestAcquisition() {
                         </span>
                       </div>
                     </div>
-
                     <p className="text-[#001254]/60 text-xs leading-relaxed">{req.reason}</p>
-
                     {req.admin_notes && (
                       <div className="bg-[#EFEFE9]/80 rounded-lg px-3 py-2">
                         <p className="text-[#001254]/40 text-xs font-medium uppercase tracking-wide mb-0.5">Admin Notes</p>
                         <p className="text-[#001254]/70 text-xs">{req.admin_notes}</p>
                       </div>
                     )}
-
                     <p className="text-[#001254]/30 text-xs">
                       Submitted {new Date(req.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                     </p>

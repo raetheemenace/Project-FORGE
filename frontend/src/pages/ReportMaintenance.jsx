@@ -34,6 +34,7 @@ export default function ReportMaintenance() {
 
   // Form state
   const [equipmentId, setEquipmentId] = useState('');
+  const [equipmentName, setEquipmentName] = useState('');
   const [severity, setSeverity] = useState('');
   const [description, setDescription] = useState('');
   const [errors, setErrors] = useState({});
@@ -43,17 +44,28 @@ export default function ReportMaintenance() {
   const [scanError, setScanError] = useState('');
   const scanTimeoutRef = useRef(null);
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
   // useQRScanner captures callbacks via refs internally — no circular dep issue
   const { startScanner, stopScanner } = useQRScanner(
     useCallback((scannedId) => {
-      setEquipmentId(scannedId);
+      // Auto-close scanner
+      stopScanner();
       setScanning(false);
       setScanError('');
+      setEquipmentId(scannedId);
       setErrors((prev) => ({ ...prev, equipmentId: '' }));
       if (scanTimeoutRef.current) {
         clearTimeout(scanTimeoutRef.current);
         scanTimeoutRef.current = null;
       }
+      // Fetch equipment name
+      const token = localStorage.getItem('token');
+      axios.get(`${API_URL}/equipment/${scannedId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => setEquipmentName(res.data.name || scannedId))
+        .catch(() => setEquipmentName(scannedId));
     }, []),
     useCallback((error) => {
       setScanError(error);
@@ -470,42 +482,59 @@ export default function ReportMaintenance() {
                   </div>
                 </div>
               ) : (
-                <>
-                  <div className="w-16 h-[72px] rounded-xl flex items-center justify-center bg-[#001254]/6">
-                    <QrCode className="w-8 h-8 text-[#001254]/40" />
+                <div className="w-full px-2 py-2 space-y-3">
+                  {/* Icon + prompt */}
+                  <div className="flex flex-col items-center gap-2 py-4">
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center bg-[#001254]/6">
+                      <QrCode className="w-8 h-8 text-[#001254]/40" />
+                    </div>
+                    <p className="text-sm font-medium text-[#001254]/60 text-center">
+                      Identify equipment to report
+                    </p>
+                    <p className="text-xs text-[#001254]/35 text-center max-w-[220px]">
+                      Scan the QR code on the equipment or take a photo
+                    </p>
                   </div>
-                  <p className="text-xs text-[#001254]/45 text-center max-w-[200px]">
-                    Point camera at equipment QR code
-                  </p>
-                  
-                  {/* Scan error message (req 10.8) */}
+
+                  {/* Scan error */}
                   {scanError && (
                     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
                       <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                       {scanError}
                     </div>
                   )}
-                  
-                  <div className="flex gap-2">
+
+                  {/* Action cards */}
+                  <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
                       onClick={handleStartScan}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#0B4EA2] text-white text-xs font-semibold hover:bg-[#0a3f8a] transition-all active:scale-[0.97]"
+                      className="flex flex-col items-center gap-2.5 p-4 rounded-xl bg-[#0B4EA2] text-white hover:bg-[#0a3f8a] active:scale-[0.97] transition-all shadow-md shadow-[#0B4EA2]/20"
                     >
-                      <QrCode className="w-4 h-4" />
-                      Scan QR Code
+                      <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+                        <QrCode className="w-5 h-5" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-semibold">Scan QR Code</p>
+                        <p className="text-white/60 mt-0.5" style={{ fontSize: '0.65rem' }}>Point at equipment tag</p>
+                      </div>
                     </button>
+
                     <button
                       type="button"
                       onClick={startCamera}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#001254]/10 text-[#001254]/70 text-xs font-semibold hover:bg-[#001254]/15 transition-all active:scale-[0.97]"
-                      aria-label="Take photo"
+                      className="flex flex-col items-center gap-2.5 p-4 rounded-xl bg-white border-2 border-[#001254]/10 text-[#001254] hover:border-[#0B4EA2]/30 hover:bg-[#F2F0DB]/30 active:scale-[0.97] transition-all"
                     >
-                      <Camera className="w-4 h-4" />
-                      Take Photo
+                      <div className="w-10 h-10 rounded-xl bg-[#001254]/6 flex items-center justify-center">
+                        <Camera className="w-5 h-5 text-[#001254]/60" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs font-semibold text-[#001254]/80">Take Photo</p>
+                        <p className="text-[#001254]/40 mt-0.5" style={{ fontSize: '0.65rem' }}>Capture equipment</p>
+                      </div>
                     </button>
                   </div>
-                </>
+                </div>
               )}
             </div>
 
@@ -522,9 +551,15 @@ export default function ReportMaintenance() {
                 type="text"
                 placeholder="e.g. EQ-7167"
                 value={equipmentId}
-                onChange={(e) => setEquipmentId(e.target.value)}
+                onChange={(e) => { setEquipmentId(e.target.value); setEquipmentName(''); }}
                 className="w-full px-4 py-3 rounded-xl border border-[#001254]/15 text-sm text-[#001254] bg-white outline-none focus:ring-2 focus:ring-[#0B4EA2]/20 focus:border-[#0B4EA2]/50 transition-colors"
               />
+              {equipmentName && (
+                <div className="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  <p className="text-emerald-700 text-xs font-medium">{equipmentName}</p>
+                </div>
+              )}
             </div>
           </motion.div>
 
