@@ -5,8 +5,10 @@ import axios from 'axios';
 import {
   ArrowLeft, ShoppingCart, Plus, CheckCircle2, AlertTriangle,
   Loader2, Clock, LayoutDashboard, TrendingUp, Zap, Trash2, ChevronDown,
+  Mic, MicOff,
 } from 'lucide-react';
 import logo from '../assets/logo_landingpage.png';
+import { useSTT } from '../hooks/useSTT';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -62,6 +64,9 @@ export default function RequestAcquisition() {
   const [requests, setRequests] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
+
+  // STT for reason field
+  const { sttActive, listen, stop: stopSTT, error: sttError } = useSTT();
 
   // High-demand equipment
   const [highDemand, setHighDemand] = useState([]);
@@ -495,16 +500,43 @@ export default function RequestAcquisition() {
 
                 {/* Reason */}
                 <div>
-                  <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
-                    Reason / Justification <span className="text-red-400">*</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-medium text-[#001254]/60 uppercase tracking-wide">
+                      Reason / Justification <span className="text-red-400">*</span>
+                    </label>
+                    {!sttActive ? (
+                      <button
+                        type="button"
+                        onClick={() => listen((text) => {
+                          setReason((prev) => prev ? `${prev} ${text}` : text);
+                          setErrors((p) => { const n = { ...p }; delete n.reason; return n; });
+                        })}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#001254]/6 text-[#001254]/60 hover:bg-[#001254]/10 transition-all"
+                        aria-label="Start voice input"
+                      >
+                        <Mic className="w-3.5 h-3.5" />
+                        Speak
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={stopSTT}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200 hover:bg-emerald-200 transition-all"
+                        aria-label="Done speaking"
+                      >
+                        <MicOff className="w-3.5 h-3.5" />
+                        Done Speaking
+                      </button>
+                    )}
+                  </div>
                   <textarea
                     rows={4}
                     value={reason}
                     onChange={(e) => { setReason(e.target.value); setErrors((p) => { const n = { ...p }; delete n.reason; return n; }); }}
-                    placeholder="Describe why this equipment is needed, for which course or experiment, and any relevant context…"
+                    placeholder="Describe why this equipment is needed, for which course or experiment, and any relevant context… or tap Speak"
                     className={`${sharedInputClass('reason')} resize-none`}
                   />
+                  {sttError && <p className="mt-1 text-xs text-amber-600">{sttError}</p>}
                   {errors.reason && <p className="mt-1 text-xs text-red-500">{errors.reason}</p>}
                 </div>
               </div>
