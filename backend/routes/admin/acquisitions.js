@@ -58,17 +58,32 @@ router.patch('/requests/:id', authenticateToken, requireRole('LAB_ADMIN'), async
     return res.status(400).json({ error: `Status must be one of: ${VALID.join(', ')}.` });
   }
 
+  const STATUS_MESSAGES = {
+    APPROVED:  (name) => `Your equipment request for "${name}" has been approved.`,
+    REJECTED:  (name) => `Your equipment request for "${name}" has been rejected.`,
+    FULFILLED: (name) => `Your equipment request for "${name}" has been fulfilled. The equipment is ready.`,
+    PENDING:   (name) => `Your equipment request for "${name}" is pending review.`,
+  };
+
   try {
     const result = await db.query(
       `UPDATE forge_acquisition_requests
        SET status = $1, admin_notes = $2, updated_at = NOW()
        WHERE request_id = $3
-       RETURNING request_id`,
+       RETURNING request_id, user_id, equipment_name`,
       [status, admin_notes || null, id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Request not found.' });
     }
+
+    const { user_id, equipment_name } = result.rows[0];
+    const message = STATUS_MESSAGES[status](equipment_name);
+    await db.query(
+      `INSERT INTO forge_notifications (user_id, type, message) VALUES ($1, 'ACQUISITION', $2)`,
+      [user_id, message]
+    );
+
     return res.json({ message: 'Request updated.' });
   } catch (err) {
     console.error('Admin update request error:', err);

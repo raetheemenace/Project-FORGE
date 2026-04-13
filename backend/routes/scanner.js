@@ -26,7 +26,7 @@ router.post('/identify', authenticateToken, async (req, res) => {
   let catalogRows = [];
   try {
     const catalogResult = await db.query(
-      'SELECT equipment_id, name, department FROM forge_equipment WHERE status = \'AVAILABLE\' ORDER BY equipment_id'
+      'SELECT equipment_id, name, status, department FROM forge_equipment WHERE status != \'DISPOSED\' ORDER BY equipment_id'
     );
     catalogRows = catalogResult.rows;
   } catch {
@@ -41,16 +41,16 @@ router.post('/identify', authenticateToken, async (req, res) => {
 
   // Step 2 — Inject catalog into prompt
   const catalogList = catalogRows.length > 0
-    ? catalogRows.map((r, i) => `${i + 1}. ${r.equipment_id} — ${r.name} (${r.department})`).join('\n')
-    : '(no equipment available)';
+    ? catalogRows.map((r, i) => `${i + 1}. ${r.equipment_id} — ${r.name} [${r.status}] (${r.department})`).join('\n')
+    : '(no equipment registered)';
 
   const prompt = `You are a laboratory equipment identification assistant.
 Analyze the image and identify the lab equipment shown.
 
-Here is the list of registered AVAILABLE equipment in the system:
+Here is the list of all registered equipment in the system (including items currently under maintenance or otherwise unavailable):
 ${catalogList}
 
-Match the equipment in the image against this list. Return the exact equipment_id from the list above if you find a match, or null if none match.
+Match the equipment in the image against this list. Return the exact equipment_id from the list above if you find a match, or null if none match. You should identify the equipment regardless of its current availability status.
 Respond ONLY with a JSON object in this exact format (no markdown, no extra text):
 {
   "name": "<equipment name>",
@@ -61,7 +61,7 @@ Respond ONLY with a JSON object in this exact format (no markdown, no extra text
 If you cannot identify any lab equipment, set name to "Unknown Equipment", condition to "Fair", confidence to 0, and equipmentId to null.`;
 
   const bedrockInput = {
-    modelId: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0',
+    modelId: process.env.BEDROCK_MODEL_ID || 'apac.anthropic.claude-3-haiku-20240307-v1:0',
     contentType: 'application/json',
     accept: 'application/json',
     body: JSON.stringify({
@@ -95,14 +95,19 @@ If you cannot identify any lab equipment, set name to "Unknown Equipment", condi
     bedrockRaw = JSON.parse(new TextDecoder().decode(response.body));
     const text = bedrockRaw.content?.[0]?.text ?? '';
 
+    // Extract JSON — Bedrock sometimes wraps output in markdown code fences
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonText = jsonMatch ? jsonMatch[0] : text;
+
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(jsonText);
     } catch {
       // Bedrock returned non-JSON — treat as unidentified
+      console.warn('Bedrock non-JSON response:', text);
       parsed = { name: 'Unknown Equipment', condition: 'Fair', confidence: 0, equipmentId: null };
     }
   } catch (bedrockErr) {
-    console.error('Bedrock error:', bedrockErr);
+    console.error('Bedrock error:', bedrockErr.name, bedrockErr.message);
     
     // Handle specific AWS errors
     let errorMessage = 'AI Scanner is temporarily unavailable. Please retry.';
@@ -112,14 +117,20 @@ If you cannot identify any lab equipment, set name to "Unknown Equipment", condi
       errorMessage = 'Too many scan requests. Please wait 30 seconds and try again.';
       statusCode = 429;
     } else if (bedrockErr.name === 'ValidationException') {
-      errorMessage = 'Invalid image format. Please try a different image.';
+      errorMessage = `Invalid image or request: ${bedrockErr.message}`;
       statusCode = 400;
+    } else if (bedrockErr.name === 'AccessDeniedException') {
+      errorMessage = 'Bedrock model access denied. Check model access in AWS console.';
+      statusCode = 403;
+    } else if (bedrockErr.name === 'ResourceNotFoundException') {
+      errorMessage = 'Bedrock model not found. Check BEDROCK_MODEL_ID configuration.';
+      statusCode = 404;
     }
     
     // Log the failed attempt
     await logScan({ 
       userId, 
-      bedrockResponse: JSON.stringify({ error: bedrockErr.message }), 
+      bedrockResponse: JSON.stringify({ error: bedrockErr.message, name: bedrockErr.name }), 
       predictedName: null, 
       confidenceScore: 0, 
       equipmentId: null 
@@ -145,7 +156,7 @@ If you cannot identify any lab equipment, set name to "Unknown Equipment", condi
     try {
       const nameMatch = await db.query(
         `SELECT equipment_id FROM forge_equipment
-         WHERE status = 'AVAILABLE'
+         WHERE status != 'DISPOSED'
            AND LOWER(name) LIKE LOWER($1)
          LIMIT 1`,
         [`%${parsed.name}%`]
@@ -174,7 +185,48 @@ If you cannot identify any lab equipment, set name to "Unknown Equipment", condi
   });
 });
 
-async function logScan({ userId, bedrockResponse, predictedName, confidenceScore, equipmentId }) {
+/**
+ * GET /api/scanner/debug
+ * Returns the current Bedrock model ID and AWS region being used.
+ * Useful for verifying configuration without making a Bedrock call.
+ */
+router.get('/debug', authenticateToken, async (req, res) => {
+  const modelId = process.env.BEDROCK_MODEL_ID || 'apac.anthropic.claude-3-haiku-20240307-v1:0';
+  const region = process.env.AWS_REGION || '(not set)';
+
+  // Try a minimal Bedrock call with a text-only message to verify connectivity
+  try {
+    const testInput = {
+      modelId,
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: JSON.stringify({
+        anthropic_version: 'bedrock-2023-05-31',
+        max_tokens: 10,
+        messages: [{ role: 'user', content: 'Say OK' }],
+      }),
+    };
+    const command = new InvokeModelCommand(testInput);
+    const response = await bedrock.send(command);
+    const result = JSON.parse(new TextDecoder().decode(response.body));
+    return res.json({
+      status: 'ok',
+      modelId,
+      region,
+      bedrockResponse: result.content?.[0]?.text ?? '(empty)',
+    });
+  } catch (err) {
+    return res.status(500).json({
+      status: 'error',
+      modelId,
+      region,
+      errorName: err.name,
+      errorMessage: err.message,
+    });
+  }
+});
+
+({ userId, bedrockResponse, predictedName, confidenceScore, equipmentId }) {
   try {
     await db.query(
       `INSERT INTO forge_scan_log (user_id, equipment_id, bedrock_response, predicted_name, confidence_score)

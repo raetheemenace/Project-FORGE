@@ -556,3 +556,151 @@ describe('Fix 4 — qr-scanner-container has min-h-[300px] (fix check)', () => {
     expect(/min-h-\[300px\]/.test(divTag)).toBe(true);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// scanner-and-system-debug Fix-Checking Tests
+// These tests MUST PASS on fixed code — they verify the scanner and API_BASE
+// bugs have been corrected.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// 5.1 — API_BASE fallback in BorrowStep3.jsx ends with /api
+describe('Fix 5.1 — API_BASE fallback in BorrowStep3.jsx ends with /api', () => {
+  /**
+   * Validates: Requirements 2.1, 2.2, 2.3
+   *
+   * Verifies that the fixed BorrowStep3.jsx defines API_BASE with a fallback
+   * that ends with '/api', matching the pattern used by all other pages.
+   */
+  it('API_BASE fallback string ends with /api', () => {
+    const filePath = resolve(__dirname, '../pages/borrow/BorrowStep3.jsx');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // Extract the API_BASE constant definition line
+    const apiBaseMatch = source.match(/const API_BASE\s*=\s*[^\n]+/);
+    expect(apiBaseMatch).not.toBeNull();
+    const apiBaseLine = apiBaseMatch[0];
+
+    // The fallback value (after '||') must end with '/api'
+    const fallbackMatch = apiBaseLine.match(/\|\|\s*['"]([^'"]+)['"]/);
+    expect(fallbackMatch).not.toBeNull();
+    const fallback = fallbackMatch[1];
+    expect(fallback.endsWith('/api')).toBe(true);
+  });
+});
+
+// 5.2 — API_BASE fallback in BorrowStep4.jsx ends with /api
+describe('Fix 5.2 — API_BASE fallback in BorrowStep4.jsx ends with /api', () => {
+  /**
+   * Validates: Requirements 2.1, 2.2, 2.3
+   *
+   * Verifies that the fixed BorrowStep4.jsx defines API_BASE with a fallback
+   * that ends with '/api', matching the pattern used by all other pages.
+   */
+  it('API_BASE fallback string ends with /api', () => {
+    const filePath = resolve(__dirname, '../pages/borrow/BorrowStep4.jsx');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // Extract the API_BASE constant definition line
+    const apiBaseMatch = source.match(/const API_BASE\s*=\s*[^\n]+/);
+    expect(apiBaseMatch).not.toBeNull();
+    const apiBaseLine = apiBaseMatch[0];
+
+    // The fallback value (after '||') must end with '/api'
+    const fallbackMatch = apiBaseLine.match(/\|\|\s*['"]([^'"]+)['"]/);
+    expect(fallbackMatch).not.toBeNull();
+    const fallback = fallbackMatch[1];
+    expect(fallback.endsWith('/api')).toBe(true);
+  });
+});
+
+// 5.3 — scanner.js Step 1 catalog query uses status != 'DISPOSED'
+describe("Fix 5.3 — scanner.js catalog query uses status != 'DISPOSED'", () => {
+  /**
+   * Validates: Requirements 2.4
+   *
+   * Verifies that the fixed scanner.js Step 1 catalog query includes all
+   * non-DISPOSED equipment (not just AVAILABLE), so the Bedrock AI can
+   * identify equipment regardless of its current availability status.
+   */
+
+  let scannerSource;
+
+  beforeAll(() => {
+    const filePath = resolve(__dirname, '..', '..', '..', 'backend/routes/scanner.js');
+    scannerSource = readFileSync(filePath, 'utf-8');
+  });
+
+  it("Step 1 catalog query contains status != 'DISPOSED'", () => {
+    // The catalog query (Step 1) must filter by status != 'DISPOSED'
+    expect(/status\s*!=\s*'DISPOSED'/.test(scannerSource)).toBe(true);
+  });
+
+  it("Step 1 catalog query does NOT contain status = 'AVAILABLE'", () => {
+    // Extract the Step 1 catalog query block (before the Bedrock call)
+    const step1Marker = 'Step 1';
+    const step1Idx = scannerSource.indexOf(step1Marker);
+    expect(step1Idx).not.toBe(-1);
+
+    // Find the db.query call after Step 1 comment
+    const dbQueryIdx = scannerSource.indexOf('db.query(', step1Idx);
+    expect(dbQueryIdx).not.toBe(-1);
+
+    // Extract the query string up to the next db.query call (Step 3)
+    const step3Idx = scannerSource.indexOf('db.query(', dbQueryIdx + 1);
+    const catalogQueryBlock = step3Idx !== -1
+      ? scannerSource.slice(dbQueryIdx, step3Idx)
+      : scannerSource.slice(dbQueryIdx, dbQueryIdx + 500);
+
+    // The catalog query must NOT use status = 'AVAILABLE' as the filter
+    expect(/status\s*=\s*'AVAILABLE'/.test(catalogQueryBlock)).toBe(false);
+  });
+});
+
+// 5.4 — scanner.js Step 4 name-match fallback uses status != 'DISPOSED'
+describe("Fix 5.4 — scanner.js name-match fallback uses status != 'DISPOSED'", () => {
+  /**
+   * Validates: Requirements 2.4
+   *
+   * Verifies that the fixed scanner.js Step 4 name-match fallback also uses
+   * status != 'DISPOSED' so equipment in MAINTENANCE can be resolved by name.
+   */
+
+  let scannerSource;
+
+  beforeAll(() => {
+    const filePath = resolve(__dirname, '..', '..', '..', 'backend/routes/scanner.js');
+    scannerSource = readFileSync(filePath, 'utf-8');
+  });
+
+  it("Step 4 name-match fallback contains status != 'DISPOSED'", () => {
+    // Locate the Step 4 name-match fallback block
+    const step4Marker = 'Step 4';
+    const step4Idx = scannerSource.indexOf(step4Marker);
+    expect(step4Idx).not.toBe(-1);
+
+    // Extract from Step 4 to the end of the route handler (logScan call)
+    const logScanIdx = scannerSource.indexOf('logScan({', step4Idx);
+    const nameMatchBlock = logScanIdx !== -1
+      ? scannerSource.slice(step4Idx, logScanIdx)
+      : scannerSource.slice(step4Idx, step4Idx + 500);
+
+    // The name-match query must filter by status != 'DISPOSED'
+    expect(/status\s*!=\s*'DISPOSED'/.test(nameMatchBlock)).toBe(true);
+  });
+
+  it("Step 4 name-match fallback does NOT contain status = 'AVAILABLE'", () => {
+    // Locate the Step 4 name-match fallback block
+    const step4Marker = 'Step 4';
+    const step4Idx = scannerSource.indexOf(step4Marker);
+    expect(step4Idx).not.toBe(-1);
+
+    // Extract from Step 4 to the logScan call
+    const logScanIdx = scannerSource.indexOf('logScan({', step4Idx);
+    const nameMatchBlock = logScanIdx !== -1
+      ? scannerSource.slice(step4Idx, logScanIdx)
+      : scannerSource.slice(step4Idx, step4Idx + 500);
+
+    // The name-match query must NOT use status = 'AVAILABLE'
+    expect(/status\s*=\s*'AVAILABLE'/.test(nameMatchBlock)).toBe(false);
+  });
+});

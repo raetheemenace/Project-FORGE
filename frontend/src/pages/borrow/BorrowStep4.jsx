@@ -14,7 +14,7 @@ import TTSToggle from '../../components/ui/TTSToggle';
 const TOTAL_STEPS = 4;
 const CURRENT_STEP = 4;
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const CONDITION_COLORS = {
   Excellent: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -92,7 +92,7 @@ export default function BorrowStep4() {
     try {
       const token = localStorage.getItem('token');
       const { data } = await axios.post(
-        `${API_BASE}/api/transactions`,
+        `${API_BASE}/transactions`,
         {
           department,
           course,

@@ -8,6 +8,7 @@ CREATE TABLE forge_users (
     username      VARCHAR(100) UNIQUE,      -- Optional (for backward compatibility)
     password_hash VARCHAR(255),             -- Optional (for backward compatibility)
     full_name     VARCHAR(200) NOT NULL,
+    tip_email     VARCHAR(200) UNIQUE,
     program       VARCHAR(200),
     role          VARCHAR(20) DEFAULT 'STUDENT' CHECK (role IN ('STUDENT', 'LAB_ADMIN')),
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -179,3 +180,7 @@ CREATE TABLE forge_acquisition_requests (
 CREATE INDEX idx_acq_requests_user ON forge_acquisition_requests(user_id);
 CREATE INDEX idx_acq_requests_status ON forge_acquisition_requests(status);
 CREATE INDEX idx_acq_requests_created ON forge_acquisition_requests(created_at DESC);
+
+ALTER TABLE forge_users ADD COLUMN IF NOT EXISTS tip_email VARCHAR(200) UNIQUE;
+
+

@@ -838,6 +838,46 @@ describe('QR Scanner Mobile Camera — Bug Condition Exploration', () => {
 });
 
 
+<<<<<<< HEAD
+// =============================================================================
+// Scanner and System Debug — Bug Condition Exploration Tests
+// Spec: .kiro/specs/scanner-and-system-debug/
+//
+// These 4 tests MUST FAIL on unfixed code — failure confirms the bugs exist.
+// DO NOT fix the code when these fail.
+//
+// Bug A: BorrowStep3.jsx API_BASE fallback missing /api suffix
+// Bug B: BorrowStep4.jsx API_BASE fallback missing /api suffix
+// Bug C: axios calls in BorrowStep3/4 contain doubled /api/api/ path
+// Bug D: scanner.js catalog query filters only AVAILABLE equipment
+// =============================================================================
+
+describe('Scanner Bug A — BorrowStep3.jsx API_BASE fallback ends with /api', () => {
+  /**
+   * Validates: Requirements 2.1, 2.2, 3.5
+   *
+   * EXPECTED TO FAIL on unfixed code because BorrowStep3.jsx defines:
+   *   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+   * The fallback does NOT end with /api, so local dev requests hit the wrong base.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected false to be true
+   *   (fallback is 'http://localhost:5000' — does not end with /api)
+   */
+  it('API_BASE fallback string ends with /api (i.e. http://localhost:5000/api)', () => {
+    const filePath = resolve(__dirname, '../pages/borrow/BorrowStep3.jsx');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // Extract the API_BASE constant definition line
+    const apiBaseMatch = source.match(/const\s+API_BASE\s*=\s*import\.meta\.env\.VITE_API_URL\s*\|\|\s*['"]([^'"]+)['"]/);
+    expect(apiBaseMatch).not.toBeNull();
+
+    const fallback = apiBaseMatch[1];
+
+    // ASSERTION: fallback must end with /api
+    // On UNFIXED code: fallback is 'http://localhost:5000' → FAILS
+    expect(fallback.endsWith('/api')).toBe(true);
+=======
 // ─────────────────────────────────────────────────────────────────────────────
 // Notifications & Quantity Bugs — Bug Condition Exploration Tests (Task 1)
 // Validates: Requirements 1.1, 1.2, 1.3, 1.4
@@ -1116,10 +1156,38 @@ describe('Test 1c — LogUpdated: audio chime plays on mount', () => {
     expect(audioFeedbackTriggered).toBe(true);
 
     vi.unstubAllGlobals();
+>>>>>>> f175e4e23c6295c8544a55b7dc8952cd79d86ff0
   });
 });
 
 
+<<<<<<< HEAD
+describe('Scanner Bug B — BorrowStep4.jsx API_BASE fallback ends with /api', () => {
+  /**
+   * Validates: Requirements 2.3, 3.5
+   *
+   * EXPECTED TO FAIL on unfixed code because BorrowStep4.jsx defines:
+   *   const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+   * The fallback does NOT end with /api.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected false to be true
+   *   (fallback is 'http://localhost:5000' — does not end with /api)
+   */
+  it('API_BASE fallback string ends with /api (i.e. http://localhost:5000/api)', () => {
+    const filePath = resolve(__dirname, '../pages/borrow/BorrowStep4.jsx');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // Extract the API_BASE constant definition line
+    const apiBaseMatch = source.match(/const\s+API_BASE\s*=\s*import\.meta\.env\.VITE_API_URL\s*\|\|\s*['"]([^'"]+)['"]/);
+    expect(apiBaseMatch).not.toBeNull();
+
+    const fallback = apiBaseMatch[1];
+
+    // ASSERTION: fallback must end with /api
+    // On UNFIXED code: fallback is 'http://localhost:5000' → FAILS
+    expect(fallback.endsWith('/api')).toBe(true);
+=======
 // ── Test 1d — LogUpdated toast ────────────────────────────────────────────────
 describe('Test 1d — LogUpdated: "Request Submitted" toast is present in DOM', () => {
   /**
@@ -1166,10 +1234,49 @@ describe('Test 1d — LogUpdated: "Request Submitted" toast is present in DOM', 
     expect(toastElement).not.toBeNull();
 
     vi.unstubAllGlobals();
+>>>>>>> f175e4e23c6295c8544a55b7dc8952cd79d86ff0
   });
 });
 
 
+<<<<<<< HEAD
+describe('Scanner Bug C — No doubled /api/api/ path in BorrowStep3.jsx or BorrowStep4.jsx axios calls', () => {
+  /**
+   * Validates: Requirements 2.1, 2.2, 2.3
+   *
+   * EXPECTED TO FAIL on unfixed code because axios calls in both files use:
+   *   `${API_BASE}/api/scanner/identify`
+   *   `${API_BASE}/api/equipment/${equipmentId}`
+   *   `${API_BASE}/api/transactions`
+   * When VITE_API_URL ends in /api (production), these produce /api/api/... paths.
+   *
+   * The test asserts that no axios call path (the string literal after the
+   * template variable) starts with /api/ — which would double the prefix.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected true to be false
+   *   (source contains `${API_BASE}/api/` — doubled path present)
+   */
+  it('BorrowStep3.jsx contains no axios call path starting with /api/ after the template variable', () => {
+    const filePath = resolve(__dirname, '../pages/borrow/BorrowStep3.jsx');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // ASSERTION: no occurrence of `${API_BASE}/api/` in the source
+    // This pattern produces /api/api/... in production where VITE_API_URL ends in /api
+    // On UNFIXED code: `${API_BASE}/api/scanner/identify` and `${API_BASE}/api/equipment/` exist → FAILS
+    const hasDoubledPath = source.includes('${API_BASE}/api/');
+    expect(hasDoubledPath).toBe(false);
+  });
+
+  it('BorrowStep4.jsx contains no axios call path starting with /api/ after the template variable', () => {
+    const filePath = resolve(__dirname, '../pages/borrow/BorrowStep4.jsx');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // ASSERTION: no occurrence of `${API_BASE}/api/` in the source
+    // On UNFIXED code: `${API_BASE}/api/transactions` exists → FAILS
+    const hasDoubledPath = source.includes('${API_BASE}/api/');
+    expect(hasDoubledPath).toBe(false);
+=======
 // ── Test 1e — Admin equipment counts ─────────────────────────────────────────
 describe('Test 1e — EquipmentManagement: availableUnits/totalUnits rendered in table', () => {
   /**
@@ -1233,10 +1340,129 @@ describe('Test 1e — EquipmentManagement: availableUnits/totalUnits rendered in
     // On UNFIXED code this FAILS — no availableUnits/totalUnits column exists
     const quantityText = screen.queryByText(/3\s*\/\s*5/);
     expect(quantityText).not.toBeNull();
+>>>>>>> f175e4e23c6295c8544a55b7dc8952cd79d86ff0
   });
 });
 
 
+<<<<<<< HEAD
+describe('Scanner Bug D — scanner.js catalog query does not use status = \'AVAILABLE\' as sole filter', () => {
+  /**
+   * Validates: Requirements 2.4
+   *
+   * EXPECTED TO FAIL on unfixed code because scanner.js Step 1 catalog query uses:
+   *   WHERE status = 'AVAILABLE'
+   * and the Step 4 name-match fallback also uses:
+   *   WHERE status = 'AVAILABLE'
+   * This excludes MAINTENANCE and other non-DISPOSED equipment from the AI catalog.
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected true to be false
+   *   (catalog query contains "status = 'AVAILABLE'" — overly restrictive filter)
+   */
+  it('Step 1 catalog query does NOT contain status = \'AVAILABLE\'', () => {
+    const filePath = resolve(__dirname, '..', '..', '..', 'backend/routes/scanner.js');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // Find the Step 1 catalog query block
+    const step1Marker = source.indexOf('Step 1');
+    expect(step1Marker).not.toBe(-1);
+
+    // Extract a window of source around Step 1 (up to Step 2 marker)
+    const step2Marker = source.indexOf('Step 2', step1Marker);
+    const catalogSection = step2Marker !== -1
+      ? source.slice(step1Marker, step2Marker)
+      : source.slice(step1Marker, step1Marker + 500);
+
+    // ASSERTION: catalog query must NOT filter by status = 'AVAILABLE'
+    // On UNFIXED code: WHERE status = 'AVAILABLE' is present → FAILS
+    const hasAvailableOnlyFilter = /status\s*=\s*'AVAILABLE'/.test(catalogSection);
+    expect(hasAvailableOnlyFilter).toBe(false);
+  });
+
+  it('Step 4 name-match fallback does NOT contain status = \'AVAILABLE\'', () => {
+    const filePath = resolve(__dirname, '..', '..', '..', 'backend/routes/scanner.js');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // Find the Step 4 name-match fallback block
+    const step4Marker = source.indexOf('Step 4');
+    expect(step4Marker).not.toBe(-1);
+
+    // Extract a window of source from Step 4 to end of file (or next major block)
+    const nameMatchSection = source.slice(step4Marker, step4Marker + 600);
+
+    // ASSERTION: name-match fallback must NOT filter by status = 'AVAILABLE'
+    // On UNFIXED code: WHERE status = 'AVAILABLE' is present → FAILS
+    const hasAvailableOnlyFilter = /status\s*=\s*'AVAILABLE'/.test(nameMatchSection);
+    expect(hasAvailableOnlyFilter).toBe(false);
+  });
+});
+
+
+// =============================================================================
+// Transaction Oversight Department Filter — Bug Condition Exploration Test
+// Spec: .kiro/specs/transaction-oversight-department-filter/
+//
+// This test MUST FAIL on unfixed code — failure confirms the bug exists.
+// DO NOT fix the code when this fails.
+//
+// Bug: DEPARTMENTS constant contains 'Engineering' instead of the three full
+//      department names: 'Computer Engineering', 'Mechanical Engineering',
+//      'Electronics Engineering'. Selecting 'Engineering' from the dropdown
+//      returns zero results because the backend does an exact string match.
+// =============================================================================
+
+describe('Transaction Oversight Department Filter — Bug Condition: DEPARTMENTS contains generic "Engineering"', () => {
+  /**
+   * Validates: Requirements 1.1, 1.2
+   *
+   * EXPECTED TO FAIL on unfixed code because TransactionOversight.jsx defines:
+   *   const DEPARTMENTS = ['Chemistry', 'Physics', 'Engineering'];
+   * The generic 'Engineering' entry never matches any transaction in the DB,
+   * which stores full names like 'Computer Engineering', 'Mechanical Engineering',
+   * and 'Electronics Engineering'.
+   *
+   * isBugCondition: DEPARTMENTS.includes('Engineering') && !DEPARTMENTS.includes('Computer Engineering')
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected true to be false
+   *   (DEPARTMENTS contains 'Engineering' — the bug is present)
+   *   AssertionError: expected false to be true
+   *   (DEPARTMENTS does not contain 'Computer Engineering', 'Mechanical Engineering',
+   *    or 'Electronics Engineering')
+   */
+  it('DEPARTMENTS does NOT contain the standalone string "Engineering"', () => {
+    const filePath = resolve(__dirname, '../pages/admin/TransactionOversight.jsx');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // Extract the DEPARTMENTS constant array literal
+    const match = source.match(/const\s+DEPARTMENTS\s*=\s*(\[[^\]]*\])/);
+    expect(match).not.toBeNull();
+
+    // Parse the array entries by splitting on commas and cleaning up quotes/whitespace
+    const arrayLiteral = match[1];
+    const entries = arrayLiteral
+      .slice(1, -1) // remove [ and ]
+      .split(',')
+      .map((s) => s.trim().replace(/^['"]|['"]$/g, ''));
+
+    // ASSERTION 1: DEPARTMENTS must NOT contain the standalone 'Engineering' entry.
+    // On UNFIXED code: DEPARTMENTS = ['Chemistry', 'Physics', 'Engineering'] → FAILS
+    const containsGenericEngineering = entries.includes('Engineering');
+    expect(containsGenericEngineering).toBe(false);
+
+    // ASSERTION 2: DEPARTMENTS must contain 'Computer Engineering'.
+    // On UNFIXED code: absent → FAILS
+    expect(entries.includes('Computer Engineering')).toBe(true);
+
+    // ASSERTION 3: DEPARTMENTS must contain 'Mechanical Engineering'.
+    // On UNFIXED code: absent → FAILS
+    expect(entries.includes('Mechanical Engineering')).toBe(true);
+
+    // ASSERTION 4: DEPARTMENTS must contain 'Electronics Engineering'.
+    // On UNFIXED code: absent → FAILS
+    expect(entries.includes('Electronics Engineering')).toBe(true);
+=======
 // ── Test 1f — Dashboard quantity ──────────────────────────────────────────────
 describe('Test 1f — Dashboard: availableUnits/totalUnits rendered in high-demand panel', () => {
   /**
@@ -1294,5 +1520,6 @@ describe('Test 1f — Dashboard: availableUnits/totalUnits rendered in high-dema
     // On UNFIXED code this FAILS — availableUnits/totalUnits are never rendered
     const quantityText = screen.queryByText(/2\s*\/\s*5/);
     expect(quantityText).not.toBeNull();
+>>>>>>> f175e4e23c6295c8544a55b7dc8952cd79d86ff0
   });
 });

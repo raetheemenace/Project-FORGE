@@ -198,6 +198,31 @@ router.patch('/:id', authenticateToken, requireRole('LAB_ADMIN'), async (req, re
       [newStatus, newAssignedTo, newResolution, newPriority, resolvedAt, id]
     );
 
+    // Notify the student who filed the maintenance report
+    if (status && status !== ticket.status) {
+      const TICKET_MESSAGES = {
+        IN_PROGRESS: (eqId) => `Your maintenance report for equipment ${eqId} is now being worked on.`,
+        RESOLVED:    (eqId) => `Your maintenance report for equipment ${eqId} has been resolved.`,
+        CLOSED:      (eqId) => `Your maintenance ticket for equipment ${eqId} has been closed.`,
+      };
+      const msgFn = TICKET_MESSAGES[newStatus];
+      if (msgFn) {
+        const reportRow = await client.query(
+          `SELECT m.user_id, m.equipment_id FROM forge_maintenance m
+           JOIN forge_maintenance_tickets t ON t.report_id = m.report_id
+           WHERE t.ticket_id = $1`,
+          [id]
+        );
+        if (reportRow.rows.length > 0) {
+          const { user_id, equipment_id } = reportRow.rows[0];
+          await client.query(
+            `INSERT INTO forge_notifications (user_id, type, message) VALUES ($1, 'MAINTENANCE', $2)`,
+            [user_id, msgFn(equipment_id || 'unknown')]
+          );
+        }
+      }
+    }
+
     await logAdminAction(client, adminId, 'TICKET_UPDATED', id, {
       previousStatus: ticket.status, newStatus, assignedTo: newAssignedTo,
     });

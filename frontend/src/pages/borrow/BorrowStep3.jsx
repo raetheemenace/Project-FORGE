@@ -16,7 +16,7 @@ import TTSToggle from '../../components/ui/TTSToggle';
 const TOTAL_STEPS = 4;
 const CURRENT_STEP = 3;
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const CONDITION_COLORS = {
   Excellent: 'bg-emerald-100 text-emerald-700 border-emerald-200',
@@ -66,7 +66,7 @@ export default function BorrowStep3() {
     try {
       const token = localStorage.getItem('token');
       const { data } = await axios.get(
-        `${API_BASE}/api/equipment/${equipmentId}`,
+        `${API_BASE}/equipment/${equipmentId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const item = {
@@ -194,14 +194,20 @@ export default function BorrowStep3() {
     try {
       const canvas = canvasRef.current;
       const video = videoRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.getContext('2d').drawImage(video, 0, 0);
-      const imageBase64 = canvas.toDataURL('image/jpeg', 0.85);
+
+      // Resize to max 512px wide to keep payload under WAF body size limits
+      const MAX_WIDTH = 512;
+      const scale = Math.min(1, MAX_WIDTH / video.videoWidth);
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Use lower quality (0.6) to further reduce payload size
+      const imageBase64 = canvas.toDataURL('image/jpeg', 0.6);
 
       const token = localStorage.getItem('token');
       const { data } = await axios.post(
-        `${API_BASE}/api/scanner/identify`,
+        `${API_BASE}/scanner/identify`,
         { imageBase64, mediaType: 'image/jpeg' },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -210,9 +216,12 @@ export default function BorrowStep3() {
       // Announce result via TTS (req 6.8)
       speak(`Identified: ${data.name}. Condition: ${data.condition}. Tap Add to Cart to include this item.`);
     } catch (err) {
-      const msg =
-        err.response?.data?.error ?? 'Could not identify equipment. Please retry.';
-      setScanError(msg); // req 6.6
+      const status = err.response?.status;
+      const serverMsg = err.response?.data?.error;
+      const msg = serverMsg
+        ? `[${status}] ${serverMsg}`
+        : err.message ?? 'Could not identify equipment. Please retry.';
+      setScanError(msg);
       speak('Scanner error. ' + msg);
     } finally {
       setScanning(false);
