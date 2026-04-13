@@ -1000,3 +1000,70 @@ describe('Scanner Bug D — scanner.js catalog query does not use status = \'AVA
     expect(hasAvailableOnlyFilter).toBe(false);
   });
 });
+
+
+// =============================================================================
+// Transaction Oversight Department Filter — Bug Condition Exploration Test
+// Spec: .kiro/specs/transaction-oversight-department-filter/
+//
+// This test MUST FAIL on unfixed code — failure confirms the bug exists.
+// DO NOT fix the code when this fails.
+//
+// Bug: DEPARTMENTS constant contains 'Engineering' instead of the three full
+//      department names: 'Computer Engineering', 'Mechanical Engineering',
+//      'Electronics Engineering'. Selecting 'Engineering' from the dropdown
+//      returns zero results because the backend does an exact string match.
+// =============================================================================
+
+describe('Transaction Oversight Department Filter — Bug Condition: DEPARTMENTS contains generic "Engineering"', () => {
+  /**
+   * Validates: Requirements 1.1, 1.2
+   *
+   * EXPECTED TO FAIL on unfixed code because TransactionOversight.jsx defines:
+   *   const DEPARTMENTS = ['Chemistry', 'Physics', 'Engineering'];
+   * The generic 'Engineering' entry never matches any transaction in the DB,
+   * which stores full names like 'Computer Engineering', 'Mechanical Engineering',
+   * and 'Electronics Engineering'.
+   *
+   * isBugCondition: DEPARTMENTS.includes('Engineering') && !DEPARTMENTS.includes('Computer Engineering')
+   *
+   * FAILURE OUTPUT (unfixed):
+   *   AssertionError: expected true to be false
+   *   (DEPARTMENTS contains 'Engineering' — the bug is present)
+   *   AssertionError: expected false to be true
+   *   (DEPARTMENTS does not contain 'Computer Engineering', 'Mechanical Engineering',
+   *    or 'Electronics Engineering')
+   */
+  it('DEPARTMENTS does NOT contain the standalone string "Engineering"', () => {
+    const filePath = resolve(__dirname, '../pages/admin/TransactionOversight.jsx');
+    const source = readFileSync(filePath, 'utf-8');
+
+    // Extract the DEPARTMENTS constant array literal
+    const match = source.match(/const\s+DEPARTMENTS\s*=\s*(\[[^\]]*\])/);
+    expect(match).not.toBeNull();
+
+    // Parse the array entries by splitting on commas and cleaning up quotes/whitespace
+    const arrayLiteral = match[1];
+    const entries = arrayLiteral
+      .slice(1, -1) // remove [ and ]
+      .split(',')
+      .map((s) => s.trim().replace(/^['"]|['"]$/g, ''));
+
+    // ASSERTION 1: DEPARTMENTS must NOT contain the standalone 'Engineering' entry.
+    // On UNFIXED code: DEPARTMENTS = ['Chemistry', 'Physics', 'Engineering'] → FAILS
+    const containsGenericEngineering = entries.includes('Engineering');
+    expect(containsGenericEngineering).toBe(false);
+
+    // ASSERTION 2: DEPARTMENTS must contain 'Computer Engineering'.
+    // On UNFIXED code: absent → FAILS
+    expect(entries.includes('Computer Engineering')).toBe(true);
+
+    // ASSERTION 3: DEPARTMENTS must contain 'Mechanical Engineering'.
+    // On UNFIXED code: absent → FAILS
+    expect(entries.includes('Mechanical Engineering')).toBe(true);
+
+    // ASSERTION 4: DEPARTMENTS must contain 'Electronics Engineering'.
+    // On UNFIXED code: absent → FAILS
+    expect(entries.includes('Electronics Engineering')).toBe(true);
+  });
+});
