@@ -60,9 +60,19 @@ async function logAdminAction(dbClient, adminId, actionType, targetId, details) 
 router.get('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT equipment_id, name, department, s3_image_key, status
-       FROM forge_equipment
-       ORDER BY equipment_id ASC`
+      `SELECT
+         e.equipment_id,
+         e.name,
+         e.department,
+         e.s3_image_key,
+         e.status,
+         e.total_quantity AS "totalQuantity",
+         (
+           SELECT COUNT(*) FROM forge_equipment e2
+           WHERE e2.name = e.name AND e2.status = 'AVAILABLE'
+         )::int AS "availableUnits"
+       FROM forge_equipment e
+       ORDER BY e.equipment_id ASC`
     );
     return res.json({ equipment: result.rows });
   } catch (err) {
@@ -77,7 +87,7 @@ router.get('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) =>
 // ---------------------------------------------------------------------------
 
 router.post('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) => {
-  const { name, department, status, imageBase64, imageFilename } = req.body;
+  const { name, department, status, imageBase64, imageFilename, totalQuantity } = req.body;
 
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'Equipment name is required.' });
@@ -88,6 +98,7 @@ router.post('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) =
 
   const adminId = req.user.userId;
   const equipmentStatus = status || 'AVAILABLE';
+  const qty = totalQuantity && Number(totalQuantity) >= 1 ? Number(totalQuantity) : 1;
 
   let s3ImageKey = null;
 
@@ -142,9 +153,9 @@ router.post('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) =
     }
 
     await db.query(
-      `INSERT INTO forge_equipment (equipment_id, name, department, s3_image_key, status)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [equipmentId, name.trim(), department.trim(), s3ImageKey, equipmentStatus]
+      `INSERT INTO forge_equipment (equipment_id, name, department, s3_image_key, status, total_quantity)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [equipmentId, name.trim(), department.trim(), s3ImageKey, equipmentStatus, qty]
     );
 
     await logAdminAction(db, adminId, 'EQUIPMENT_CREATED', equipmentId, {
@@ -170,7 +181,7 @@ router.post('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) =
 
 router.put('/:id', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) => {
   const { id } = req.params;
-  const { name, department, status, imageBase64, imageFilename } = req.body;
+  const { name, department, status, imageBase64, imageFilename, totalQuantity } = req.body;
   const adminId = req.user.userId;
 
   try {
@@ -187,7 +198,12 @@ router.put('/:id', authenticateToken, requireRole('LAB_ADMIN'), async (req, res)
     const updatedName = name ? name.trim() : current.name;
     const updatedDept = department ? department.trim() : current.department;
     const updatedStatus = status || current.status;
+    const updatedQty = (totalQuantity !== undefined && totalQuantity !== null && Number(totalQuantity) >= 1)
+      ? Number(totalQuantity)
+      : (current.total_quantity || 1);
     let updatedS3Key = current.s3_image_key;
+
+    console.log(`[PUT /equipment/${id}] totalQuantity received:`, totalQuantity, '→ updatedQty:', updatedQty);
 
     // Upload new image if provided
     if (imageBase64 && imageFilename) {
@@ -213,10 +229,19 @@ router.put('/:id', authenticateToken, requireRole('LAB_ADMIN'), async (req, res)
 
     await db.query(
       `UPDATE forge_equipment
-       SET name = $1, department = $2, status = $3, s3_image_key = $4
-       WHERE equipment_id = $5`,
-      [updatedName, updatedDept, updatedStatus, updatedS3Key, id]
+       SET name = $1, department = $2, status = $3, s3_image_key = $4, total_quantity = $5
+       WHERE equipment_id = $6`,
+      [updatedName, updatedDept, updatedStatus, updatedS3Key, updatedQty, id]
     );
+
+    // Also propagate total_quantity to all rows sharing the same equipment name
+    // so the quantity is consistent across the whole group
+    if (updatedQty !== current.total_quantity) {
+      await db.query(
+        `UPDATE forge_equipment SET total_quantity = $1 WHERE name = $2`,
+        [updatedQty, updatedName]
+      );
+    }
 
     await logAdminAction(db, adminId, 'EQUIPMENT_UPDATED', id, {
       name: updatedName,

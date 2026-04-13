@@ -60,6 +60,12 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const ticketId = ticketResult.rows[0].ticket_id;
 
+    // Notify the student
+    await client.query(
+      `INSERT INTO forge_notifications (user_id, type, message) VALUES ($1, 'MAINTENANCE', $2)`,
+      [userId, `Your maintenance report (Report #${reportId}) for equipment ${equipmentId || 'N/A'} has been successfully submitted.`]
+    );
+
     await client.query('COMMIT');
 
     return res.status(201).json({ reportId, ticketId, message: 'Maintenance report submitted successfully.' });

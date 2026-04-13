@@ -61,6 +61,7 @@ function EquipmentForm({ initial, onSubmit, loading, submitLabel }) {
   const [name, setName] = useState(initial?.name || '');
   const [department, setDepartment] = useState(initial?.department || DEPARTMENTS[0]);
   const [status, setStatus] = useState(initial?.status || 'AVAILABLE');
+  const [totalQuantity, setTotalQuantity] = useState(initial?.totalQuantity ?? 1);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const fileRef = useRef();
@@ -83,7 +84,7 @@ function EquipmentForm({ initial, onSubmit, loading, submitLabel }) {
       imageBase64 = imagePreview.split(',')[1];
       imageFilename = imageFile.name;
     }
-    onSubmit({ name, department, status, imageBase64, imageFilename });
+    onSubmit({ name, department, status, totalQuantity: Number(totalQuantity), imageBase64, imageFilename });
   };
 
   return (
@@ -122,6 +123,21 @@ function EquipmentForm({ initial, onSubmit, loading, submitLabel }) {
         >
           {STATUSES.map((s) => <option key={s}>{s}</option>)}
         </select>
+      </div>
+
+      <div>
+        <label className="block text-[#001254]/60 mb-1" style={{ fontSize: '0.78rem' }}>Total Quantity</label>
+        <input
+          type="number"
+          min="1"
+          value={totalQuantity}
+          onChange={(e) => setTotalQuantity(Math.max(1, parseInt(e.target.value, 10) || 1))}
+          className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
+          style={{ fontSize: '0.88rem' }}
+        />
+        <p className="mt-1 text-[#001254]/35" style={{ fontSize: '0.72rem' }}>
+          Total stock count shown to students on the dashboard
+        </p>
       </div>
 
       <div>
@@ -521,7 +537,7 @@ export default function EquipmentManagement() {
                           <td className="px-5 py-3.5"><StatusBadge status={eq.status} /></td>
                           <td className="px-5 py-3.5">
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium bg-blue-50 text-blue-700 border-blue-200">
-                              {eq.availableUnits ?? '—'} / {eq.totalUnits ?? '—'}
+                              {eq.availableUnits ?? (eq.status === 'AVAILABLE' ? 1 : 0)} / {eq.totalQuantity ?? 1}
                             </span>
                           </td>
                           <td className="px-5 py-3.5">

@@ -25,7 +25,7 @@ router.post('/signup', async (req, res) => {
     }
 
     // Validate TIP email format
-    if (!/^m[a-zA-Z.]+@tip\.edu\.ph$/.test(tipEmail) || /\d/.test(tipEmail.split('@')[0])) {
+    if (!/^[mMqQ][a-zA-Z0-9._%+-]*@tip\.edu\.ph$/.test(tipEmail)) {
       return res.status(400).json({ error: 'Must be a valid TIP Email.' });
     }
 
@@ -91,12 +91,10 @@ router.post('/signin', async (req, res) => {
   const { tipEmail, studentId } = req.body;
 
   try {
-    // Validate required fields
     if (!tipEmail || !studentId) {
       return res.status(400).json({ error: 'TIP Email and Student ID are required' });
     }
 
-    // Find user by tipEmail and studentId
     const result = await db.query(
       `SELECT user_id, student_id, full_name, program, role
        FROM forge_users

@@ -42,14 +42,26 @@ router.post('/', authenticateToken, async (req, res) => {
       [txnId, userId, department, course, timeSlot, date, labRoom, adviser]
     );
 
-    // Insert each item
+    // Insert each item and mark equipment as BORROWED
     for (const item of items) {
       await client.query(
         `INSERT INTO forge_txn_items (txn_id, equipment_id, condition)
          VALUES ($1, $2, $3)`,
         [txnId, item.equipmentId || null, item.condition || null]
       );
+      if (item.equipmentId) {
+        await client.query(
+          `UPDATE forge_equipment SET status = 'BORROWED' WHERE equipment_id = $1`,
+          [item.equipmentId]
+        );
+      }
     }
+
+    // Notify the student
+    await client.query(
+      `INSERT INTO forge_notifications (user_id, type, message) VALUES ($1, 'BORROW', $2)`,
+      [userId, `Your borrowing transaction ${txnId} was successfully submitted. Present your Claim ID at the lab counter.`]
+    );
 
     // COMMIT
     await client.query('COMMIT');

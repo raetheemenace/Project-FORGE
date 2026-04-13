@@ -44,8 +44,16 @@ router.post('/request', authenticateToken, async (req, res) => {
        RETURNING request_id`,
       [userId, equipment_name.trim(), equipment_id.trim().toUpperCase(), department.trim(), Number(quantity), reason.trim(), urgency]
     );
+    const requestId = result.rows[0].request_id;
+
+    // Notify the student
+    await db.query(
+      `INSERT INTO forge_notifications (user_id, type, message) VALUES ($1, 'ACQUISITION', $2)`,
+      [userId, `Your equipment request for "${equipment_name.trim()}" (REQ-${String(requestId).padStart(4, '0')}) has been successfully submitted and is pending review.`]
+    );
+
     return res.status(201).json({
-      requestId: result.rows[0].request_id,
+      requestId,
       message: 'Acquisition request submitted successfully.',
     });
   } catch (err) {
