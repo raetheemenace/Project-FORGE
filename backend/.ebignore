@@ -6,3 +6,5 @@ vitest.config.js
 .git/
 .gitignore
 *.md
+__tests__/
+coverage/
