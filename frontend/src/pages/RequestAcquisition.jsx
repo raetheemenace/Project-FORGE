@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import logo from '../assets/logo_landingpage.png';
 import { useSTT } from '../hooks/useSTT';
+import { useHapticFeedback } from '../hooks/useHapticFeedback';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -67,6 +68,7 @@ export default function RequestAcquisition() {
 
   // STT for reason field
   const { sttActive, listen, stop: stopSTT, error: sttError } = useSTT();
+  const { triggerSuccess, unlockAudio } = useHapticFeedback();
 
   // High-demand equipment
   const [highDemand, setHighDemand] = useState([]);
@@ -152,6 +154,7 @@ export default function RequestAcquisition() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError('');
+    unlockAudio(); // pre-unlock inside user gesture
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
@@ -175,6 +178,7 @@ export default function RequestAcquisition() {
         )
       );
       setSubmitted(true);
+      triggerSuccess();
     } catch (err) {
       setSubmitError(err.response?.data?.error || 'Failed to submit request. Please try again.');
     } finally {

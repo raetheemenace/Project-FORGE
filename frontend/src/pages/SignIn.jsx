@@ -123,7 +123,7 @@ export default function SignIn() {
                 TIP Email
               </label>
               <input
-                type="email"
+                type="text"
                 name="tipEmail"
                 value={formData.tipEmail}
                 onChange={handleChange}
