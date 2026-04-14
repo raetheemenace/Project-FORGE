@@ -9,14 +9,31 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
  * @returns {Promise<object>} Response with token and user data
  */
 export async function signUp(userData) {
-  const response = await axios.post(`${API_URL}/auth/signup`, userData);
-  
-  if (response.data.token) {
-    localStorage.setItem('token', response.data.token);
-    localStorage.setItem('user', JSON.stringify(response.data.user));
+  try {
+    const response = await axios.post(`${API_URL}/auth/signup`, userData, {
+      timeout: 30000 // 30 second timeout
+    });
+    
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    
+    return response.data;
+  } catch (error) {
+    // Handle specific error cases
+    if (error.code === 'ECONNABORTED') {
+      throw new Error('Request timed out. Please check your connection and try again.');
+    }
+    
+    if (!error.response) {
+      // Network error, CORS error, or server unreachable
+      throw new Error('Could not connect to server. Please try again later.');
+    }
+    
+    // Pass through server errors
+    throw error;
   }
-  
-  return response.data;
 }
 
 /**
@@ -26,17 +43,34 @@ export async function signUp(userData) {
  * @returns {Promise<object>} Response with token and user data
  */
 export async function signIn(tipEmail, studentId) {
-  const response = await axios.post(`${API_URL}/auth/signin`, {
-    tipEmail,
-    studentId
-  });
-  
-  if (response.data.token) {
-    localStorage.setItem('token', response.data.token);
-    localStorage.setItem('user', JSON.stringify(response.data.user));
+  try {
+    const response = await axios.post(`${API_URL}/auth/signin`, {
+      tipEmail,
+      studentId
+    }, {
+      timeout: 30000 // 30 second timeout
+    });
+    
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    
+    return response.data;
+  } catch (error) {
+    // Handle specific error cases
+    if (error.code === 'ECONNABORTED') {
+      throw new Error('Request timed out. Please check your connection and try again.');
+    }
+    
+    if (!error.response) {
+      // Network error, CORS error, or server unreachable
+      throw new Error('Could not connect to server. Please try again later.');
+    }
+    
+    // Pass through server errors
+    throw error;
   }
-  
-  return response.data;
 }
 
 /**

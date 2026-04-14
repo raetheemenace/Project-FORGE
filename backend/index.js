@@ -27,6 +27,19 @@ const acquisitionRoutes = require('./routes/acquisitions');
 const app = express();
 
 // Middleware
+// Explicitly handle OPTIONS preflight requests first (critical for CloudFront)
+app.options('*', cors({
+  origin: [
+    'https://main.d7sychv2krlg6.amplifyapp.com',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  maxAge: 86400 // Cache preflight response for 24 hours
+}));
+
 app.use(cors({
   origin: [
     'https://main.d7sychv2krlg6.amplifyapp.com',
@@ -37,8 +50,28 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+
 app.use(express.json({ limit: '50mb' })); // Increased limit for image uploads
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Add explicit CORS headers middleware to ensure headers are always present
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://main.d7sychv2krlg6.amplifyapp.com',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ];
+  
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Vary', 'Origin');
+  }
+  next();
+});
 
 // Initialize database connection pool
 db.initialize()
