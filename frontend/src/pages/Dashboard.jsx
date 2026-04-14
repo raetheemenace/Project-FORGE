@@ -136,7 +136,13 @@ export default function Dashboard() {
       })
       .catch((err) => {
         console.error('Dashboard fetch error:', err);
-        setError('Could not load dashboard data.');
+        const status = err.response?.status;
+        if (status === 401 || status === 403) {
+          signOut();
+          navigate('/signin');
+        } else {
+          setError('Could not load dashboard data.');
+        }
       })
       .finally(() => setLoading(false));
   }, []);

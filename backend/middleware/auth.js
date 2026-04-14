@@ -16,6 +16,11 @@ function authenticateToken(req, res, next) {
     });
   }
 
+  if (!process.env.JWT_SECRET) {
+    console.error('JWT_SECRET environment variable is not set');
+    return res.status(500).json({ error: 'Server configuration error.' });
+  }
+
   try {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
