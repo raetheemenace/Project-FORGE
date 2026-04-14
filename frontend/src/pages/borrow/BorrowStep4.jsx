@@ -52,7 +52,7 @@ export default function BorrowStep4() {
   } = state;
 
   const { ttsEnabled, toggleTTS, speak, stop } = useTTS(ttsFromPrev);
-  const { triggerSuccess } = useHapticFeedback();
+  const { triggerSuccess, unlockAudio } = useHapticFeedback();
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
@@ -89,6 +89,7 @@ export default function BorrowStep4() {
   async function handleConfirm() {
     setSubmitError(null);
     setSubmitting(true);
+    unlockAudio(); // pre-unlock audio context inside user gesture
     speak('Submitting your borrowing transaction. Please wait.');
 
     try {

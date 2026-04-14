@@ -68,7 +68,7 @@ export default function RequestAcquisition() {
 
   // STT for reason field
   const { sttActive, listen, stop: stopSTT, error: sttError } = useSTT();
-  const { triggerSuccess } = useHapticFeedback();
+  const { triggerSuccess, unlockAudio } = useHapticFeedback();
 
   // High-demand equipment
   const [highDemand, setHighDemand] = useState([]);
@@ -154,6 +154,7 @@ export default function RequestAcquisition() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError('');
+    unlockAudio(); // pre-unlock inside user gesture
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});

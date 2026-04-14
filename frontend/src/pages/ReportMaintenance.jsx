@@ -200,7 +200,7 @@ export default function ReportMaintenance() {
   const [submitError, setSubmitError] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submittedEquipmentId, setSubmittedEquipmentId] = useState('');
-  const { triggerSuccess } = useHapticFeedback();
+  const { triggerSuccess, unlockAudio } = useHapticFeedback();
 
   const validate = () => {
     const next = {};
@@ -212,6 +212,7 @@ export default function ReportMaintenance() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError('');
+    unlockAudio(); // pre-unlock inside user gesture
 
     const errs = validate(); // req 10.4
     if (Object.keys(errs).length > 0) {
