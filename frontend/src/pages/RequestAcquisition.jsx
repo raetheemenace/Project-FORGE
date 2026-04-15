@@ -15,12 +15,9 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const URGENCIES = ['Low', 'Medium', 'High', 'Critical'];
 const DEPARTMENTS = [
-  'Computer Engineering',
-  'Electronics Engineering',
-  'Mechanical Engineering',
-  'Civil Engineering',
-  'Chemistry Laboratory',
-  'Other',
+  'Chemistry',
+  'Physics',
+  'Engineering',
 ];
 
 const URGENCY_COLORS = {
@@ -572,7 +569,7 @@ export default function RequestAcquisition() {
                           <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
                             {equipmentError}
                           </div>
-                        ) : departmentEquipment.length === 0 ? (
+) : departmentEquipment.length === 0 ? (
                           <p className="text-sm text-[#001254]/45">No equipment found for this department.</p>
                         ) : (
                           departmentEquipment.map((eq) => (
@@ -586,6 +583,11 @@ export default function RequestAcquisition() {
                                 <div className="min-w-0">
                                   <p className="text-sm font-medium text-[#001254] truncate">{eq.name}</p>
                                   <p className="text-xs font-mono text-[#001254]/40 mt-0.5">{eq.equipmentId}</p>
+                                  {eq.availableUnits != null && eq.totalUnits != null && (
+                                    <p className={`text-xs mt-0.5 ${eq.availableUnits === 0 ? 'text-red-600 font-semibold' : 'text-[#001254]/40'}`}>
+                                      {eq.availableUnits} / {eq.totalUnits} available
+                                    </p>
+                                  )}
                                 </div>
                                 <span className={`text-[11px] font-semibold px-2 py-1 rounded-full border ${eq.status === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
                                   {eq.status}

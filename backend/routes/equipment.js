@@ -48,6 +48,7 @@ router.get('/image-url/:id', authenticateToken, async (req, res) => {
 /**
  * GET /api/equipment?department=X
  * Returns equipment rows, optionally filtered by department.
+ * Includes totalUnits and availableUnits for stock tracking.
  */
 router.get('/', authenticateToken, async (req, res) => {
   const department = typeof req.query.department === 'string' ? req.query.department.trim() : '';
@@ -55,7 +56,13 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     const params = [];
     let query = `
-      SELECT equipment_id, name, department, status
+      SELECT DISTINCT ON (equipment_id)
+        equipment_id,
+        name,
+        department,
+        status,
+        (SELECT COUNT(*) FROM forge_equipment e2 WHERE e2.name = forge_equipment.name)::int AS "totalUnits",
+        (SELECT COUNT(*) FROM forge_equipment e2 WHERE e2.name = forge_equipment.name AND e2.status = 'AVAILABLE')::int AS "availableUnits"
       FROM forge_equipment
     `;
 
@@ -64,7 +71,7 @@ router.get('/', authenticateToken, async (req, res) => {
       query += ' WHERE department = $1';
     }
 
-    query += ' ORDER BY name LIMIT 200';
+    query += ' ORDER BY equipment_id, name LIMIT 200';
 
     const result = await db.query(query, params);
 
@@ -74,6 +81,8 @@ router.get('/', authenticateToken, async (req, res) => {
         name: row.name,
         department: row.department,
         status: row.status,
+        totalUnits: row.totalUnits,
+        availableUnits: row.availableUnits,
       }))
     );
   } catch (err) {

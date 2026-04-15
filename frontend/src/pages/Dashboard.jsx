@@ -198,7 +198,7 @@ export default function Dashboard() {
   const quickActions = [
     { label: 'Borrow an Item', desc: 'AI-powered scanning & checkout', icon: ScanLine, path: '/borrow' },
     { label: 'My Transactions', desc: 'View, return & track records', icon: Package, path: '/transactions', badge: activeTransactions.length },
-    ...(isAdmin ? [{ label: 'Report Maintenance', desc: 'QR scan to flag issues', icon: QrCode, path: '/report-maintenance' }] : []),
+    { label: 'Report Maintenance', desc: 'Report damaged equipment', icon: QrCode, path: '/report-maintenance' },
     { label: 'Request Equipment', desc: 'Submit an acquisition request', icon: ShoppingCart, path: '/request-acquisition' },
   ];
 
@@ -377,24 +377,22 @@ export default function Dashboard() {
             <ChevronRight className="w-5 h-5 text-[#001254]/20 group-hover:text-[#001254]/40 transition-colors" />
           </motion.button>
 
-          {/* Report Maintenance — admin/superadmin only */}
-          {isAdmin && (
-            <motion.button
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
-              whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-              onClick={() => navigate('/report-maintenance')}
-              className="bg-white border border-[#001254]/10 text-[#001254] rounded-xl p-6 flex items-center gap-5 hover:border-[#0B4EA2]/30 transition-all group text-left"
-            >
-              <div className="w-14 h-14 rounded-xl bg-[#F2F0DB] flex items-center justify-center shrink-0 group-hover:bg-[#F2F0DB]/80 transition-colors">
-                <QrCode className="w-7 h-7 text-[#001254]/60" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-[#001254]">Report Maintenance</h3>
-                <p className="text-[#001254]/40 mt-0.5" style={{ fontSize: '0.8rem' }}>QR scan to flag issues</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-[#001254]/20 group-hover:text-[#001254]/40 transition-colors" />
-            </motion.button>
-          )}
+          {/* Report Maintenance — for all users */}
+          <motion.button
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+            whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+            onClick={() => navigate('/report-maintenance')}
+            className="bg-white border border-[#001254]/10 text-[#001254] rounded-xl p-6 flex items-center gap-5 hover:border-[#0B4EA2]/30 transition-all group text-left"
+          >
+            <div className="w-14 h-14 rounded-xl bg-[#F2F0DB] flex items-center justify-center shrink-0 group-hover:bg-[#F2F0DB]/80 transition-colors">
+              <QrCode className="w-7 h-7 text-[#001254]/60" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-[#001254]">Report Maintenance</h3>
+              <p className="text-[#001254]/40 mt-0.5" style={{ fontSize: '0.8rem' }}>Report damaged or malfunctioning equipment</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-[#001254]/20 group-hover:text-[#001254]/40 transition-colors" />
+          </motion.button>
 
           {/* Request Equipment */}
           <motion.button
