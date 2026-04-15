@@ -47,8 +47,8 @@ const DEPARTMENTS = [
 ];
 
 const DEPARTMENT_DB_VALUES = {
-  Chemistry: 'Chemistry',
-  Physics: 'Electronics',
+  Chemistry: 'Chemistry Laboratory',
+  Physics: 'Engineering',
   Engineering: 'Engineering',
 };
 
@@ -111,15 +111,13 @@ export default function RequestAcquisition() {
   const fetchDeptEquipment = async (dept) => {
     if (!dept) return;
     const dbDept = DEPARTMENT_DB_VALUES[dept] || dept;
-    try {
-      const res = await axios.get(`${API_URL}/equipment?department=${dbDept}`, {
-        headers: { Authorization: `Bearer ${token()}` },
-      });
-      setDeptEquipment(res.data || []);
-    } catch (err) {
-      console.error('Failed to fetch department equipment:', err);
-      setDeptEquipment([]);
-    }
+    console.log('Using highDemand equipment for department:', dept, 'searching for:', dbDept);
+    // Fallback: use highDemand data until backend is updated
+    const filtered = highDemand.filter(eq => {
+      return eq.department && eq.department.toLowerCase().includes(dbDept.toLowerCase());
+    });
+    console.log('Filtered equipment:', filtered);
+    setDeptEquipment(filtered);
   };
 
   // TTS for department step and form step
@@ -743,12 +741,22 @@ export default function RequestAcquisition() {
                       </div>
 ) : (
                       <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                        {deptEquipment.length === 0 ? (
-                          <p className="text-[#001254]/40 text-xs text-center py-4">
-                            No equipment found for this department
-                          </p>
-                        ) : (
-                          deptEquipment.map(eq => (
+                        {(() => {
+                          // Fallback: always show equipment from highDemand if API fails
+                          const equipment = deptEquipment.length > 0 ? deptEquipment : highDemand.filter(eq => {
+                            const dbDept = DEPARTMENT_DB_VALUES[department] || department;
+                            return eq.department && eq.department.toLowerCase().includes(dbDept.toLowerCase());
+                          });
+                          
+                          if (equipment.length === 0) {
+                            return (
+                              <p className="text-[#001254]/40 text-xs text-center py-4">
+                                No equipment found for this department
+                              </p>
+                            );
+                          }
+                          
+                          return equipment.map(eq => (
                             <button
                               key={eq.equipmentId}
                               type="button"
@@ -772,8 +780,8 @@ export default function RequestAcquisition() {
                                 )}
                               </div>
                             </button>
-                          ))
-                        )}
+                          ));
+                        })()}
                       </div>
                     )}
                 </div>
