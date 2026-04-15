@@ -121,8 +121,10 @@ export default function RequestAcquisition() {
     setSelecting(dept.id);
     if (ttsEnabled) speak(`Selected ${dept.label}. Proceeding to request form.`);
     setDepartment(dept.id);
+    setView('form'); // Explicitly set view to form
     setTimeout(() => {
       setStep('form');
+      setSelecting(null);
     }, 200);
   };
 
@@ -247,6 +249,7 @@ export default function RequestAcquisition() {
     setErrors({});
     setSubmitError('');
     setSubmitted(false);
+    setView('form');
     setStep('department');
   };
 
@@ -598,14 +601,14 @@ export default function RequestAcquisition() {
                   <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
                     Department <span className="text-red-400">*</span>
                   </label>
-                  <select
-                    value={department}
-                    onChange={(e) => { setDepartment(e.target.value); setErrors((p) => { const n = { ...p }; delete n.department; return n; }); }}
-                    className={sharedInputClass('department')}
-                  >
-                    <option value="">Select…</option>
-                    {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
-                  </select>
+                   <select
+                     value={department}
+                     onChange={(e) => { setDepartment(e.target.value); setErrors((p) => { const n = { ...p }; delete n.department; return n; }); }}
+                     className={sharedInputClass('department')}
+                   >
+                     <option value="">Select…</option>
+                     {DEPARTMENTS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+                   </select>
                   {errors.department && <p className="mt-1 text-xs text-red-500">{errors.department}</p>}
                 </div>
 
