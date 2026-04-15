@@ -190,11 +190,7 @@ export default function Dashboard() {
   const quickActions = [
     { label: 'Borrow an Item', desc: 'AI-powered scanning & checkout', icon: ScanLine, path: '/borrow' },
     { label: 'My Transactions', desc: 'View, return & track records', icon: Package, path: '/transactions', badge: activeTransactions.length },
-<<<<<<< HEAD
     { label: 'Report Maintenance', desc: 'Report damaged equipment', icon: QrCode, path: '/report-maintenance' },
-=======
-    { label: 'Report Maintenance', desc: 'QR scan to flag issues', icon: QrCode, path: '/report-maintenance' },
->>>>>>> parent of 90c4320 (new)
     { label: 'Request Equipment', desc: 'Submit an acquisition request', icon: ShoppingCart, path: '/request-acquisition' },
   ];
 
@@ -373,11 +369,7 @@ export default function Dashboard() {
             <ChevronRight className="w-5 h-5 text-[#001254]/20 group-hover:text-[#001254]/40 transition-colors" />
           </motion.button>
 
-<<<<<<< HEAD
-          {/* Report Maintenance — for all users */}
-=======
           {/* Report Maintenance */}
->>>>>>> parent of 90c4320 (new)
           <motion.button
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
             whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
@@ -389,11 +381,7 @@ export default function Dashboard() {
             </div>
             <div className="flex-1">
               <h3 className="text-[#001254]">Report Maintenance</h3>
-<<<<<<< HEAD
               <p className="text-[#001254]/40 mt-0.5" style={{ fontSize: '0.8rem' }}>Report damaged or malfunctioning equipment</p>
-=======
-              <p className="text-[#001254]/40 mt-0.5" style={{ fontSize: '0.8rem' }}>QR scan to flag issues</p>
->>>>>>> parent of 90c4320 (new)
             </div>
             <ChevronRight className="w-5 h-5 text-[#001254]/20 group-hover:text-[#001254]/40 transition-colors" />
           </motion.button>

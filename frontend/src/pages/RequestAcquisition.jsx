@@ -149,17 +149,11 @@ export default function RequestAcquisition() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError('');
-<<<<<<< HEAD
     unlockAudio(); // pre-unlock inside user gesture
-<<<<<<< HEAD
     if (items.length > 10) {
       setSubmitError('You cannot request more than 10 items at a time.');
       return;
     }
-=======
->>>>>>> parent of ba454fe (Merge branch 'main' of https://github.com/raetheemenace/Project-FORGE)
-=======
->>>>>>> parent of 90c4320 (new)
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
@@ -465,98 +459,8 @@ export default function RequestAcquisition() {
               >
                 <Plus className="w-4 h-4" />
                 Add Another Equipment
-              </button>
+</button>
 
-<<<<<<< HEAD
-              <aside className="bg-white rounded-2xl border border-[#001254]/10 overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => setEquipmentPanelOpen((v) => !v)}
-                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#F2F0DB]/30 transition-colors"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-[#001254]">Equipment Sidebar</p>
-                    <p className="text-xs text-[#001254]/45">{department}</p>
-                  </div>
-                  <ChevronDown
-                    className={`w-4 h-4 text-[#001254]/30 transition-transform duration-200 ${equipmentPanelOpen ? 'rotate-180' : ''}`}
-                  />
-                </button>
-
-                <AnimatePresence initial={false}>
-                  {equipmentPanelOpen && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden border-t border-[#001254]/6"
-                    >
-                      <div className="p-4 space-y-3 max-h-[420px] overflow-y-auto">
-                        {equipmentLoading ? (
-                          <div className="flex items-center gap-2 text-sm text-[#001254]/45">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Loading department equipment...
-                          </div>
-                        ) : equipmentError ? (
-                          <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-                            {equipmentError}
-                          </div>
-) : departmentEquipment.length === 0 ? (
-                          <p className="text-sm text-[#001254]/45">No equipment found for this department.</p>
-                        ) : (
-                          departmentEquipment.map((eq) => (
-                            <button
-                              key={eq.equipmentId}
-                              type="button"
-                              onClick={() => prefillFromEquipment(eq)}
-                              className="w-full text-left rounded-xl border border-[#001254]/10 px-3 py-2.5 hover:border-[#0B4EA2]/35 hover:bg-[#0B4EA2]/5 transition-all"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <p className="text-sm font-medium text-[#001254] truncate">{eq.name}</p>
-                                  <p className="text-xs font-mono text-[#001254]/40 mt-0.5">{eq.equipmentId}</p>
-                                  {eq.availableUnits != null && eq.totalUnits != null && (
-                                    <p className={`text-xs mt-0.5 ${eq.availableUnits === 0 ? 'text-red-600 font-semibold' : 'text-[#001254]/40'}`}>
-                                      {eq.availableUnits} / {eq.totalUnits} available
-                                    </p>
-                                  )}
-                                </div>
-                                <span className={`text-[11px] font-semibold px-2 py-1 rounded-full border ${eq.status === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                                  {eq.status}
-                                </span>
-                              </div>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </aside>
-                </>
-              ) : (
-                <>
-                  <div className="bg-white rounded-2xl border border-dashed border-[#001254]/20 p-6 text-center">
-                    <p className="text-sm font-semibold text-[#001254]">Select a department first</p>
-                    <p className="text-sm text-[#001254]/45 mt-1">
-                      Choose a department above to unlock the equipment request fields and see the department inventory list.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-[#001254]/15 text-[#001254]/30 text-sm font-medium cursor-not-allowed"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Another Equipment
-                  </button>
-                </>
-              )}
-
-=======
->>>>>>> parent of 90c4320 (new)
               {/* ── Shared fields ── */}
               <div className="bg-white rounded-2xl border border-[#001254]/10 p-5 space-y-5">
                 <p className="text-xs font-semibold text-[#001254]/50 uppercase tracking-wide">Request Details</p>
