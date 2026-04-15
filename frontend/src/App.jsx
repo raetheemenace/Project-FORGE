@@ -91,7 +91,7 @@ function App() {
           <Route path="/borrow/step4" element={<ProtectedRoute><BorrowStep4 /></ProtectedRoute>} />
           <Route path="/log-updated" element={<ProtectedRoute><LogUpdated /></ProtectedRoute>} />
           <Route path="/transactions" element={<ProtectedRoute><MyTransactions /></ProtectedRoute>} />
-          <Route path="/report-maintenance" element={<ProtectedRoute><ReportMaintenance /></ProtectedRoute>} />
+
           <Route path="/request-acquisition" element={<ProtectedRoute><RequestAcquisition /></ProtectedRoute>} />
           <Route path="/offline" element={<OfflinePage />} />
           <Route path="/equipment/:id" element={<ProtectedRoute><MachineDetail /></ProtectedRoute>} />
@@ -100,7 +100,8 @@ function App() {
           <Route path="/admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/admin/equipment" element={<AdminRoute><EquipmentManagement /></AdminRoute>} />
           <Route path="/admin/transactions" element={<AdminRoute><TransactionOversight /></AdminRoute>} />
-          <Route path="/admin/tickets" element={<AdminRoute><MaintenanceTickets /></AdminRoute>} />
+           <Route path="/admin/tickets" element={<AdminRoute><MaintenanceTickets /></AdminRoute>} />
+           <Route path="/admin/maintenance" element={<AdminRoute><MaintenanceTickets /></AdminRoute>} />
           <Route path="/admin/users" element={<AdminRoute><UserManagement /></AdminRoute>} />
           <Route path="/admin/rooms" element={<AdminRoute><LabRoomManagement /></AdminRoute>} />
           <Route path="/admin/reports" element={<AdminRoute><SystemReports /></AdminRoute>} />

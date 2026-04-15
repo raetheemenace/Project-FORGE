@@ -22,6 +22,11 @@ const SEVERITY_TO_PRIORITY = {
  * Requirements: 6.7
  */
 router.post('/', authenticateToken, async (req, res) => {
+  // Only admin users can submit maintenance reports
+  if (req.user.role !== 'LAB_ADMIN') {
+    return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+  }
+
   const { equipmentId, severity, description } = req.body;
 
   if (!severity || !VALID_SEVERITIES.includes(severity)) {
