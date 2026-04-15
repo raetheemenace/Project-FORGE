@@ -719,7 +719,7 @@ export default function RequestAcquisition() {
                    ) : (
                      <div className="space-y-2 max-h-[500px] overflow-y-auto">
                        {highDemand
-                         // Show all equipment - department filtering will be added backend-side later
+                         .filter(eq => eq.department === department)
                          .map(eq => (
                           <button
                             key={eq.equipmentId}

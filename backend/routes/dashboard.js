@@ -60,17 +60,18 @@ router.get('/', authenticateToken, async (req, res) => {
     // 3. High-demand equipment: items currently borrowed (ACTIVE transactions)
     //    Join to get borrower name, room location, and time slot for progress bar
     //    Also count total units and available units per equipment name
-    const equipResult = await db.query(
-      `SELECT DISTINCT ON (e.equipment_id)
-         e.equipment_id  AS "equipmentId",
-         e.name,
-         e.status,
-         u.full_name      AS "borrowerName",
-         t.lab_room       AS "roomLocation",
-         t.time_slot      AS "timeSlot",
-         t.txn_date       AS "txnDate",
-         (SELECT COALESCE(MAX(e2.total_quantity), COUNT(*)) FROM forge_equipment e2 WHERE e2.name = e.name)::int AS "totalUnits",
-         (SELECT COUNT(*) FROM forge_equipment e2 WHERE e2.name = e.name AND e2.status = 'AVAILABLE')::int AS "availableUnits"       FROM forge_equipment e
+     const equipResult = await db.query(
+       `SELECT DISTINCT ON (e.equipment_id)
+          e.equipment_id  AS "equipmentId",
+          e.name,
+          e.department,
+          e.status,
+          u.full_name      AS "borrowerName",
+          t.lab_room       AS "roomLocation",
+          t.time_slot      AS "timeSlot",
+          t.txn_date       AS "txnDate",
+          (SELECT COALESCE(MAX(e2.total_quantity), COUNT(*)) FROM forge_equipment e2 WHERE e2.name = e.name)::int AS "totalUnits",
+          (SELECT COUNT(*) FROM forge_equipment e2 WHERE e2.name = e.name AND e2.status = 'AVAILABLE')::int AS "availableUnits"       FROM forge_equipment e
        LEFT JOIN forge_txn_items i  ON i.equipment_id = e.equipment_id
        LEFT JOIN forge_transactions t ON t.txn_id = i.txn_id
                                       AND t.status IN ('ACTIVE', 'PENDING_RETURN')
