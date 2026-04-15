@@ -300,9 +300,11 @@ export default function RequestAcquisition() {
           </button>
         </div>
 
-        {/* ── New Request Form ── */}
+         {/* ── New Request Form ── */}
         {view === 'form' && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="lg:col-span-2 space-y-5">
 
             {/* High-demand quick-pick */}
             {highDemand.length > 0 && (
@@ -558,21 +560,58 @@ export default function RequestAcquisition() {
                 )}
               </AnimatePresence>
 
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#0B4EA2] text-white font-semibold text-sm hover:bg-[#0a3f8a] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
-              >
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingCart className="w-4 h-4" />}
-                {submitting
-                  ? 'Submitting…'
-                  : items.length > 1
-                  ? `Submit ${items.length} Requests`
-                  : 'Submit Request'}
-              </button>
-            </form>
-          </motion.div>
-        )}
+         <button
+          type="submit"
+          disabled={submitting}
+          className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-[#0B4EA2] text-white font-semibold text-sm hover:bg-[#0a3f8a] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+        >
+          {submitting
+            ? 'Submitting…'
+            : items.length > 1
+            ? `Submit ${items.length} Requests`
+            : 'Submit Request'}
+        </button>
+      </form>
+              </div>
+              
+              {/* Equipment List Sidebar */}
+              <div className="lg:col-span-1">
+                <div className="bg-white rounded-2xl border border-[#001254]/10 p-4 sticky top-24">
+                  <p className="text-xs font-semibold text-[#001254]/60 uppercase tracking-wide mb-3">
+                    Department Equipment
+                  </p>
+                  
+                  {!department ? (
+                    <p className="text-[#001254]/40 text-xs">Select a department first to view available equipment</p>
+                  ) : (
+                    <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                      {highDemand
+                        .filter(eq => eq.department === department)
+                        .map(eq => (
+                          <button
+                            key={eq.equipmentId}
+                            type="button"
+                            onClick={() => prefillFromEquipment(eq)}
+                            className="w-full text-left p-3 rounded-xl border border-[#001254]/10 hover:border-[#0B4EA2]/30 hover:bg-[#0B4EA2]/5 transition-all"
+                          >
+                            <p className="text-sm font-medium text-[#001254] truncate">{eq.name}</p>
+                            <p className="text-xs font-mono text-[#001254]/40">{eq.equipmentId}</p>
+                            <span className={`text-xs px-1.5 py-0.5 rounded-full mt-1 inline-block ${
+                              eq.status === 'AVAILABLE' 
+                                ? 'bg-emerald-100 text-emerald-700' 
+                                : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {eq.status}
+                            </span>
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+    </motion.div>
+  )}
 
         {/* ── My Requests History ── */}
         {view === 'history' && (

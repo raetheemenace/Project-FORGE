@@ -61,7 +61,7 @@ export default function BorrowStep3() {
 
   // QR scan success: fetch equipment details and auto-add to cart
   // speak_ref.current always has the latest speak — no need to list speak as dep
-  const handleQRSuccess = useCallback(async (equipmentId) => {
+   const handleQRSuccess = useCallback(async (equipmentId) => {
     setQrLookupError(null);
     try {
       const token = localStorage.getItem('token');
@@ -69,6 +69,12 @@ export default function BorrowStep3() {
         `${API_BASE}/equipment/${equipmentId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      
+      if (cartItems.length >= 1) {
+        speak_ref.current('Only one item can be borrowed at a time.');
+        return;
+      }
+      
       const item = {
         equipmentId: data.equipmentId,
         name: data.name,
@@ -76,7 +82,7 @@ export default function BorrowStep3() {
       };
       setCartItems((prev) => {
         const next = [...prev, item];
-        speak_ref.current(`${data.name} added to cart via QR. ${next.length} item${next.length !== 1 ? 's' : ''} in cart.`);
+        speak_ref.current(`${data.name} added to cart via QR. 1 item in cart.`);
         return next;
       });
     } catch (err) {
@@ -231,9 +237,13 @@ export default function BorrowStep3() {
   // Add identified item to cart (req 6.4)
   function handleAddToCart() {
     if (!scanResult) return;
+    if (cartItems.length >= 1) {
+      speak('Only one item can be borrowed at a time.');
+      return;
+    }
     setCartItems((prev) => {
       const next = [...prev, { name: scanResult.name, condition: scanResult.condition, equipmentId: scanResult.equipmentId }];
-      speak(`${scanResult.name} added to cart. ${next.length} item${next.length !== 1 ? 's' : ''} in cart.`);
+      speak(`${scanResult.name} added to cart. 1 item in cart.`);
       return next;
     });
     setScanResult(null);
@@ -261,16 +271,18 @@ export default function BorrowStep3() {
     });
   }
 
-  // Manual entry: add item(s) to cart
+   // Manual entry: add item(s) to cart
   function handleManualAdd() {
     const errs = {};
     if (!manualName.trim()) errs.name = 'Equipment name is required.';
     const qty = parseInt(manualQty, 10);
     if (!manualQty || isNaN(qty) || qty < 1) errs.qty = 'Enter a valid quantity (min 1).';
+    if (qty > 1) errs.qty = 'Bulk orders not allowed. Only 1 item per request.';
+    if (cartItems.length >= 1) errs.name = 'Only one item can be borrowed at a time.';
     if (Object.keys(errs).length > 0) { setManualErrors(errs); return; }
     setManualErrors({});
 
-    const newItems = Array.from({ length: qty }, () => ({
+    const newItems = Array.from({ length: 1 }, () => ({
       name: manualName.trim(),
       condition: manualCondition,
       conditionNote: manualConditionNote.trim() || null,
@@ -278,7 +290,7 @@ export default function BorrowStep3() {
     }));
     setCartItems((prev) => {
       const next = [...prev, ...newItems];
-      speak(`${qty} × ${manualName.trim()} added to cart. ${next.length} item${next.length !== 1 ? 's' : ''} in cart.`);
+      speak(`${manualName.trim()} added to cart. 1 item in cart.`);
       return next;
     });
     setManualName('');
@@ -571,8 +583,9 @@ export default function BorrowStep3() {
                   <input
                     type="number"
                     min="1"
-                    value={manualQty}
-                    onChange={(e) => { setManualQty(e.target.value); setManualErrors((p) => ({ ...p, qty: '' })); }}
+                    max="1"
+                    value="1"
+                    disabled
                     className={`w-full px-4 py-3 rounded-xl border text-sm text-[#001254] bg-[#f7f7f3] outline-none focus:ring-2 focus:ring-[#0B4EA2]/20 transition-colors ${
                       manualErrors.qty ? 'border-red-400' : 'border-[#001254]/15 focus:border-[#0B4EA2]/50'
                     }`}
