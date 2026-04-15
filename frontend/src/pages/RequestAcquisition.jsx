@@ -47,9 +47,9 @@ const DEPARTMENTS = [
 ];
 
 const DEPARTMENT_DB_VALUES = {
-  Chemistry: 'Chemistry Laboratory',
-  Physics: 'Electronics Engineering',
-  Engineering: 'Mechanical Engineering',
+  Chemistry: 'Chemistry',
+  Physics: 'Electronics',
+  Engineering: 'Engineering',
 };
 
 const URGENCY_COLORS = {
@@ -112,7 +112,7 @@ export default function RequestAcquisition() {
     if (!dept) return;
     const dbDept = DEPARTMENT_DB_VALUES[dept] || dept;
     try {
-      const res = await axios.get(`${API_URL}/equipment?department=${encodeURIComponent(dbDept)}`, {
+      const res = await axios.get(`${API_URL}/equipment?department=${dbDept}`, {
         headers: { Authorization: `Bearer ${token()}` },
       });
       setDeptEquipment(res.data || []);
@@ -160,6 +160,13 @@ export default function RequestAcquisition() {
       .then((res) => setHighDemand(res.data.highDemandEquipment || []))
       .catch(() => {});
   }, []);
+
+  // Load department equipment if coming back with department already selected
+  useEffect(() => {
+    if (department && step === 'form') {
+      fetchDeptEquipment(department);
+    }
+  }, [department, step]);
 
   const fetchHistory = () => {
     setHistoryLoading(true);

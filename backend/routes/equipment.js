@@ -51,22 +51,22 @@ router.get('/', authenticateToken, async (req, res) => {
   try {
     const params = [];
     let query = `
-      SELECT DISTINCT ON (equipment_id)
+      SELECT 
         equipment_id,
         name,
         department,
         status,
-        (SELECT COUNT(*) FROM forge_equipment e2 WHERE e2.name = forge_equipment.name)::int AS "totalUnits",
-        (SELECT COUNT(*) FROM forge_equipment e2 WHERE e2.name = forge_equipment.name AND e2.status = 'AVAILABLE')::int AS "availableUnits"
+        total_units AS "totalUnits",
+        available_units AS "availableUnits"
       FROM forge_equipment
     `;
 
     if (department) {
-      params.push(department);
-      query += ' WHERE department = $1';
+      params.push('%' + department + '%');
+      query += ' WHERE department ILIKE $1';
     }
 
-    query += ' ORDER BY equipment_id, name LIMIT 200';
+    query += ' ORDER BY name LIMIT 200';
 
     const result = await db.query(query, params);
 
