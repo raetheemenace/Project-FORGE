@@ -11,6 +11,7 @@ import logo from '../assets/logo_landingpage.png';
 import { useSTT } from '../hooks/useSTT';
 import { useTTS } from '../hooks/useTTS';
 import TTSToggle from '../components/ui/TTSToggle';
+import { unlockAudio } from '../hooks/useCountdownTimer';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
