@@ -15,7 +15,7 @@ CREATE TABLE forge_users (
 );
 
 -- Equipment table
-CREATE TABLE forge_equipment (
+CREATE TABLE IF NOT EXISTS forge_equipment (
     equipment_id  VARCHAR(20) PRIMARY KEY,  -- e.g. EQ-7167
     name          VARCHAR(200) NOT NULL,
     department    VARCHAR(50) NOT NULL,

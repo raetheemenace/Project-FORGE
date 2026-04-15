@@ -47,8 +47,8 @@ const DEPARTMENTS = [
 ];
 
 const DEPARTMENT_DB_VALUES = {
-  Chemistry: 'Chemistry Laboratory',
-  Physics: 'Engineering',
+  Chemistry: 'Chemistry',
+  Physics: 'Physics',
   Engineering: 'Engineering',
 };
 
@@ -110,11 +110,10 @@ export default function RequestAcquisition() {
 
   const fetchDeptEquipment = async (dept) => {
     if (!dept) return;
-    const dbDept = DEPARTMENT_DB_VALUES[dept] || dept;
-    console.log('Using highDemand equipment for department:', dept, 'searching for:', dbDept);
-    // Fallback: use highDemand data until backend is updated
+    console.log('Using highDemand equipment for department:', dept);
+    // Match ANY equipment that contains the department name anywhere
     const filtered = highDemand.filter(eq => {
-      return eq.department && eq.department.toLowerCase().includes(dbDept.toLowerCase());
+      return eq.department && eq.department.toLowerCase().includes(dept.toLowerCase());
     });
     console.log('Filtered equipment:', filtered);
     setDeptEquipment(filtered);
