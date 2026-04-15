@@ -46,6 +46,12 @@ const DEPARTMENTS = [
   },
 ];
 
+const DEPARTMENT_DB_VALUES = {
+  Chemistry: 'Chemistry Laboratory',
+  Physics: 'Electronics Engineering',
+  Engineering: 'Mechanical Engineering',
+};
+
 const URGENCY_COLORS = {
   Low: 'bg-emerald-100 text-emerald-700 border-emerald-200',
   Medium: 'bg-amber-100 text-amber-700 border-amber-200',
@@ -707,16 +713,19 @@ export default function RequestAcquisition() {
                     Department Equipment
                   </p>
                   
-                   {!department ? (
-                     <div className="text-center p-4">
-                       <p className="text-[#001254]/40 text-xs mb-2">Select a department first to view available equipment</p>
-                       <p className="text-[#0B4EA2]/60 text-xs">↓ Scroll down to select your department ↓</p>
-                     </div>
-                   ) : (
-                     <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                       {highDemand
-                         .filter(eq => eq.department === department)
-                         .map(eq => (
+{!department ? (
+                      <div className="text-center p-4">
+                        <p className="text-[#001254]/40 text-xs mb-2">Select a department first to view available equipment</p>
+                        <p className="text-[#0B4EA2]/60 text-xs">↓ Scroll down to select your department ↓</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                        {highDemand
+                          .filter(eq => {
+                            const dbDept = DEPARTMENT_DB_VALUES[department] || department;
+                            return eq.department && eq.department.toLowerCase().includes(dbDept.toLowerCase());
+                          })
+                          .map(eq => (
                           <button
                             key={eq.equipmentId}
                             type="button"
