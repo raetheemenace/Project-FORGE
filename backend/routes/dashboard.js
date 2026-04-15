@@ -78,8 +78,8 @@ router.get('/', authenticateToken, async (req, res) => {
        LEFT JOIN forge_users u ON u.user_id = t.user_id
        WHERE e.status IN ('AVAILABLE', 'MAINTENANCE')
           OR t.txn_id IS NOT NULL
-       ORDER BY e.equipment_id, t.created_at DESC NULLS LAST
-       LIMIT 20`
+       ORDER BY e.department, e.equipment_id, t.created_at DESC NULLS LAST
+       LIMIT 100`
     );
 
     res.json({
