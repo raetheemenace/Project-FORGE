@@ -200,7 +200,6 @@ export default function RequestAcquisition() {
       if (!it.equipmentId.trim()) e[`equipmentId_${i}`] = 'Required.';
       if (!it.quantity || isNaN(it.quantity) || Number(it.quantity) < 1) e[`quantity_${i}`] = 'Min 1.';
     });
-    if (!department) e.department = 'Department is required.';
     if (!reason.trim()) e.reason = 'Please describe why this equipment is needed.';
     return e;
   };
@@ -600,21 +599,15 @@ export default function RequestAcquisition() {
               <div className="bg-white rounded-2xl border border-[#001254]/10 p-5 space-y-5">
                 <p className="text-xs font-semibold text-[#001254]/50 uppercase tracking-wide">Request Details</p>
 
-                {/* Department */}
-                <div>
-                  <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
-                    Department <span className="text-red-400">*</span>
-                  </label>
-                   <select
-                     value={department}
-                     onChange={(e) => { setDepartment(e.target.value); setErrors((p) => { const n = { ...p }; delete n.department; return n; }); }}
-                     className={sharedInputClass('department')}
-                   >
-                     <option value="">Select…</option>
-                     {DEPARTMENTS.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
-                   </select>
-                  {errors.department && <p className="mt-1 text-xs text-red-500">{errors.department}</p>}
-                </div>
+                 {/* Department - prefilled, read-only from previous selection */}
+                 <div>
+                   <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
+                     Department
+                   </label>
+                   <div className={`${sharedInputClass('department')} bg-[#f7f7f3]`} style={{ padding: '12px 16px' }}>
+                     <span className="font-medium text-[#001254]">{DEPARTMENTS.find(d => d.id === department)?.label || department}</span>
+                   </div>
+                 </div>
 
                 {/* Urgency */}
                 <div>
@@ -715,7 +708,10 @@ export default function RequestAcquisition() {
                   </p>
                   
                    {!department ? (
-                     <p className="text-[#001254]/40 text-xs">Select a department first to view available equipment</p>
+                     <div className="text-center p-4">
+                       <p className="text-[#001254]/40 text-xs mb-2">Select a department first to view available equipment</p>
+                       <p className="text-[#0B4EA2]/60 text-xs">↓ Scroll down to select your department ↓</p>
+                     </div>
                    ) : (
                      <div className="space-y-2 max-h-[500px] overflow-y-auto">
                        {highDemand
