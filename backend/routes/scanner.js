@@ -241,4 +241,16 @@ router.get('/debug', authenticateToken, async (req, res) => {
   }
 });
 
+({ userId, bedrockResponse, predictedName, confidenceScore, equipmentId }) {
+  try {
+    await db.query(
+      `INSERT INTO forge_scan_log (user_id, equipment_id, bedrock_response, predicted_name, confidence_score)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [userId, equipmentId, bedrockResponse, predictedName, confidenceScore]
+    );
+  } catch (err) {
+    console.error('Failed to log scan:', err);
+  }
+}
+
 module.exports = router;

@@ -8,7 +8,6 @@ import {
 import axios from 'axios';
 import logo from '../../assets/logo_landingpage.png';
 import { useTTS } from '../../hooks/useTTS';
-import { useHapticFeedback } from '../../hooks/useHapticFeedback';
 import StepIndicator from '../../components/ui/StepIndicator';
 import TTSToggle from '../../components/ui/TTSToggle';
 
@@ -52,7 +51,6 @@ export default function BorrowStep4() {
   } = state;
 
   const { ttsEnabled, toggleTTS, speak, stop } = useTTS(ttsFromPrev);
-  const { triggerSuccess, unlockAudio } = useHapticFeedback();
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
@@ -89,7 +87,6 @@ export default function BorrowStep4() {
   async function handleConfirm() {
     setSubmitError(null);
     setSubmitting(true);
-    unlockAudio(); // pre-unlock audio context inside user gesture
     speak('Submitting your borrowing transaction. Please wait.');
 
     try {
@@ -113,7 +110,6 @@ export default function BorrowStep4() {
       );
 
       speak(`Transaction confirmed. Your Transaction ID is ${data.txnId}.`);
-      triggerSuccess();
 
       navigate('/log-updated', {
         state: { txnId: data.txnId, department, labRoom, itemCount: cartItems.length },

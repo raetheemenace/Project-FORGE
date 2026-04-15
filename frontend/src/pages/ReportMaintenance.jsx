@@ -6,7 +6,6 @@ import axios from 'axios';
 import logo from '../assets/logo_landingpage.png';
 import { useQRScanner } from '../hooks/useQRScanner';
 import { useSTT } from '../hooks/useSTT';
-import { useHapticFeedback } from '../hooks/useHapticFeedback';
 
 const SEVERITIES = ['Low', 'Medium', 'High', 'Critical'];
 
@@ -200,7 +199,6 @@ export default function ReportMaintenance() {
   const [submitError, setSubmitError] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [submittedEquipmentId, setSubmittedEquipmentId] = useState('');
-  const { triggerSuccess, unlockAudio } = useHapticFeedback();
 
   const validate = () => {
     const next = {};
@@ -212,7 +210,6 @@ export default function ReportMaintenance() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitError('');
-    unlockAudio(); // pre-unlock inside user gesture
 
     const errs = validate(); // req 10.4
     if (Object.keys(errs).length > 0) {
@@ -231,8 +228,7 @@ export default function ReportMaintenance() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setSubmittedEquipmentId(equipmentId || '—');
-      setSubmitted(true);
-      triggerSuccess();
+      setSubmitted(true); // req 10.5, 10.6
     } catch (err) {
       const msg = err.response?.data?.error ?? 'Failed to submit report. Please retry.';
       setSubmitError(msg);
