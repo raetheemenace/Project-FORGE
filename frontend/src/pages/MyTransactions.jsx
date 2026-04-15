@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -13,6 +13,9 @@ import {
   ClipboardList,
   Calendar,
   Filter,
+  Clock,
+  AlertCircle,
+  Volume2,
 } from 'lucide-react';
 import logo from '../assets/logo_landingpage.png';
 
@@ -71,11 +74,107 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+// ── helpers for countdown ───────────────────────────────────────────────────────
+
+/**
+ * Parse a time slot string like "11:00-13:00" and return minutes remaining
+ * relative to now. Returns null if unparseable or time expired.
+ */
+function minutesRemainingInSlot(timeSlot) {
+  if (!timeSlot) return null;
+  const match = timeSlot.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const [, sh, sm, eh, em] = match.map(Number);
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh, em);
+  const diff = Math.round((end - now) / 60000);
+  return diff > 0 ? diff : 0;
+}
+
+/**
+ * Play an alarm sound using Web Audio API
+ */
+function playAlarmSound() {
+  try {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    // Play 3 beeps
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    oscillator.start();
+    
+    // First beep
+    oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.2);
+    
+    // Second beep
+    const osc2 = audioContext.createOscillator();
+    const gain2 = audioContext.createGain();
+    osc2.connect(gain2);
+    gain2.connect(audioContext.destination);
+    osc2.frequency.setValueAtTime(880, audioContext.currentTime + 0.25);
+    gain2.gain.setValueAtTime(0.3, audioContext.currentTime + 0.25);
+    osc2.start(audioContext.currentTime + 0.25);
+    osc2.stop(audioContext.currentTime + 0.45);
+    
+    // Third beep
+    const osc3 = audioContext.createOscillator();
+    const gain3 = audioContext.createGain();
+    osc3.connect(gain3);
+    gain3.connect(audioContext.destination);
+    osc3.frequency.setValueAtTime(880, audioContext.currentTime + 0.5);
+    gain3.gain.setValueAtTime(0.3, audioContext.currentTime + 0.5);
+    osc3.start(audioContext.currentTime + 0.5);
+    osc3.stop(audioContext.currentTime + 0.7);
+    
+    // Also try to vibrate on mobile
+    if (navigator.vibrate) {
+      navigator.vibrate([200, 100, 200, 100, 200]);
+    }
+  } catch (err) {
+    console.error('Alarm sound error:', err);
+  }
+}
+
 // ── Transaction row (expandable) ─────────────────────────────────────────────
 
 function TransactionRow({ txn, index }) {
   const [expanded, setExpanded] = useState(false);
+  const [countdownKey, setCountdownKey] = useState(0);
+  const [alarmPlayed, setAlarmPlayed] = useState(false);
   const items = txn.items || [];
+  const isActive = txn.status === 'ACTIVE';
+  const timeSlot = txn.time_slot;
+  
+  // Countdown timer for ACTIVE transactions
+  useEffect(() => {
+    if (!isActive || !timeSlot) return;
+    
+    const interval = setInterval(() => {
+      const minsLeft = minutesRemainingInSlot(timeSlot);
+      setCountdownKey(prev => prev + 1);
+      
+      // Play alarm when time expires (1 minute left warning + at 0)
+      if (minsLeft !== null && minsLeft <= 1 && !alarmPlayed) {
+        playAlarmSound();
+        setAlarmPlayed(true);
+      }
+    }, 10000); // Check every 10 seconds
+    
+    return () => clearInterval(interval);
+  }, [isActive, timeSlot, alarmPlayed]);
+  
+  // Get minutes remaining
+  const minsLeft = isActive && timeSlot ? minutesRemainingInSlot(timeSlot) : null;
+  const isExpiringSoon = minsLeft !== null && minsLeft <= 15 && minsLeft > 0;
+  const isExpired = minsLeft !== null && minsLeft === 0;
 
   return (
     <motion.div
@@ -93,6 +192,19 @@ function TransactionRow({ txn, index }) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-mono text-[#001254] text-sm font-semibold">{txn.txn_id}</span>
             <StatusBadge status={txn.status} />
+            {/* Countdown display for ACTIVE transactions */}
+            {isActive && minsLeft !== null && (
+              <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                isExpired 
+                  ? 'bg-red-100 text-red-700 border border-red-200' 
+                  : isExpiringSoon 
+                  ? 'bg-orange-100 text-orange-700 border border-orange-200 animate-pulse'
+                  : 'bg-blue-50 text-blue-700 border border-blue-200'
+              }`}>
+                <Clock className="w-3 h-3" />
+                {isExpired ? 'EXPIRED' : `${minsLeft} min left`}
+              </span>
+            )}
           </div>
           <p className="text-[#001254]/40 text-xs mt-0.5 truncate">
             {formatDate(txn.txn_date)} · {txn.department} · {txn.lab_room} · {items.length} item{items.length !== 1 ? 's' : ''}

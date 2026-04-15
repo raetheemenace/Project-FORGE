@@ -9,6 +9,21 @@ const { authenticateToken } = require('../middleware/auth');
 const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION });
 
 /**
+ * Log a scan to forge_scan_log table
+ */
+async function logScan({ userId, bedrockResponse, predictedName, confidenceScore, equipmentId }) {
+  try {
+    await db.query(
+      `INSERT INTO forge_scan_log (user_id, bedrock_response, predicted_name, confidence_score, equipment_id)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [userId, bedrockResponse, predictedName, confidenceScore, equipmentId]
+    );
+  } catch (err) {
+    console.error('logScan error:', err);
+  }
+}
+
+/**
  * POST /api/scanner/identify
  * Body: { imageBase64: string (data URL or raw base64), mediaType?: string }
  * Returns: { equipmentId, name, condition, confidence, bedrockRaw }
