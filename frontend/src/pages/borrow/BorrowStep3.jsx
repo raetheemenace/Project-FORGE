@@ -43,9 +43,6 @@ export default function BorrowStep3() {
   const [scanResult, setScanResult] = useState(null);
   const [scanError, setScanError] = useState(null);
   const [cartItems, setCartItems] = useState([]);
-  const [pendingItem, setPendingItem] = useState(null);
-  const [pendingCondition, setPendingCondition] = useState('Good');
-  const [pendingConditionNote, setPendingConditionNote] = useState('');
   const [qrMode, setQrMode] = useState(false);
   const [qrLookupError, setQrLookupError] = useState(null);
 
@@ -62,7 +59,7 @@ export default function BorrowStep3() {
   const speak_ref = useRef(speak);
   speak_ref.current = speak;
 
-  // QR scan success: show condition modal before adding to cart
+  // QR scan success: fetch equipment details and auto-add to cart
   // speak_ref.current always has the latest speak — no need to list speak as dep
   const handleQRSuccess = useCallback(async (equipmentId) => {
     setQrLookupError(null);
@@ -72,10 +69,16 @@ export default function BorrowStep3() {
         `${API_BASE}/equipment/${equipmentId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      // Show condition modal instead of adding directly
-      setPendingItem({ equipmentId: data.equipmentId, name: data.name, condition: 'Good' });
-      setPendingCondition('Good');
-      setPendingConditionNote('');
+      const item = {
+        equipmentId: data.equipmentId,
+        name: data.name,
+        condition: 'Good', // default condition; no per-item condition stored on equipment
+      };
+      setCartItems((prev) => {
+        const next = [...prev, item];
+        speak_ref.current(`${data.name} added to cart via QR. ${next.length} item${next.length !== 1 ? 's' : ''} in cart.`);
+        return next;
+      });
     } catch (err) {
       const msg = err.response?.status === 404
         ? `Equipment "${equipmentId}" not found in the system.`
@@ -225,34 +228,16 @@ export default function BorrowStep3() {
     }
   }
 
-  // Add identified item to cart (req 6.4) — show condition modal first
+  // Add identified item to cart (req 6.4)
   function handleAddToCart() {
     if (!scanResult) return;
-    // Show condition modal instead of adding directly
-    setPendingItem({ name: scanResult.name, condition: scanResult.condition, equipmentId: scanResult.equipmentId });
-    setPendingCondition(scanResult.condition || 'Good');
-    setPendingConditionNote('');
-    setScanResult(null);
-    setScanError(null);
-  }
-
-  function handleConfirmCondition() {
-    if (!pendingItem) return;
-    const item = { ...pendingItem, condition: pendingCondition, conditionNote: pendingConditionNote.trim() || null };
     setCartItems((prev) => {
-      const next = [...prev, item];
-      speak(`${item.name} added to cart. ${next.length} item${next.length !== 1 ? 's' : ''} in cart.`);
+      const next = [...prev, { name: scanResult.name, condition: scanResult.condition, equipmentId: scanResult.equipmentId }];
+      speak(`${scanResult.name} added to cart. ${next.length} item${next.length !== 1 ? 's' : ''} in cart.`);
       return next;
     });
-    setPendingItem(null);
-    setPendingCondition('Good');
-    setPendingConditionNote('');
-  }
-
-  function handleCancelCondition() {
-    setPendingItem(null);
-    setPendingCondition('Good');
-    setPendingConditionNote('');
+    setScanResult(null);
+    setScanError(null);
   }
 
   function handleRemoveItem(index) {
@@ -276,26 +261,24 @@ export default function BorrowStep3() {
     });
   }
 
-  // Manual entry: add item to cart (qty restricted to 1)
+  // Manual entry: add item(s) to cart
   function handleManualAdd() {
     const errs = {};
     if (!manualName.trim()) errs.name = 'Equipment name is required.';
     const qty = parseInt(manualQty, 10);
     if (!manualQty || isNaN(qty) || qty < 1) errs.qty = 'Enter a valid quantity (min 1).';
-    if (qty > 1) errs.qty = 'Only 1 item per entry is allowed.';
     if (Object.keys(errs).length > 0) { setManualErrors(errs); return; }
     setManualErrors({});
 
-    // Always create exactly one item (qty is always 1 after validation)
-    const newItem = {
+    const newItems = Array.from({ length: qty }, () => ({
       name: manualName.trim(),
       condition: manualCondition,
       conditionNote: manualConditionNote.trim() || null,
       equipmentId: null,
-    };
+    }));
     setCartItems((prev) => {
-      const next = [...prev, newItem];
-      speak(`${manualName.trim()} added to cart. ${next.length} item${next.length !== 1 ? 's' : ''} in cart.`);
+      const next = [...prev, ...newItems];
+      speak(`${qty} × ${manualName.trim()} added to cart. ${next.length} item${next.length !== 1 ? 's' : ''} in cart.`);
       return next;
     });
     setManualName('');
@@ -447,73 +430,6 @@ export default function BorrowStep3() {
           )}
         </motion.div>
 
-        {/* Condition confirmation modal */}
-        <AnimatePresence>
-          {pendingItem && (
-            <motion.div
-              key="condition-modal"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              className="bg-white rounded-2xl border border-[#0B4EA2]/20 p-5 space-y-4 shadow-lg"
-              role="dialog"
-              aria-label="Confirm item condition"
-            >
-              <div>
-                <p className="text-xs text-[#001254]/40 uppercase tracking-wide mb-0.5">Confirm Condition</p>
-                <p className="font-semibold text-[#001254]">{pendingItem.name}</p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">Condition</label>
-                <div className="flex gap-1.5 flex-wrap">
-                  {['Excellent', 'Good', 'Fair', 'Poor'].map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setPendingCondition(c)}
-                      className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
-                        pendingCondition === c
-                          ? CONDITION_COLORS[c]
-                          : 'bg-white border-[#001254]/15 text-[#001254]/50 hover:border-[#001254]/30'
-                      }`}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {pendingCondition !== 'Excellent' && (
-                <div>
-                  <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">Notes (optional)</label>
-                  <textarea
-                    rows={2}
-                    value={pendingConditionNote}
-                    onChange={(e) => setPendingConditionNote(e.target.value)}
-                    placeholder="Describe any visible damage or wear…"
-                    className="w-full px-3 py-2.5 rounded-xl border border-[#001254]/15 text-sm text-[#001254] bg-[#f7f7f3] outline-none focus:ring-2 focus:ring-[#0B4EA2]/20 resize-none"
-                  />
-                </div>
-              )}
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={handleCancelCondition}
-                  className="flex-1 py-2.5 rounded-xl border border-[#001254]/15 text-[#001254]/60 text-sm font-medium hover:bg-[#001254]/5 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirmCondition}
-                  className="flex-1 py-2.5 rounded-xl bg-[#0B4EA2] text-white text-sm font-semibold hover:bg-[#0a3f8a] transition-all"
-                >
-                  Add to Cart
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* Scan result card */}
         <AnimatePresence>
           {scanResult && (
@@ -655,7 +571,6 @@ export default function BorrowStep3() {
                   <input
                     type="number"
                     min="1"
-                    max="1"
                     value={manualQty}
                     onChange={(e) => { setManualQty(e.target.value); setManualErrors((p) => ({ ...p, qty: '' })); }}
                     className={`w-full px-4 py-3 rounded-xl border text-sm text-[#001254] bg-[#f7f7f3] outline-none focus:ring-2 focus:ring-[#0B4EA2]/20 transition-colors ${

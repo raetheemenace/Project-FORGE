@@ -46,6 +46,7 @@ router.get('/image-url/:id', authenticateToken, async (req, res) => {
 });
 
 /**
+<<<<<<< HEAD
  * GET /api/equipment?department=X
  * Returns equipment rows, optionally filtered by department.
  * Includes totalUnits and availableUnits for stock tracking.
@@ -92,6 +93,8 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 /**
+=======
+>>>>>>> parent of 90c4320 (new)
  * GET /api/equipment/:id
  * Returns basic equipment details (name, status, department) by equipment_id.
  */

@@ -61,10 +61,6 @@ export default function RequestAcquisition() {
   const [requests, setRequests] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState('');
-  const [departmentEquipment, setDepartmentEquipment] = useState([]);
-  const [equipmentLoading, setEquipmentLoading] = useState(false);
-  const [equipmentError, setEquipmentError] = useState('');
-  const [equipmentPanelOpen, setEquipmentPanelOpen] = useState(true);
 
   // STT for reason field
   const { sttActive, listen, stop: stopSTT, error: sttError } = useSTT();
@@ -95,41 +91,6 @@ export default function RequestAcquisition() {
   useEffect(() => {
     if (view === 'history') fetchHistory();
   }, [view]);
-
-  useEffect(() => {
-    if (!department) {
-      setDepartmentEquipment([]);
-      setEquipmentError('');
-      setEquipmentLoading(false);
-      return undefined;
-    }
-
-    let cancelled = false;
-    setEquipmentLoading(true);
-    setEquipmentError('');
-
-    axios
-      .get(`${API_URL}/equipment`, {
-        params: { department },
-        headers: { Authorization: `Bearer ${token()}` },
-      })
-      .then((res) => {
-        if (cancelled) return;
-        setDepartmentEquipment(Array.isArray(res.data) ? res.data : []);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setDepartmentEquipment([]);
-        setEquipmentError('Could not load equipment for this department.');
-      })
-      .finally(() => {
-        if (!cancelled) setEquipmentLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [department]);
 
   // ── Item helpers ──────────────────────────────────────────────────────────
 
@@ -177,7 +138,6 @@ export default function RequestAcquisition() {
       if (!it.equipmentName.trim()) e[`equipmentName_${i}`] = 'Required.';
       if (!it.equipmentId.trim()) e[`equipmentId_${i}`] = 'Required.';
       if (!it.quantity || isNaN(it.quantity) || Number(it.quantity) < 1) e[`quantity_${i}`] = 'Min 1.';
-      if (Number(it.quantity) > 1) e[`quantity_${i}`] = 'Quantity must be 1 per item.';
     });
     if (!department) e.department = 'Department is required.';
     if (!reason.trim()) e.reason = 'Please describe why this equipment is needed.';
@@ -191,12 +151,15 @@ export default function RequestAcquisition() {
     setSubmitError('');
 <<<<<<< HEAD
     unlockAudio(); // pre-unlock inside user gesture
+<<<<<<< HEAD
     if (items.length > 10) {
       setSubmitError('You cannot request more than 10 items at a time.');
       return;
     }
 =======
 >>>>>>> parent of ba454fe (Merge branch 'main' of https://github.com/raetheemenace/Project-FORGE)
+=======
+>>>>>>> parent of 90c4320 (new)
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
     setErrors({});
@@ -246,10 +209,6 @@ export default function RequestAcquisition() {
     `w-full px-4 py-3 rounded-xl border text-sm text-[#001254] bg-white transition-colors outline-none focus:ring-2 focus:ring-[#0B4EA2]/20 ${
       errors[field] ? 'border-red-400 focus:border-red-400' : 'border-[#001254]/15 focus:border-[#0B4EA2]/50'
     }`;
-
-  const visibleHighDemand = department
-    ? highDemand.filter((eq) => !eq.department || eq.department === department)
-    : [];
 
   // ── Success screen ────────────────────────────────────────────────────────
   if (submitted) {
@@ -352,7 +311,7 @@ export default function RequestAcquisition() {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-5">
 
             {/* High-demand quick-pick */}
-            {department && visibleHighDemand.length > 0 && (
+            {highDemand.length > 0 && (
               <div className="bg-white border border-[#001254]/10 rounded-2xl overflow-hidden">
                 <button
                   type="button"
@@ -363,7 +322,7 @@ export default function RequestAcquisition() {
                     <TrendingUp className="w-4 h-4 text-[#0B4EA2]" />
                     <span className="text-sm font-medium text-[#001254]/70">High-Demand Equipment Available</span>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-[#0B4EA2]/10 text-[#0B4EA2] font-medium">
-                      {visibleHighDemand.length}
+                      {highDemand.length}
                     </span>
                   </div>
                   <ChevronDown
@@ -381,7 +340,7 @@ export default function RequestAcquisition() {
                       className="overflow-hidden"
                     >
                       <div className="px-4 pb-4 pt-1 border-t border-[#001254]/6 flex flex-wrap gap-2">
-                        {visibleHighDemand.map((eq) => (
+                        {highDemand.map((eq) => (
                           <button
                             key={eq.equipmentId}
                             type="button"
@@ -415,33 +374,7 @@ export default function RequestAcquisition() {
             )}
 
             <form onSubmit={handleSubmit} noValidate className="space-y-4">
-              <div className="bg-white rounded-2xl border border-[#001254]/10 p-5 space-y-4">
-                <p className="text-xs font-semibold text-[#001254]/50 uppercase tracking-wide">Department</p>
-                <div>
-                  <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
-                    Select a department first <span className="text-red-400">*</span>
-                  </label>
-                  <select
-                    value={department}
-                    onChange={(e) => {
-                      setDepartment(e.target.value);
-                      setErrors((p) => {
-                        const n = { ...p };
-                        delete n.department;
-                        return n;
-                      });
-                    }}
-                    className={sharedInputClass('department')}
-                  >
-                    <option value="">Select…</option>
-                    {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
-                  </select>
-                  {errors.department && <p className="mt-1 text-xs text-red-500">{errors.department}</p>}
-                </div>
-              </div>
 
-              {department ? (
-                <>
               {/* ── Equipment items ── */}
               <AnimatePresence initial={false}>
                 {items.map((item, index) => (
@@ -511,7 +444,6 @@ export default function RequestAcquisition() {
                         <input
                           type="number"
                           min="1"
-                          max="1"
                           value={item.quantity}
                           onChange={(e) => updateItem(index, 'quantity', e.target.value)}
                           className={inputClass(`quantity_${index}`)}
@@ -535,6 +467,7 @@ export default function RequestAcquisition() {
                 Add Another Equipment
               </button>
 
+<<<<<<< HEAD
               <aside className="bg-white rounded-2xl border border-[#001254]/10 overflow-hidden">
                 <button
                   type="button"
@@ -622,9 +555,27 @@ export default function RequestAcquisition() {
                 </>
               )}
 
+=======
+>>>>>>> parent of 90c4320 (new)
               {/* ── Shared fields ── */}
               <div className="bg-white rounded-2xl border border-[#001254]/10 p-5 space-y-5">
                 <p className="text-xs font-semibold text-[#001254]/50 uppercase tracking-wide">Request Details</p>
+
+                {/* Department */}
+                <div>
+                  <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
+                    Department <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={department}
+                    onChange={(e) => { setDepartment(e.target.value); setErrors((p) => { const n = { ...p }; delete n.department; return n; }); }}
+                    className={sharedInputClass('department')}
+                  >
+                    <option value="">Select…</option>
+                    {DEPARTMENTS.map((d) => <option key={d}>{d}</option>)}
+                  </select>
+                  {errors.department && <p className="mt-1 text-xs text-red-500">{errors.department}</p>}
+                </div>
 
                 {/* Urgency */}
                 <div>
@@ -769,13 +720,6 @@ export default function RequestAcquisition() {
                       <div className="bg-[#EFEFE9]/80 rounded-lg px-3 py-2">
                         <p className="text-[#001254]/40 text-xs font-medium uppercase tracking-wide mb-0.5">Admin Notes</p>
                         <p className="text-[#001254]/70 text-xs">{req.admin_notes}</p>
-                      </div>
-                    )}
-                    {req.status === 'APPROVED' && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5">
-                        <p className="text-blue-700 text-xs font-medium">
-                          Your request has been approved. Please go to the stock room and ask the staff about your approved request.
-                        </p>
                       </div>
                     )}
                     <p className="text-[#001254]/30 text-xs">

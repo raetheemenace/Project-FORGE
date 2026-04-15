@@ -20,23 +20,16 @@ export function useTTS(initialEnabled = false) {
   });
   const [speaking, setSpeaking] = useState(false);
   const audioRef = useRef(null);
-  // Monotonically-increasing ID to detect stale async speak() calls
-  const speakIdRef = useRef(0);
 
   /**
    * Speak text using AWS Polly via backend, falling back to Web Speech API.
    * No-ops when ttsEnabled is false.
-   * Atomically cancels any in-progress audio before starting a new clip,
-   * ensuring at most one audio clip plays at any time.
    */
   const speak = useCallback(
     async (text) => {
       if (!ttsEnabled || !text) return;
 
-      // Atomically cancel any in-progress speech and claim ownership of this call.
-      // Incrementing speakIdRef before the async request ensures that any
-      // concurrent or prior speak() call will detect it is stale and abort.
-      const myId = ++speakIdRef.current;
+      // Cancel any in-progress speech
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
@@ -56,9 +49,6 @@ export function useTTS(initialEnabled = false) {
             timeout: 10000,
           }
         );
-
-        // If a newer speak() call has started since the async request began, abort.
-        if (speakIdRef.current !== myId) return;
 
         const url = URL.createObjectURL(response.data);
         const audio = new Audio(url);
