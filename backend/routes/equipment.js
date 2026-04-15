@@ -1,5 +1,4 @@
-// Equipment Routes — GET /api/equipment/image-url/:id
-// Generates a pre-signed S3 URL for an equipment image (7-day expiry)
+// Equipment Routes
 const express = require('express');
 const router = express.Router();
 const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
@@ -8,13 +7,11 @@ const db = require('../db/pool');
 const { authenticateToken } = require('../middleware/auth');
 
 const s3 = new S3Client({ region: process.env.AWS_REGION });
-
 const SEVEN_DAYS_SECONDS = 604800;
 
 /**
  * GET /api/equipment/image-url/:id
- * Returns a pre-signed S3 URL for the equipment image.
- * Expiry: 7 days (604800 seconds)
+ * Returns a pre-signed S3 URL for the equipment image. Expiry: 7 days
  */
 router.get('/image-url/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
@@ -30,14 +27,12 @@ router.get('/image-url/:id', authenticateToken, async (req, res) => {
     }
 
     const s3Key = result.rows[0].s3_image_key;
-
     const command = new GetObjectCommand({
       Bucket: process.env.AWS_S3_BUCKET || process.env.S3_BUCKET_NAME,
       Key: s3Key,
     });
 
     const imageUrl = await getSignedUrl(s3, command, { expiresIn: SEVEN_DAYS_SECONDS });
-
     return res.json({ imageUrl });
   } catch (err) {
     console.error('Equipment image URL error:', err);
@@ -46,7 +41,6 @@ router.get('/image-url/:id', authenticateToken, async (req, res) => {
 });
 
 /**
-<<<<<<< HEAD
  * GET /api/equipment?department=X
  * Returns equipment rows, optionally filtered by department.
  * Includes totalUnits and availableUnits for stock tracking.
@@ -93,10 +87,8 @@ router.get('/', authenticateToken, async (req, res) => {
 });
 
 /**
-=======
->>>>>>> parent of 90c4320 (new)
  * GET /api/equipment/:id
- * Returns basic equipment details (name, status, department) by equipment_id.
+ * Returns basic equipment details by equipment_id.
  */
 router.get('/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
