@@ -46,6 +46,43 @@ router.get('/image-url/:id', authenticateToken, async (req, res) => {
 });
 
 /**
+ * GET /api/equipment?department=X
+ * Returns equipment rows, optionally filtered by department.
+ */
+router.get('/', authenticateToken, async (req, res) => {
+  const department = typeof req.query.department === 'string' ? req.query.department.trim() : '';
+
+  try {
+    const params = [];
+    let query = `
+      SELECT equipment_id, name, department, status
+      FROM forge_equipment
+    `;
+
+    if (department) {
+      params.push(department);
+      query += ' WHERE department = $1';
+    }
+
+    query += ' ORDER BY name LIMIT 200';
+
+    const result = await db.query(query, params);
+
+    return res.json(
+      result.rows.map((row) => ({
+        equipmentId: row.equipment_id,
+        name: row.name,
+        department: row.department,
+        status: row.status,
+      }))
+    );
+  } catch (err) {
+    console.error('Equipment list error:', err);
+    return res.status(500).json({ error: 'Failed to fetch equipment list.' });
+  }
+});
+
+/**
  * GET /api/equipment/:id
  * Returns basic equipment details (name, status, department) by equipment_id.
  */

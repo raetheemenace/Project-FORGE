@@ -267,7 +267,17 @@ router.post('/chat', authenticateToken, async (req, res) => {
     const command = new InvokeModelCommand(bedrockInput);
     const response = await bedrock.send(command);
     const result = JSON.parse(new TextDecoder().decode(response.body));
-    const answer = result.content[0].text;
+    let answer = result.content[0].text;
+
+    // Keep the default text-only path intact and only append an image for
+    // appearance questions that clearly refer to lab equipment.
+    if (isEquipmentAppearanceQuestion(question)) {
+      const imageMatch = findEquipmentImageUrl(question);
+      if (imageMatch) {
+        answer = `${answer}\n\n![${imageMatch.keyword}](${imageMatch.url})`;
+      }
+    }
+
     return res.json({ answer });
   } catch (err) {
     console.error('Bedrock AI chat error:', err);
@@ -370,5 +380,75 @@ function buildRoomContext(rows) {
   return lines.join('\n');
 }
 
+/**
+ * Returns true when the question asks what a piece of lab equipment looks like.
+ */
+function isEquipmentAppearanceQuestion(question) {
+  const normalizedQuestion = String(question || '').toLowerCase();
+  const matchesAppearancePrompt =
+    /what\s+(is|does|looks?\s+like)/i.test(normalizedQuestion) &&
+    /looks?\s+like|image|picture|photo|show/i.test(normalizedQuestion);
+
+  if (!matchesAppearancePrompt) {
+    return false;
+  }
+
+  const referencesLabEquipment =
+    Object.keys(EQUIPMENT_IMAGE_MAP).some((keyword) => normalizedQuestion.includes(keyword)) ||
+    /\blab(?:oratory)?\s+(equipment|instrument|tool|apparatus)\b/i.test(normalizedQuestion);
+
+  return referencesLabEquipment;
+}
+
+/**
+ * Curated map of common lab equipment to public-domain Wikimedia image URLs.
+ */
+const EQUIPMENT_IMAGE_MAP = {
+  'beaker': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Beaker_%28laboratory_equipment%29.jpg/320px-Beaker_%28laboratory_equipment%29.jpg',
+  'bunsen burner': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Bunsen_burner.jpg/320px-Bunsen_burner.jpg',
+  'oscilloscope': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Oscilloscope_Tektronix_475.jpg/320px-Oscilloscope_Tektronix_475.jpg',
+  'microscope': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Optical_microscope_nikon_alphaphot%2B.jpg/320px-Optical_microscope_nikon_alphaphot%2B.jpg',
+  'multimeter': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Fluke87-V_Multimeter.jpg/320px-Fluke87-V_Multimeter.jpg',
+  'soldering iron': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Soldering_iron_tip.jpg/320px-Soldering_iron_tip.jpg',
+  'pipette': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Pipette.jpg/320px-Pipette.jpg',
+  'flask': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Erlenmeyer_flask.jpg/320px-Erlenmeyer_flask.jpg',
+  'erlenmeyer': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Erlenmeyer_flask.jpg/320px-Erlenmeyer_flask.jpg',
+  'test tube': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Test_tube_rack_with_test_tubes.jpg/320px-Test_tube_rack_with_test_tubes.jpg',
+  'centrifuge': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Microcentrifuge.jpg/320px-Microcentrifuge.jpg',
+  'power supply': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/ATX_PS.jpg/320px-ATX_PS.jpg',
+  'breadboard': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/73/400_points_breadboard.jpg/320px-400_points_breadboard.jpg',
+  'voltmeter': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Fluke87-V_Multimeter.jpg/320px-Fluke87-V_Multimeter.jpg',
+  'ammeter': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a4/Fluke87-V_Multimeter.jpg/320px-Fluke87-V_Multimeter.jpg',
+  'thermometer': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Clinical_thermometer_38.7.jpg/320px-Clinical_thermometer_38.7.jpg',
+  'graduated cylinder': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Graduated_cylinder.jpg/320px-Graduated_cylinder.jpg',
+  'burette': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Burette.jpg/320px-Burette.jpg',
+  'spectrophotometer': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Spectrophotometer_Zurich2.jpg/320px-Spectrophotometer_Zurich2.jpg',
+  'ph meter': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/PH_meter.jpg/320px-PH_meter.jpg',
+  'balance': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Analytical_balance.jpg/320px-Analytical_balance.jpg',
+  'scale': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Analytical_balance.jpg/320px-Analytical_balance.jpg',
+  'hot plate': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Hot_plate_stirrer.jpg/320px-Hot_plate_stirrer.jpg',
+  'stirrer': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Hot_plate_stirrer.jpg/320px-Hot_plate_stirrer.jpg',
+  'autoclave': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Autoclave_am.jpg/320px-Autoclave_am.jpg',
+  'incubator': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Incubator_laboratory.jpg/320px-Incubator_laboratory.jpg',
+  'fume hood': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Fume_hood.jpg/320px-Fume_hood.jpg',
+  'safety goggles': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Safety_goggles.jpg/320px-Safety_goggles.jpg',
+  'lab coat': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Lab_coat.jpg/320px-Lab_coat.jpg',
+  'lab equipment': 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Laboratory_glassware.jpg/320px-Laboratory_glassware.jpg',
+};
+
+/**
+ * Find the best matching image URL for a question about lab equipment appearance.
+ * Returns null if no match found.
+ */
+function findEquipmentImageUrl(question) {
+  const q = question.toLowerCase();
+  for (const [keyword, url] of Object.entries(EQUIPMENT_IMAGE_MAP)) {
+    if (q.includes(keyword)) return { keyword, url };
+  }
+  return null;
+}
+
 module.exports = router;
 module.exports.buildRoomContext = buildRoomContext;
+module.exports.isEquipmentAppearanceQuestion = isEquipmentAppearanceQuestion;
+module.exports.findEquipmentImageUrl = findEquipmentImageUrl;

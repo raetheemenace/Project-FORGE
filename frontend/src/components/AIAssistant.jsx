@@ -5,6 +5,30 @@ import { Zap, X, Send, Loader2, AlertTriangle } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+/**
+ * Parse message text and render markdown image syntax as <img> tags.
+ * Splits on ![alt](url) patterns and renders images inline.
+ */
+function renderMessageContent(text) {
+  const parts = text.split(/(!\[[^\]]*\]\([^)]+\))/g);
+  return parts.map((part, i) => {
+    const imgMatch = part.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (imgMatch) {
+      const alt = imgMatch[1] || 'equipment';
+      const url = imgMatch[2];
+      return (
+        <img
+          key={i}
+          src={url}
+          alt={alt}
+          style={{ maxWidth: '100%', borderRadius: '8px', marginTop: '8px', display: 'block' }}
+        />
+      );
+    }
+    return part ? <span key={i}>{part}</span> : null;
+  });
+}
+
 export default function AIAssistant({ ttsEnabled, speak }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -196,7 +220,9 @@ export default function AIAssistant({ ttsEnabled, speak }) {
                         </div>
                         <span className="text-white/40 font-medium" style={{ fontSize: '0.6rem', letterSpacing: '0.08em' }}>FORGE</span>
                       </div>
-                      <p className="text-white/90 whitespace-pre-wrap" style={{ fontSize: '0.85rem', lineHeight: '1.6' }}>{msg.text}</p>
+                      <div className="text-white/90 whitespace-pre-wrap" style={{ fontSize: '0.85rem', lineHeight: '1.6' }}>
+                        {renderMessageContent(msg.text)}
+                      </div>
                     </div>
                   )}
                 </div>
