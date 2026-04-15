@@ -196,7 +196,10 @@ export default function AIAssistant({ ttsEnabled, speak }) {
                         </div>
                         <span className="text-white/40 font-medium" style={{ fontSize: '0.6rem', letterSpacing: '0.08em' }}>FORGE</span>
                       </div>
-                      <p className="text-white/90 whitespace-pre-wrap" style={{ fontSize: '0.85rem', lineHeight: '1.6' }}>{msg.text}</p>
+                       <p className="text-white/90 whitespace-pre-wrap" style={{ fontSize: '0.85rem', lineHeight: '1.6' }} dangerouslySetInnerHTML={{
+                         __html: msg.text
+                           .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width: 100%; border-radius: 8px; margin: 8px 0;" />')
+                       }}></p>
                     </div>
                   )}
                 </div>

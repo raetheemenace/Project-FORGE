@@ -20,7 +20,9 @@ CREATE TABLE forge_equipment (
     name          VARCHAR(200) NOT NULL,
     department    VARCHAR(50) NOT NULL,
     s3_image_key  VARCHAR(500),
-    status        VARCHAR(20) DEFAULT 'AVAILABLE'
+    status        VARCHAR(20) DEFAULT 'AVAILABLE',
+    total_units   INTEGER DEFAULT 1 CHECK (total_units >= 0),
+    available_units INTEGER DEFAULT 1 CHECK (available_units >= 0)
 );
 
 -- Transactions table

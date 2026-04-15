@@ -20,6 +20,8 @@ export function useTTS(initialEnabled = false) {
   });
   const [speaking, setSpeaking] = useState(false);
   const audioRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const speakQueueRef = useRef(null);
 
   /**
    * Speak text using AWS Polly via backend, falling back to Web Speech API.
@@ -29,12 +31,18 @@ export function useTTS(initialEnabled = false) {
     async (text) => {
       if (!ttsEnabled || !text) return;
 
-      // Cancel any in-progress speech
+      // Cancel any in-progress speech and pending requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
       }
       window.speechSynthesis?.cancel();
+
+      // Create new abort controller for this request
+      abortControllerRef.current = new AbortController();
 
       setSpeaking(true);
 
@@ -47,8 +55,12 @@ export function useTTS(initialEnabled = false) {
             headers: { Authorization: `Bearer ${token}` },
             responseType: 'blob',
             timeout: 10000,
+            signal: abortControllerRef.current.signal,
           }
         );
+
+        // Check if we were cancelled during the request
+        if (abortControllerRef.current.signal.aborted) return;
 
         const url = URL.createObjectURL(response.data);
         const audio = new Audio(url);
@@ -58,16 +70,20 @@ export function useTTS(initialEnabled = false) {
           URL.revokeObjectURL(url);
           setSpeaking(false);
           audioRef.current = null;
+          abortControllerRef.current = null;
         };
         audio.onerror = () => {
           URL.revokeObjectURL(url);
           setSpeaking(false);
           audioRef.current = null;
+          abortControllerRef.current = null;
           _fallbackSpeak(text);
         };
 
         await audio.play();
-      } catch {
+      } catch (err) {
+        // Ignore abort errors
+        if (err.name === 'CanceledError' || err.name === 'AbortError') return;
         // Polly unavailable — fall back to browser TTS silently
         _fallbackSpeak(text);
       }
@@ -90,6 +106,10 @@ export function useTTS(initialEnabled = false) {
 
   /** Stop any active speech immediately */
   const stop = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;

@@ -42,7 +42,7 @@ router.post('/', authenticateToken, async (req, res) => {
       [txnId, userId, department, course, timeSlot, date, labRoom, adviser]
     );
 
-    // Insert each item and mark equipment as BORROWED
+    // Insert each item and mark equipment as BORROWED, decrement available units
     for (const item of items) {
       await client.query(
         `INSERT INTO forge_txn_items (txn_id, equipment_id, condition)
@@ -50,8 +50,12 @@ router.post('/', authenticateToken, async (req, res) => {
         [txnId, item.equipmentId || null, item.condition || null]
       );
       if (item.equipmentId) {
+        // Update status and decrement available units atomically
         await client.query(
-          `UPDATE forge_equipment SET status = 'BORROWED' WHERE equipment_id = $1`,
+          `UPDATE forge_equipment 
+           SET status = CASE WHEN available_units <= 1 THEN 'BORROWED' ELSE status END,
+               available_units = available_units - 1
+           WHERE equipment_id = $1 AND available_units > 0`,
           [item.equipmentId]
         );
       }
@@ -130,6 +134,71 @@ router.get('/', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Transactions fetch error:', err);
     return res.status(500).json({ error: 'Failed to fetch transactions.' });
+  }
+});
+
+/**
+ * POST /api/transactions/:txnId/return
+ * Mark transaction as returned and increment equipment available units
+ */
+router.post('/:txnId/return', authenticateToken, async (req, res) => {
+  const { txnId } = req.params;
+  const userId = req.user.userId;
+
+  let client;
+  try {
+    client = await db.getConnection();
+    await client.query('BEGIN');
+
+    // Verify transaction belongs to user
+    const txnResult = await client.query(
+      `SELECT status FROM forge_transactions WHERE txn_id = $1 AND user_id = $2`,
+      [txnId, userId]
+    );
+
+    if (txnResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Transaction not found' });
+    }
+
+    if (txnResult.rows[0].status === 'RETURNED') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Transaction already returned' });
+    }
+
+    // Get all items in this transaction
+    const itemsResult = await client.query(
+      `SELECT equipment_id FROM forge_txn_items WHERE txn_id = $1`,
+      [txnId]
+    );
+
+    // Increment available units for each returned item
+    for (const item of itemsResult.rows) {
+      if (item.equipment_id) {
+        await client.query(
+          `UPDATE forge_equipment 
+           SET status = CASE WHEN available_units + 1 >= total_units THEN 'AVAILABLE' ELSE status END,
+               available_units = available_units + 1
+           WHERE equipment_id = $1`,
+          [item.equipment_id]
+        );
+      }
+    }
+
+    // Update transaction status
+    await client.query(
+      `UPDATE forge_transactions SET status = 'RETURNED' WHERE txn_id = $1`,
+      [txnId]
+    );
+
+    await client.query('COMMIT');
+    return res.status(200).json({ message: 'Equipment returned successfully' });
+  } catch (err) {
+    if (client) await client.query('ROLLBACK');
+    console.error('Return transaction error:', err);
+    return res.status(500).json({ error: 'Failed to process return' });
+  } finally {
+    if (client) client.release();
   }
 });
 
