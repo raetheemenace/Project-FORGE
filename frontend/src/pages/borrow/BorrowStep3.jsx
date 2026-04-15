@@ -442,6 +442,34 @@ export default function BorrowStep3() {
           )}
         </motion.div>
 
+        {/* Condition Criteria Explanation */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="bg-white rounded-2xl border border-[#001254]/10 p-4"
+        >
+          <p className="text-xs font-semibold text-[#001254]/50 uppercase tracking-wide mb-3">Equipment Condition Criteria</p>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200 shrink-0">Excellent</span>
+              <p className="text-xs text-[#001254]/60">Like new, no visible damage, all parts working perfectly. No scratches or wear.</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 shrink-0">Good</span>
+              <p className="text-xs text-[#001254]/60">Minor cosmetic wear only, fully functional, no broken parts. Normal use signs.</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200 shrink-0">Fair</span>
+              <p className="text-xs text-[#001254]/60">Visible wear, small scratches or dents, still functional. May need minor repairs soon.</p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200 shrink-0">Poor</span>
+              <p className="text-xs text-[#001254]/60">Damaged, broken parts, not fully functional, requires repair before use. Significant defects.</p>
+            </div>
+          </div>
+        </motion.div>
+
         {/* Scan result card */}
         <AnimatePresence>
           {scanResult && (

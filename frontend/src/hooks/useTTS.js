@@ -22,6 +22,7 @@ export function useTTS(initialEnabled = false) {
   const audioRef = useRef(null);
   const abortControllerRef = useRef(null);
   const speakQueueRef = useRef(null);
+  const isProcessingRef = useRef(false);
 
   /**
    * Speak text using AWS Polly via backend, falling back to Web Speech API.
@@ -30,6 +31,10 @@ export function useTTS(initialEnabled = false) {
   const speak = useCallback(
     async (text) => {
       if (!ttsEnabled || !text) return;
+      
+      // Prevent overlapping calls - if already processing, ignore new request
+      if (isProcessingRef.current) return;
+      isProcessingRef.current = true;
 
       // Cancel any in-progress speech and pending requests
       if (abortControllerRef.current) {
@@ -71,20 +76,26 @@ export function useTTS(initialEnabled = false) {
           setSpeaking(false);
           audioRef.current = null;
           abortControllerRef.current = null;
+          isProcessingRef.current = false;
         };
         audio.onerror = () => {
           URL.revokeObjectURL(url);
           setSpeaking(false);
           audioRef.current = null;
           abortControllerRef.current = null;
+          isProcessingRef.current = false;
           _fallbackSpeak(text);
         };
 
         await audio.play();
       } catch (err) {
         // Ignore abort errors
-        if (err.name === 'CanceledError' || err.name === 'AbortError') return;
+        if (err.name === 'CanceledError' || err.name === 'AbortError') {
+          isProcessingRef.current = false;
+          return;
+        }
         // Polly unavailable — fall back to browser TTS silently
+        isProcessingRef.current = false;
         _fallbackSpeak(text);
       }
     },
@@ -95,12 +106,19 @@ export function useTTS(initialEnabled = false) {
   function _fallbackSpeak(text) {
     if (!window.speechSynthesis) {
       setSpeaking(false);
+      isProcessingRef.current = false;
       return;
     }
     const utt = new SpeechSynthesisUtterance(text);
     utt.rate = 0.95;
-    utt.onend = () => setSpeaking(false);
-    utt.onerror = () => setSpeaking(false);
+    utt.onend = () => {
+      setSpeaking(false);
+      isProcessingRef.current = false;
+    };
+    utt.onerror = () => {
+      setSpeaking(false);
+      isProcessingRef.current = false;
+    };
     window.speechSynthesis.speak(utt);
   }
 
@@ -116,6 +134,7 @@ export function useTTS(initialEnabled = false) {
     }
     window.speechSynthesis?.cancel();
     setSpeaking(false);
+    isProcessingRef.current = false;
   }, []);
 
   const toggleTTS = useCallback(() => {

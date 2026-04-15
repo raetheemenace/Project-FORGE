@@ -155,7 +155,7 @@ export default function MaintenanceTickets() {
 
   // Create ticket modal
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ report_id: '', priority: '', assigned_to: '' });
+  const [createForm, setCreateForm] = useState({ report_id: '', equipment_name: '', priority: '', assigned_to: '' });
   const [createLoading, setCreateLoading] = useState(false);
 
   // Update ticket modal
@@ -233,13 +233,14 @@ export default function MaintenanceTickets() {
     setCreateLoading(true);
     try {
       const payload = { report_id: Number(createForm.report_id) };
+      if (createForm.equipment_name) payload.equipment_name = createForm.equipment_name.trim();
       if (createForm.priority) payload.priority = createForm.priority;
       if (createForm.assigned_to) payload.assigned_to = Number(createForm.assigned_to);
       await axios.post(`${API_URL}/admin/tickets`, payload, {
         headers: { Authorization: `Bearer ${token()}` },
       });
       setShowCreate(false);
-      setCreateForm({ report_id: '', priority: '', assigned_to: '' });
+      setCreateForm({ report_id: '', equipment_name: '', priority: '', assigned_to: '' });
       flash('Ticket created successfully.');
       fetchTickets();
     } catch (err) {
@@ -580,7 +581,7 @@ export default function MaintenanceTickets() {
       </main>
 
       {/* Create ticket modal */}
-      {showCreate && (
+       {showCreate && (
         <Modal title="Create Maintenance Ticket" onClose={() => setShowCreate(false)}>
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
@@ -596,6 +597,17 @@ export default function MaintenanceTickets() {
               />
             </div>
             <div>
+              <label className="block text-[#001254]/60 mb-1" style={{ fontSize: '0.78rem' }}>Equipment Name</label>
+              <input
+                type="text"
+                value={createForm.equipment_name}
+                onChange={(e) => setCreateForm((f) => ({ ...f, equipment_name: e.target.value }))}
+                className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
+                style={{ fontSize: '0.88rem' }}
+                placeholder="e.g. Digital Oscilloscope"
+              />
+            </div>
+            <div>
               <label className="block text-[#001254]/60 mb-1" style={{ fontSize: '0.78rem' }}>Priority</label>
               <select
                 value={createForm.priority}
@@ -606,6 +618,15 @@ export default function MaintenanceTickets() {
                 <option value="">— Select priority —</option>
                 {PRIORITIES.map((p) => <option key={p}>{p}</option>)}
               </select>
+              
+              {/* Priority Criteria Explanation */}
+              <div className="mt-2 p-3 bg-[#EFEFE9]/50 rounded-lg space-y-1.5">
+                <p className="text-xs font-semibold text-[#001254]/50 uppercase tracking-wide">Priority Criteria</p>
+                <p className="text-xs text-[#001254]/60"><span className="font-medium text-slate-600">LOW:</span> Minor issue, non-critical, can be scheduled</p>
+                <p className="text-xs text-[#001254]/60"><span className="font-medium text-blue-600">MEDIUM:</span> Affects functionality but workarounds exist</p>
+                <p className="text-xs text-[#001254]/60"><span className="font-medium text-orange-600">HIGH:</span> Impacts critical lab operations, urgent</p>
+                <p className="text-xs text-[#001254]/60"><span className="font-medium text-red-600">CRITICAL:</span> Safety hazard, immediate attention required</p>
+              </div>
             </div>
             <div>
               <label className="block text-[#001254]/60 mb-1" style={{ fontSize: '0.78rem' }}>Assign To</label>

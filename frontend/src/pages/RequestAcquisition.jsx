@@ -5,18 +5,44 @@ import axios from 'axios';
 import {
   ArrowLeft, ShoppingCart, Plus, CheckCircle2, AlertTriangle,
   Loader2, Clock, LayoutDashboard, TrendingUp, Zap, Trash2, ChevronDown,
-  Mic, MicOff,
+  Mic, MicOff, FlaskConical, Wrench, ChevronRight
 } from 'lucide-react';
 import logo from '../assets/logo_landingpage.png';
 import { useSTT } from '../hooks/useSTT';
+import { useTTS } from '../hooks/useTTS';
+import TTSToggle from '../components/ui/TTSToggle';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const URGENCIES = ['Low', 'Medium', 'High', 'Critical'];
 const DEPARTMENTS = [
-  'Chemistry',
-  'Physics',
-  'Engineering',
+  {
+    id: 'Chemistry',
+    label: 'Chemistry',
+    desc: 'Flasks, burners, reagents & lab glassware',
+    icon: FlaskConical,
+    color: 'bg-blue-50 border-blue-200 text-blue-700',
+    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-600',
+  },
+  {
+    id: 'Physics',
+    label: 'Physics',
+    desc: 'Oscilloscopes, sensors, optics & mechanics',
+    icon: Zap,
+    color: 'bg-indigo-50 border-indigo-200 text-indigo-700',
+    iconBg: 'bg-indigo-100',
+    iconColor: 'text-indigo-600',
+  },
+  {
+    id: 'Engineering',
+    label: 'Engineering',
+    desc: 'Multimeters, soldering tools & prototyping kits',
+    icon: Wrench,
+    color: 'bg-amber-50 border-amber-200 text-amber-700',
+    iconBg: 'bg-amber-100',
+    iconColor: 'text-amber-600',
+  },
 ];
 
 const URGENCY_COLORS = {
@@ -46,6 +72,9 @@ export default function RequestAcquisition() {
   const navigate = useNavigate();
 
   const [view, setView] = useState('form');
+  const [step, setStep] = useState('department'); // 'department' or 'form'
+  const [selecting, setSelecting] = useState(null);
+  const { ttsEnabled, toggleTTS, speak, stop } = useTTS(false);
 
   // Multi-item form state
   const [items, setItems] = useState([emptyItem()]);
@@ -70,6 +99,31 @@ export default function RequestAcquisition() {
   const [highDemandOpen, setHighDemandOpen] = useState(false);
 
   const token = () => localStorage.getItem('token');
+
+  // TTS for department step
+  useEffect(() => {
+    if (step === 'department' && ttsEnabled) {
+      speak('Request Equipment. Select a Department first. Available departments: Chemistry, Physics, Engineering.');
+    }
+    
+    // Cleanup: stop TTS when navigating away
+    return () => {
+      stop();
+    };
+  }, [step, ttsEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleToggleTTS = () => {
+    toggleTTS();
+  };
+
+  const handleSelectDepartment = (dept) => {
+    setSelecting(dept.id);
+    if (ttsEnabled) speak(`Selected ${dept.label}. Proceeding to request form.`);
+    setDepartment(dept.id);
+    setTimeout(() => {
+      setStep('form');
+    }, 200);
+  };
 
   useEffect(() => {
     axios
@@ -192,6 +246,7 @@ export default function RequestAcquisition() {
     setErrors({});
     setSubmitError('');
     setSubmitted(false);
+    setStep('department');
   };
 
   const inputClass = (errKey) =>
@@ -208,7 +263,7 @@ export default function RequestAcquisition() {
   if (submitted) {
     return (
       <div className="min-h-screen bg-[#EFEFE9] flex flex-col">
-        <Header navigate={navigate} />
+        <Header navigate={navigate} ttsEnabled={ttsEnabled} onToggleTTS={handleToggleTTS} />
         <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-12 flex flex-col items-center justify-center gap-6">
           <motion.div
             initial={{ scale: 0.6, opacity: 0 }}
@@ -267,9 +322,79 @@ export default function RequestAcquisition() {
     );
   }
 
+  // ── Department Selection Step ─────────────────────────────────────────────
+  if (step === 'department') {
+    return (
+      <div className="min-h-screen bg-[#EFEFE9] flex flex-col">
+        <Header navigate={navigate} step={step} ttsEnabled={ttsEnabled} onToggleTTS={handleToggleTTS} />
+
+        <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <p className="text-[#0B4EA2] text-xs font-medium tracking-widest uppercase mb-1">
+              Step 1 of 2
+            </p>
+            <h1 className="text-2xl font-semibold text-[#001254]">Select a Department</h1>
+            <p className="text-[#001254]/50 text-sm mt-1">
+              Choose the department for which you are requesting equipment.
+            </p>
+          </motion.div>
+
+          {/* Department cards */}
+          <div className="space-y-3">
+            {DEPARTMENTS.map((dept, i) => {
+              const Icon = dept.icon;
+              const isSelecting = selecting === dept.id;
+              return (
+                <motion.button
+                  key={dept.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.05 * i }}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleSelectDepartment(dept)}
+                  disabled={!!selecting}
+                  className={`w-full flex items-center gap-5 p-5 rounded-xl border-2 bg-white transition-all text-left group ${
+                    isSelecting
+                      ? 'border-[#0B4EA2] shadow-md'
+                      : 'border-[#001254]/10 hover:border-[#0B4EA2]/30 hover:shadow-sm'
+                  }`}
+                  aria-label={`Select ${dept.label} department`}
+                >
+                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 ${dept.iconBg}`}>
+                    <Icon className={`w-7 h-7 ${dept.iconColor}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-[#001254] font-semibold text-base">{dept.label}</h2>
+                    <p className="text-[#001254]/45 text-sm mt-0.5 truncate">{dept.desc}</p>
+                  </div>
+                  <ChevronRight
+                    className={`w-5 h-5 shrink-0 transition-colors ${
+                      isSelecting ? 'text-[#0B4EA2]' : 'text-[#001254]/20 group-hover:text-[#001254]/40'
+                    }`}
+                  />
+                </motion.button>
+              );
+            })}
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#EFEFE9] flex flex-col">
-      <Header navigate={navigate} />
+      <Header 
+        navigate={navigate} 
+        step={step} 
+        ttsEnabled={ttsEnabled} 
+        onToggleTTS={handleToggleTTS}
+        onBack={() => setStep('department')}
+      />
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
 
@@ -679,7 +804,7 @@ export default function RequestAcquisition() {
   );
 }
 
-function Header({ navigate }) {
+function Header({ navigate, step, ttsEnabled, onToggleTTS, onBack }) {
   return (
     <header
       className="sticky top-0 z-40"
@@ -690,16 +815,22 @@ function Header({ navigate }) {
         borderBottom: '1px solid rgba(0,18,84,0.08)',
       }}
     >
-      <div className="max-w-2xl mx-auto px-4 h-[72px] flex items-center gap-3">
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="p-2 hover:bg-[#001254]/8 rounded-lg transition-colors"
-          aria-label="Back to dashboard"
-        >
-          <ArrowLeft className="w-4 h-4 text-[#001254]/60" />
-        </button>
-        <img src={logo} alt="FORGE" className="h-8 opacity-70" />
-        <span className="text-[#001254]/70 font-semibold text-lg">Request Equipment</span>
+      <div className="max-w-2xl mx-auto px-4 h-[72px] flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={step === 'form' ? onBack : () => navigate('/dashboard')}
+            className="p-2 hover:bg-[#001254]/8 rounded-lg transition-colors"
+            aria-label={step === 'form' ? "Back to department selection" : "Back to dashboard"}
+          >
+            <ArrowLeft className="w-4 h-4 text-[#001254]/60" />
+          </button>
+          <img src={logo} alt="FORGE" className="h-8 opacity-70" />
+          <span className="text-[#001254]/70 font-semibold text-lg">Request Equipment</span>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <TTSToggle enabled={ttsEnabled} onToggle={onToggleTTS} />
+        </div>
       </div>
     </header>
   );
