@@ -104,8 +104,23 @@ export default function RequestAcquisition() {
   // High-demand equipment
   const [highDemand, setHighDemand] = useState([]);
   const [highDemandOpen, setHighDemandOpen] = useState(false);
+  const [deptEquipment, setDeptEquipment] = useState([]);
 
   const token = () => localStorage.getItem('token');
+
+  const fetchDeptEquipment = async (dept) => {
+    if (!dept) return;
+    const dbDept = DEPARTMENT_DB_VALUES[dept] || dept;
+    try {
+      const res = await axios.get(`${API_URL}/equipment?department=${encodeURIComponent(dbDept)}`, {
+        headers: { Authorization: `Bearer ${token()}` },
+      });
+      setDeptEquipment(res.data || []);
+    } catch (err) {
+      console.error('Failed to fetch department equipment:', err);
+      setDeptEquipment([]);
+    }
+  };
 
   // TTS for department step and form step
   useEffect(() => {
@@ -132,6 +147,7 @@ export default function RequestAcquisition() {
     if (ttsEnabled) speak(`Selected ${dept.label}. Proceeding to request form.`);
     setDepartment(dept.id);
     setView('form'); // Explicitly set view to form
+    fetchDeptEquipment(dept.id);
     setTimeout(() => {
       setStep('form');
       setSelecting(null);
@@ -718,33 +734,41 @@ export default function RequestAcquisition() {
                         <p className="text-[#001254]/40 text-xs mb-2">Select a department first to view available equipment</p>
                         <p className="text-[#0B4EA2]/60 text-xs">↓ Scroll down to select your department ↓</p>
                       </div>
-                    ) : (
+) : (
                       <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                        {highDemand
-                          .filter(eq => {
-                            const dbDept = DEPARTMENT_DB_VALUES[department] || department;
-                            return eq.department && eq.department.toLowerCase().includes(dbDept.toLowerCase());
-                          })
-                          .map(eq => (
-                          <button
-                            key={eq.equipmentId}
-                            type="button"
-                            onClick={() => prefillFromEquipment(eq)}
-                            className="w-full text-left p-3 rounded-xl border border-[#001254]/10 hover:border-[#0B4EA2]/30 hover:bg-[#0B4EA2]/5 transition-all"
-                          >
-                            <p className="text-sm font-medium text-[#001254] truncate">{eq.name}</p>
-                            <p className="text-xs font-mono text-[#001254]/40">{eq.equipmentId}</p>
-                            <span className={`text-xs px-1.5 py-0.5 rounded-full mt-1 inline-block ${
-                              eq.status === 'AVAILABLE' 
-                                ? 'bg-emerald-100 text-emerald-700' 
-                                : 'bg-amber-100 text-amber-700'
-                            }`}>
-                              {eq.status}
-                            </span>
-                          </button>
-                        ))}
-                    </div>
-                  )}
+                        {deptEquipment.length === 0 ? (
+                          <p className="text-[#001254]/40 text-xs text-center py-4">
+                            No equipment found for this department
+                          </p>
+                        ) : (
+                          deptEquipment.map(eq => (
+                            <button
+                              key={eq.equipmentId}
+                              type="button"
+                              onClick={() => prefillFromEquipment(eq)}
+                              className="w-full text-left p-3 rounded-xl border border-[#001254]/10 hover:border-[#0B4EA2]/30 hover:bg-[#0B4EA2]/5 transition-all"
+                            >
+                              <p className="text-sm font-medium text-[#001254] truncate">{eq.name}</p>
+                              <p className="text-xs font-mono text-[#001254]/40">{eq.equipmentId}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                                  eq.status === 'AVAILABLE' 
+                                    ? 'bg-emerald-100 text-emerald-700' 
+                                    : 'bg-amber-100 text-amber-700'
+                                }`}>
+                                  {eq.status}
+                                </span>
+                                {eq.totalUnits > 1 && (
+                                  <span className="text-[#001254]/35 text-xs">
+                                    {eq.availableUnits}/{eq.totalUnits} avail.
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
                 </div>
               </div>
             </div>

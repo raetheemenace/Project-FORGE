@@ -80,6 +80,8 @@ function formatDate(dateStr) {
  * Parse a time slot string like "11:00-13:00" and return minutes remaining
  * relative to now. Returns null if unparseable or time expired.
  */
+const MAX_COUNTDOWN_MINUTES = 240; // 4 hours max
+
 function minutesRemainingInSlot(timeSlot) {
   if (!timeSlot) return null;
   const match = timeSlot.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
@@ -88,7 +90,8 @@ function minutesRemainingInSlot(timeSlot) {
   const now = new Date();
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh, em);
   const diff = Math.round((end - now) / 60000);
-  return diff > 0 ? diff : 0;
+  const capped = diff > 0 ? Math.min(diff, MAX_COUNTDOWN_MINUTES) : 0;
+  return capped;
 }
 
 /**

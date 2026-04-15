@@ -42,6 +42,8 @@ function roomAvailabilityStatus(room) {
   return room.status === 'ACTIVE' ? 'AVAILABLE' : 'IN SESSION';
 }
 
+const MAX_COUNTDOWN_MINUTES = 240; // 4 hours max
+
 /**
  * Parse a time slot string like "11:00-13:00" and return minutes remaining
  * relative to now. Returns null if unparseable.
@@ -54,7 +56,8 @@ function minutesRemainingInSlot(timeSlot, txnDate) {
   const base = new Date(txnDate);
   const end = new Date(base.getFullYear(), base.getMonth(), base.getDate(), eh, em);
   const diff = Math.round((end - Date.now()) / 60000);
-  return diff > 0 ? diff : 0;
+  const capped = diff > 0 ? Math.min(diff, MAX_COUNTDOWN_MINUTES) : 0;
+  return capped;
 }
 
 // ── sub-components ────────────────────────────────────────────────────────────
