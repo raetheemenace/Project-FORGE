@@ -11,6 +11,8 @@ export function useCountdownTimer(timeSlot, txnDate, onComplete) {
   const [alarmActive, setAlarmActive] = useState(false);
   const audioRef = useRef(null);
   const intervalRef = useRef(null);
+  const alarmIntervalRef = useRef(null);
+  const audioContextRef = useRef(null);
 
   // Parse time slot string like "11:00-13:00"
   const parseTimeSlot = useCallback(() => {
@@ -64,6 +66,12 @@ export function useCountdownTimer(timeSlot, txnDate, onComplete) {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
+      if (alarmIntervalRef.current) {
+        clearInterval(alarmIntervalRef.current);
+      }
+      if (audioContextRef.current) {
+        try { audioContextRef.current.close(); } catch(e) {}
+      }
     };
   }, [parseTimeSlot]);
 
@@ -76,39 +84,66 @@ export function useCountdownTimer(timeSlot, txnDate, onComplete) {
     }
   }, [isExpired, alarmActive, onComplete]);
 
-  // Play alarm sound
+  // Play alarm sound - clock ding every 2 seconds for 15 seconds total
   const playAlarm = useCallback(() => {
     try {
-      // Create simple beep alarm using Web Audio API
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      
-      // Play 3 beeps
-      for (let i = 0; i < 3; i++) {
-        setTimeout(() => {
-          const oscillator = audioContext.createOscillator();
-          const gainNode = audioContext.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          
-          oscillator.frequency.value = 800;
-          oscillator.type = 'sine';
-          
-          gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-          
-          oscillator.start(audioContext.currentTime);
-          oscillator.stop(audioContext.currentTime + 0.5);
-        }, i * 600);
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
       }
+      
+      const audioContext = audioContextRef.current;
+      let dingCount = 0;
+      const MAX_DINGS = 8; // 8 dings × 2s = 16 seconds total
+      
+      const playDing = () => {
+        if (!alarmActive || dingCount >= MAX_DINGS) {
+          clearInterval(alarmIntervalRef.current);
+          alarmIntervalRef.current = null;
+          setAlarmActive(false);
+          return;
+        }
+        
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // Clock/ding sound - 1200Hz sine wave with fast attack/decay
+        oscillator.frequency.value = 1200;
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.15);
+        
+        dingCount++;
+      };
+      
+      // Play first ding immediately
+      playDing();
+      
+      // Play ding every 2 seconds
+      alarmIntervalRef.current = setInterval(playDing, 2000);
+      
     } catch (e) {
       console.warn('Alarm audio not supported');
     }
-  }, []);
+  }, [alarmActive]);
 
   // Stop alarm manually
   const stopAlarm = useCallback(() => {
     setAlarmActive(false);
+    if (alarmIntervalRef.current) {
+      clearInterval(alarmIntervalRef.current);
+      alarmIntervalRef.current = null;
+    }
+    if (audioContextRef.current) {
+      try { audioContextRef.current.close(); } catch(e) {}
+      audioContextRef.current = null;
+    }
   }, []);
 
   // Format time remaining as MM:SS

@@ -101,10 +101,14 @@ export default function RequestAcquisition() {
 
   const token = () => localStorage.getItem('token');
 
-  // TTS for department step
+  // TTS for department step and form step
   useEffect(() => {
-    if (step === 'department' && ttsEnabled) {
-      speak('Request Equipment. Select a Department first. Available departments: Chemistry, Physics, Engineering.');
+    if (ttsEnabled) {
+      if (step === 'department') {
+        speak('Request Equipment. Select a Department first. Available departments: Chemistry, Physics, Engineering.');
+      } else if (step === 'form') {
+        speak('Request Equipment Form. Fill in the equipment details and submit your request.');
+      }
     }
     
     // Cleanup: stop TTS when navigating away
@@ -710,13 +714,13 @@ export default function RequestAcquisition() {
                     Department Equipment
                   </p>
                   
-                  {!department ? (
-                    <p className="text-[#001254]/40 text-xs">Select a department first to view available equipment</p>
-                  ) : (
-                    <div className="space-y-2 max-h-[500px] overflow-y-auto">
-                      {highDemand
-                        .filter(eq => eq.department === department)
-                        .map(eq => (
+                   {!department ? (
+                     <p className="text-[#001254]/40 text-xs">Select a department first to view available equipment</p>
+                   ) : (
+                     <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                       {highDemand
+                         // Show all equipment - department filtering will be added backend-side later
+                         .map(eq => (
                           <button
                             key={eq.equipmentId}
                             type="button"

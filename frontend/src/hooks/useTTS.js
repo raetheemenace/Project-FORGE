@@ -23,6 +23,8 @@ export function useTTS(initialEnabled = false) {
   const abortControllerRef = useRef(null);
   const speakQueueRef = useRef(null);
   const isProcessingRef = useRef(false);
+  const lastSpeakTimeRef = useRef(0);
+  const DEBOUNCE_MS = 300;
 
   /**
    * Speak text using AWS Polly via backend, falling back to Web Speech API.
@@ -32,7 +34,15 @@ export function useTTS(initialEnabled = false) {
     async (text) => {
       if (!ttsEnabled || !text) return;
       
-      // Prevent overlapping calls - if already processing, ignore new request
+      // Debounce rapid calls
+      const now = Date.now();
+      if (now - lastSpeakTimeRef.current < DEBOUNCE_MS) return;
+      lastSpeakTimeRef.current = now;
+      
+      // Cancel any existing speech immediately
+      stop();
+      
+      // Prevent overlapping calls
       if (isProcessingRef.current) return;
       isProcessingRef.current = true;
 
@@ -125,14 +135,14 @@ export function useTTS(initialEnabled = false) {
   /** Stop any active speech immediately */
   const stop = useCallback(() => {
     if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+      try { abortControllerRef.current.abort(); } catch(e) {}
       abortControllerRef.current = null;
     }
     if (audioRef.current) {
-      audioRef.current.pause();
+      try { audioRef.current.pause(); } catch(e) {}
       audioRef.current = null;
     }
-    window.speechSynthesis?.cancel();
+    try { window.speechSynthesis?.cancel(); } catch(e) {}
     setSpeaking(false);
     isProcessingRef.current = false;
   }, []);
