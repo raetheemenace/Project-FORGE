@@ -260,6 +260,7 @@ SELECT
 FROM forge_transactions t
 JOIN forge_txn_items ti ON ti.txn_id = t.txn_id
 WHERE t.status IN ('ACTIVE', 'RETURNED')
+  AND ti.equipment_id IS NOT NULL  -- Only include transactions with valid equipment
   AND NOT EXISTS (
       SELECT 1 FROM forge_borrow_log bl
       WHERE bl.txn_id = t.txn_id
