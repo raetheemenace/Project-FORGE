@@ -140,11 +140,11 @@ CREATE TABLE IF NOT EXISTS forge_user_sessions (
 
 -- Step 3.1: Extract distinct departments from existing equipment and lab_rooms
 -- and insert into forge_departments (if not already present)
-INSERT INTO forge_departments (department_name, default_lab_room, notes)
+-- Note: We don't specify 'notes' column to avoid errors if it doesn't exist yet
+INSERT INTO forge_departments (department_name, default_lab_room)
 SELECT DISTINCT
     e.department,
-    NULL as default_lab_room,
-    'Migrated from forge_equipment' as notes
+    NULL as default_lab_room
 FROM forge_equipment e
 WHERE e.department IS NOT NULL
   AND e.department <> ''
@@ -155,11 +155,10 @@ WHERE e.department IS NOT NULL
 ON CONFLICT (department_name) DO NOTHING;
 
 -- Also migrate departments from lab_rooms
-INSERT INTO forge_departments (department_name, default_lab_room, notes)
+INSERT INTO forge_departments (department_name, default_lab_room)
 SELECT DISTINCT
     lr.department,
-    lr.room_id as default_lab_room,  -- Use first lab room as default for dept
-    'Migrated from forge_lab_rooms' as notes
+    lr.room_id as default_lab_room  -- Use first lab room as default for dept
 FROM forge_lab_rooms lr
 WHERE lr.department IS NOT NULL
   AND lr.department <> ''
@@ -168,6 +167,25 @@ WHERE lr.department IS NOT NULL
       WHERE d.department_name = lr.department
   )
 ON CONFLICT (department_name) DO NOTHING;
+
+-- Update notes column separately after ensuring it exists
+UPDATE forge_departments
+SET notes = 'Migrated from forge_equipment'
+WHERE notes IS NULL
+  AND department_id IN (
+      SELECT DISTINCT d.department_id
+      FROM forge_departments d
+      JOIN forge_equipment e ON e.department = d.department_name
+  );
+
+UPDATE forge_departments
+SET notes = 'Migrated from forge_lab_rooms'
+WHERE notes IS NULL
+  AND department_id IN (
+      SELECT DISTINCT d.department_id
+      FROM forge_departments d
+      JOIN forge_lab_rooms lr ON lr.department = d.department_name
+  );
 
 -- Step 3.2: Populate forge_equipment_departments from existing equipment.department
 -- This establishes the many-to-many relationship (1-to-1 initially)
