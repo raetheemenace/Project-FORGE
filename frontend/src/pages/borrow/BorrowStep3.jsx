@@ -219,19 +219,20 @@ export default function BorrowStep3() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      // Check if image processing is available
-      if (data.message && data.name === 'Image processing not available') {
-        setScanError(data.message);
-        speak('Image processing is not available with the current AI model. Please enter the equipment ID manually or describe the equipment.');
-        return;
-      }
-
       setScanResult(data);
       // Announce result via TTS (req 6.8)
       speak(`Identified: ${data.name}. Condition: ${data.condition}. Tap Add to Cart to include this item.`);
     } catch (err) {
       const status = err.response?.status;
-      const serverMsg = err.response?.data?.error;
+      const serverMsg = err.response?.data?.error || err.response?.data?.message;
+
+      // Handle case where image processing is not supported
+      if (status === 400 && serverMsg && serverMsg.includes('not supported')) {
+        setScanError(serverMsg);
+        speak('Image processing is not available with the current AI model. Please enter the equipment ID manually or describe the equipment.');
+        return;
+      }
+
       const msg = serverMsg
         ? `[${status}] ${serverMsg}`
         : err.message ?? 'Could not identify equipment. Please retry.';
