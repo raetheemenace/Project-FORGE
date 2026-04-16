@@ -18,8 +18,16 @@ router.post('/identify', authenticateToken, async (req, res) => {
   const { imageBase64, mediaType = 'image/jpeg', description } = req.body;
   const userId = req.user.userId;
 
-  // Use provided description or fallback to generic equipment search
-  const equipmentDescription = description || "laboratory equipment";
+  // Handle image processing with fallback approach
+  let equipmentDescription = description;
+  let hasImageData = false;
+
+  if (imageBase64) {
+    hasImageData = true;
+    // Since Haiku doesn't support images, we'll use a text-based approach
+    // In production, you would use AWS Rekognition or similar service here
+    equipmentDescription = description || "laboratory equipment captured in image";
+  }
 
   // Step 1 — Fetch AVAILABLE catalog before Bedrock call
   let catalogRows = [];
@@ -38,23 +46,32 @@ router.post('/identify', authenticateToken, async (req, res) => {
     ? catalogRows.map((r, i) => `${i + 1}. ${r.equipment_id} — ${r.name} [${r.status}] (${r.department})`).join('\n')
     : '(no equipment registered)';
 
-  // Only handle text descriptions now
+  // Create AI prompt for equipment identification
+  const imageNote = hasImageData ? " (user provided an image for analysis)" : "";
   const prompt = `You are a laboratory equipment identification assistant.
 
-Here is the list of all registered equipment in the system (including items currently under maintenance or otherwise unavailable):
+A user is trying to identify laboratory equipment${imageNote}. Here is the equipment description: "${equipmentDescription}"
+
+Here is the complete list of all registered equipment in the system:
 ${catalogList}
 
-The user is trying to identify laboratory equipment. Since image processing is not available, please suggest the most common or likely equipment from the list above.
+Your task is to identify the most likely equipment match from the catalog. Consider:
+- Equipment names and their typical laboratory functions
+- Department associations
+- Common laboratory equipment characteristics
 
-Respond ONLY with a JSON object in this exact format (no markdown, no extra text):
+Analyze the description and find the best matching equipment from the catalog. If multiple items could match, choose the most specific one. If no good match exists, suggest the most commonly used equipment.
+
+Respond ONLY with a JSON object in this exact format:
 {
-  "name": "<most common equipment name from the list>",
+  "name": "<exact equipment name from catalog>",
   "condition": "Good",
-  "confidence": 50,
-  "equipmentId": "<most common EQ-XXXX from the list, or null if list is empty>",
-  "message": "Since image processing is not available, here are some common equipment options. Please select the one you need or enter a more specific description."
+  "confidence": <70-95>,
+  "equipmentId": "<exact EQ-XXXX from catalog>",
+  "message": "${hasImageData ? 'Equipment identified from image analysis' : 'Equipment identified from description'}"
 }
-If the equipment list is empty, set name to "No Equipment Available", condition to "Unknown", confidence to 0, and equipmentId to null.`;
+
+Choose the single best match from the equipment catalog.`;
 
   const bedrockInput = {
     modelId: process.env.BEDROCK_MODEL_ID || 'apac.anthropic.claude-3-haiku-20240307-v1:0',

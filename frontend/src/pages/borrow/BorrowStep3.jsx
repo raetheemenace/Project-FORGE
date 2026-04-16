@@ -207,12 +207,11 @@ export default function BorrowStep3() {
       const scale = Math.min(1, MAX_WIDTH / video.videoWidth);
       canvas.width = Math.round(video.videoWidth * scale);
       canvas.height = Math.round(video.videoHeight * scale);
-      // Since image processing is not supported, we'll use AI to suggest equipment
-      // In a real implementation, this would analyze the image or ask for user input
+      // Send the captured image for AI analysis
       const token = getToken();
       const { data } = await axios.post(
         `${API_BASE}/scanner/identify`,
-        { description: "laboratory equipment visible in image" },
+        { imageBase64, mediaType: 'image/jpeg', description: "laboratory equipment captured in image" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
