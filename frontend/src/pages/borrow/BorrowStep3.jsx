@@ -207,6 +207,12 @@ export default function BorrowStep3() {
       const scale = Math.min(1, MAX_WIDTH / video.videoWidth);
       canvas.width = Math.round(video.videoWidth * scale);
       canvas.height = Math.round(video.videoHeight * scale);
+      
+      // Draw the current video frame to canvas and get base64
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const imageBase64 = canvas.toDataURL('image/jpeg', 0.8);
+      
       // Send the captured image for AI analysis
       const token = getToken();
       const { data } = await axios.post(
