@@ -74,7 +74,7 @@ const STATUS_LABELS = {
   FULFILLED: 'Fulfilled',
 };
 
-const emptyItem = () => ({ equipmentName: '', equipmentId: '', quantity: '1' });
+const emptyItem = () => ({ equipmentName: '', quantity: '1' });
 
 export default function RequestAcquisition() {
   const navigate = useNavigate();
@@ -199,20 +199,20 @@ export default function RequestAcquisition() {
     // clear errors for removed item
     setErrors((prev) => {
       const next = { ...prev };
-      ['equipmentName', 'equipmentId', 'quantity'].forEach((f) => delete next[`${f}_${index}`]);
+      ['equipmentName', 'quantity'].forEach((f) => delete next[`${f}_${index}`]);
       return next;
     });
   };
 
   const prefillFromEquipment = (eq) => {
     // Fill the first empty item, or add a new one
-    const firstEmpty = items.findIndex((it) => !it.equipmentName && !it.equipmentId);
+    const firstEmpty = items.findIndex((it) => !it.equipmentName);
     if (firstEmpty !== -1) {
       setItems((prev) => prev.map((it, i) =>
-        i === firstEmpty ? { ...it, equipmentName: eq.name || '', equipmentId: eq.equipmentId || '' } : it
+        i === firstEmpty ? { ...it, equipmentName: eq.name || '' } : it
       ));
     } else {
-      setItems((prev) => [...prev, { ...emptyItem(), equipmentName: eq.name || '', equipmentId: eq.equipmentId || '' }]);
+      setItems((prev) => [...prev, { ...emptyItem(), equipmentName: eq.name || '' }]);
     }
     setErrors({});
     setSubmitError('');
@@ -224,7 +224,6 @@ export default function RequestAcquisition() {
     const e = {};
     items.forEach((it, i) => {
       if (!it.equipmentName.trim()) e[`equipmentName_${i}`] = 'Required.';
-      if (!it.equipmentId.trim()) e[`equipmentId_${i}`] = 'Required.';
       if (!it.quantity || isNaN(it.quantity) || Number(it.quantity) < 1) e[`quantity_${i}`] = 'Min 1.';
     });
     if (!reason.trim()) e.reason = 'Please describe why this equipment is needed.';
@@ -237,8 +236,8 @@ export default function RequestAcquisition() {
     e.preventDefault();
     setSubmitError('');
     unlockAudio(); // pre-unlock inside user gesture
-    if (items.length > 10) {
-      setSubmitError('You cannot request more than 10 items at a time.');
+    if (items.length > 20) {
+      setSubmitError('You cannot request more than 20 items at a time.');
       return;
     }
     const errs = validate();
@@ -253,7 +252,6 @@ export default function RequestAcquisition() {
             `${API_URL}/acquisitions/request`,
             {
               equipment_name: it.equipmentName.trim(),
-              equipment_id: it.equipmentId.trim().toUpperCase(),
               department,
               quantity: Number(it.quantity),
               reason: reason.trim(),
@@ -575,24 +573,11 @@ export default function RequestAcquisition() {
                       )}
                     </div>
 
-                    {/* ID + Quantity row */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
-                          Equipment ID <span className="text-red-400">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={item.equipmentId}
-                          onChange={(e) => updateItem(index, 'equipmentId', e.target.value)}
-                          placeholder="e.g. EQ-7167"
-                          className={inputClass(`equipmentId_${index}`)}
-                        />
-                        {errors[`equipmentId_${index}`] && (
-                          <p className="mt-1 text-xs text-red-500">{errors[`equipmentId_${index}`]}</p>
-                        )}
-                      </div>
-                      <div>
+                    {/* Quantity field */}
+                    <div>
+                      <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
+                        Quantity <span className="text-red-400">*</span>
+                      </label>
                         <label className="block text-xs font-medium text-[#001254]/60 mb-1.5 uppercase tracking-wide">
                           Quantity <span className="text-red-400">*</span>
                         </label>
@@ -607,7 +592,6 @@ export default function RequestAcquisition() {
                           <p className="mt-1 text-xs text-red-500">{errors[`quantity_${index}`]}</p>
                         )}
                       </div>
-                    </div>
                   </motion.div>
                 ))}
               </AnimatePresence>

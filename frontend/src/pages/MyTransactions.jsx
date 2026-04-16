@@ -102,45 +102,24 @@ function playAlarmSound() {
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
-    
+
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
-    
-    // Play 3 beeps
-    oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    oscillator.start();
-    
-    // First beep
-    oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.2);
-    
-    // Second beep
-    const osc2 = audioContext.createOscillator();
-    const gain2 = audioContext.createGain();
-    osc2.connect(gain2);
-    gain2.connect(audioContext.destination);
-    osc2.frequency.setValueAtTime(880, audioContext.currentTime + 0.25);
-    gain2.gain.setValueAtTime(0.3, audioContext.currentTime + 0.25);
-    osc2.start(audioContext.currentTime + 0.25);
-    osc2.stop(audioContext.currentTime + 0.45);
-    
-    // Third beep
-    const osc3 = audioContext.createOscillator();
-    const gain3 = audioContext.createGain();
-    osc3.connect(gain3);
-    gain3.connect(audioContext.destination);
-    osc3.frequency.setValueAtTime(880, audioContext.currentTime + 0.5);
-    gain3.gain.setValueAtTime(0.3, audioContext.currentTime + 0.5);
-    osc3.start(audioContext.currentTime + 0.5);
-    osc3.stop(audioContext.currentTime + 0.7);
-    
+
+    // Play a single "ding" sound (higher pitch, shorter duration)
+    oscillator.frequency.setValueAtTime(1200, audioContext.currentTime); // Higher pitch for ding
+    gainNode.gain.setValueAtTime(0.4, audioContext.currentTime);
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.3); // Shorter duration
+
     // Also try to vibrate on mobile
     if (navigator.vibrate) {
-      navigator.vibrate([200, 100, 200, 100, 200]);
+      navigator.vibrate([300]); // Single vibration
     }
+  } catch (err) {
+    console.error('Alarm sound error:', err);
+  }
+}
   } catch (err) {
     console.error('Alarm sound error:', err);
   }
@@ -164,8 +143,8 @@ function TransactionRow({ txn, index }) {
       const minsLeft = minutesRemainingInSlot(timeSlot);
       setCountdownKey(prev => prev + 1);
       
-      // Play alarm at 10 seconds remaining (≈0.167 minutes) or when time expires
-      if (minsLeft !== null && minsLeft <= 0.167 && !alarmPlayed) {
+      // Play alarm at 5 seconds remaining (≈0.083 minutes) or when time expires
+      if (minsLeft !== null && minsLeft <= 0.083 && !alarmPlayed) {
         playAlarmSound();
         setAlarmPlayed(true);
       }

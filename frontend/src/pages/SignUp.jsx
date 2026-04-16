@@ -16,6 +16,7 @@ export default function SignUp() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const handleChange = (e) => {
     let value = e.target.value;
@@ -51,7 +52,7 @@ export default function SignUp() {
     setLoading(true);
 
     try {
-      await signUp(formData);
+      await signUp(formData, rememberMe);
       navigate('/signin');
     } catch (err) {
       setErrors({ submit: err.response?.data?.error || 'Registration failed. Please try again.' });
@@ -242,6 +243,24 @@ export default function SignUp() {
                 {errors.terms}
               </p>
             )}
+
+            {/* Remember Me Checkbox */}
+            <div className="flex items-center gap-2.5">
+              <input
+                type="checkbox"
+                id="rememberMeSignup"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 text-[#0B4EA2] border-[#001254]/20 rounded focus:ring-[#0B4EA2] focus:ring-offset-0"
+              />
+              <label
+                htmlFor="rememberMeSignup"
+                className="text-[#001254]/70 cursor-pointer select-none"
+                style={{ fontSize: '0.8rem' }}
+              >
+                Remember me on this device
+              </label>
+            </div>
 
             <button
               type="submit"

@@ -100,22 +100,35 @@ async function fetchLiveContext() {
     const now = new Date();
     const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-    const [equipResult, roomResult, bookingsResult, roomEquipResult] = await Promise.all([
-      // All equipment with status
-      db.query(
+    // Fetch data with error handling for each query
+    let equipResult = { rows: [] };
+    let roomResult = { rows: [] };
+    let bookingsResult = { rows: [] };
+    let roomEquipResult = { rows: [] };
+
+    try {
+      equipResult = await db.query(
         `SELECT equipment_id, name, status, department
          FROM forge_equipment
          ORDER BY name
          LIMIT 200`
-      ),
-      // All lab rooms
-      db.query(
+      );
+    } catch (err) {
+      console.error('Failed to fetch equipment for AI context:', err.message);
+    }
+
+    try {
+      roomResult = await db.query(
         `SELECT room_id, room_name, department, status
          FROM forge_lab_rooms
          ORDER BY room_id`
-      ),
-      // Today's active bookings per equipment with time slots and borrower info
-      db.query(
+      );
+    } catch (err) {
+      console.error('Failed to fetch lab rooms for AI context:', err.message);
+    }
+
+    try {
+      bookingsResult = await db.query(
         `SELECT
            e.equipment_id,
            e.name          AS equipment_name,
@@ -132,9 +145,13 @@ async function fetchLiveContext() {
            AND t.status IN ('ACTIVE', 'PENDING_RETURN', 'CLAIM_ID')
          ORDER BY e.equipment_id, t.time_slot`,
         [today]
-      ),
-      // Per-room equipment availability
-      db.query(`
+      );
+    } catch (err) {
+      console.error('Failed to fetch bookings for AI context:', err.message);
+    }
+
+    try {
+      roomEquipResult = await db.query(`
         SELECT
           r.room_id,
           r.room_name,
@@ -170,8 +187,10 @@ async function fetchLiveContext() {
           AND t.status IN ('ACTIVE', 'PENDING_RETURN', 'CLAIM_ID')
         LEFT JOIN forge_users u ON u.user_id = t.user_id
         ORDER BY r.room_id, e.name
-      `, [today]),
-    ]);
+      `, [today]);
+    } catch (err) {
+      console.error('Failed to fetch room equipment for AI context:', err.message);
+    }
 
     const equipment = equipResult.rows;
     const rooms = roomResult.rows;

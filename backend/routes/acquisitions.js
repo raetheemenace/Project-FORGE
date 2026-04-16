@@ -20,8 +20,9 @@ router.post('/request', authenticateToken, async (req, res) => {
   if (!equipment_name || !equipment_name.trim()) {
     return res.status(400).json({ error: 'Equipment name is required.' });
   }
-  if (!equipment_id || !equipment_id.trim()) {
-    return res.status(400).json({ error: 'Equipment ID is required.' });
+  // equipment_id is optional - for existing equipment requests vs new equipment requests
+  if (equipment_id && !equipment_id.trim()) {
+    return res.status(400).json({ error: 'Equipment ID cannot be empty if provided.' });
   }
   if (!department || !department.trim()) {
     return res.status(400).json({ error: 'Department is required.' });
@@ -42,7 +43,7 @@ router.post('/request', authenticateToken, async (req, res) => {
          (user_id, equipment_name, equipment_id, department, quantity, reason, urgency)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING request_id`,
-      [userId, equipment_name.trim(), equipment_id.trim().toUpperCase(), department.trim(), Number(quantity), reason.trim(), urgency]
+      [userId, equipment_name.trim(), equipment_id ? equipment_id.trim().toUpperCase() : null, department.trim(), Number(quantity), reason.trim(), urgency]
     );
     const requestId = result.rows[0].request_id;
 
