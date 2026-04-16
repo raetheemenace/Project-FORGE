@@ -22,6 +22,27 @@ router.post('/identify', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'Either imageBase64 or description is required' });
   }
 
+  // Reject image processing entirely - current AI model doesn't support images
+  if (imageBase64) {
+    await logScan({
+      userId,
+      s3ImageKey: null,
+      bedrockResponse: JSON.stringify({ error: 'Image processing not supported' }),
+      predictedName: 'Image processing disabled',
+      confidenceScore: 0,
+      equipmentId: null
+    });
+
+    return res.status(400).json({
+      error: 'Image processing not supported',
+      message: 'The current AI model does not support image analysis. Please describe the equipment instead.',
+      equipmentId: null,
+      name: 'Image processing not available',
+      condition: 'Unknown',
+      confidence: 0
+    });
+  }
+
   // Step 1 — Fetch AVAILABLE catalog before Bedrock call
   let catalogRows = [];
   try {
@@ -39,12 +60,8 @@ router.post('/identify', authenticateToken, async (req, res) => {
     ? catalogRows.map((r, i) => `${i + 1}. ${r.equipment_id} — ${r.name} [${r.status}] (${r.department})`).join('\n')
     : '(no equipment registered)';
 
-  let prompt;
-  let hasImageSupport = false;
-
-  if (description) {
-    // Text-based identification
-    prompt = `You are a laboratory equipment identification assistant.
+  // Only handle text descriptions now
+  const prompt = `You are a laboratory equipment identification assistant.
 A user has described equipment: "${description}"
 
 Here is the list of all registered equipment in the system (including items currently under maintenance or otherwise unavailable):
@@ -59,21 +76,6 @@ Respond ONLY with a JSON object in this exact format (no markdown, no extra text
   "equipmentId": "<EQ-XXXX from the list above, or null if no match>"
 }
 If you cannot identify any lab equipment from the description, set name to "Unknown Equipment", condition to "Fair", confidence to 0, and equipmentId to null.`;
-  } else if (imageBase64) {
-    // Currently, no vision-capable models are configured
-    // Always provide text-based guidance for image uploads
-    hasImageSupport = false;
-
-    prompt = `You are a laboratory equipment identification assistant.
-A user has taken a photo of equipment but the system cannot analyze images directly.
-
-Here is the list of all registered equipment in the system (including items currently under maintenance or otherwise unavailable):
-${catalogList}
-
-Since I cannot see the image, please provide guidance to the user on how to identify their equipment. Suggest they check the equipment ID tag or describe the equipment characteristics.
-
-Respond with helpful guidance for the user to identify their equipment manually.`;
-  }
 
   const bedrockInput = {
     modelId: process.env.BEDROCK_MODEL_ID || 'apac.anthropic.claude-3-haiku-20240307-v1:0',
@@ -81,21 +83,11 @@ Respond with helpful guidance for the user to identify their equipment manually.
     accept: 'application/json',
     body: JSON.stringify({
       anthropic_version: 'bedrock-2023-05-31',
-      max_tokens: 512,
+      max_tokens: 256,
       messages: [
         {
           role: 'user',
-          content: hasImageSupport && imageBase64 ? [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mediaType,
-                data: imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64,
-              },
-            },
-            { type: 'text', text: prompt },
-          ] : [{ type: 'text', text: prompt }],
+          content: [{ type: 'text', text: prompt }],
         },
       ],
     }),
@@ -103,28 +95,6 @@ Respond with helpful guidance for the user to identify their equipment manually.
 
   let bedrockRaw = null;
   let parsed = null;
-
-  // Handle case where images aren't supported but user sent an image
-  if (imageBase64 && !hasImageSupport) {
-    // Log the scan attempt
-    await logScan({
-      userId,
-      s3ImageKey: null,
-      bedrockResponse: JSON.stringify({ error: 'Model does not support image input' }),
-      predictedName: 'Image processing not available',
-      confidenceScore: 0,
-      equipmentId: null
-    });
-
-    return res.status(400).json({
-      error: 'Image processing not supported',
-      message: 'The current AI model does not support image analysis. Please describe the equipment instead or check the equipment ID tag manually.',
-      equipmentId: null,
-      name: 'Image processing not available',
-      condition: 'Unknown',
-      confidence: 0
-    });
-  }
 
   try {
     const command = new InvokeModelCommand(bedrockInput);
