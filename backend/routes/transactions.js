@@ -125,17 +125,17 @@ router.get('/', authenticateToken, async (req, res) => {
          t.adviser,
          t.status,
          t.created_at,
-         COALESCE(
-           json_agg(
-             json_build_object(
-               'item_id',      i.item_id,
-               'equipment_id', i.equipment_id,
-               'condition',    i.condition,
-               'name',         e.name
-             )
-           ) FILTER (WHERE i.item_id IS NOT NULL),
-           '[]'
-         ) AS items
+          COALESCE(
+            json_agg(
+              json_build_object(
+                'item_id',      i.item_id,
+                'equipment_id', i.equipment_id,
+                'condition',    i.condition,
+                'name',         COALESCE(e.name, 'Unknown Equipment')
+              )
+            ) FILTER (WHERE i.item_id IS NOT NULL),
+            '[]'
+          ) AS items
        FROM forge_transactions t
        LEFT JOIN forge_txn_items i ON i.txn_id = t.txn_id
        LEFT JOIN forge_equipment e ON e.equipment_id = i.equipment_id

@@ -259,7 +259,9 @@ function TransactionRow({ txn, index }) {
                   <div className="space-y-1">
                     {items.map((item, i) => (
                       <div key={item.item_id || i} className="flex items-center justify-between bg-[#F2F0DB]/40 rounded-lg px-3 py-2">
-                        <span className="text-[#001254] text-xs">{item.name || `Equipment #${item.equipment_id}`}</span>
+                        <span className="text-[#001254] text-xs">
+                          {item.name || (item.equipment_id ? `Equipment ${item.equipment_id}` : 'Unknown Equipment')}
+                        </span>
                         {item.condition && (
                           <span className="text-[#001254]/40 text-xs">{item.condition}</span>
                         )}

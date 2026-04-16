@@ -60,34 +60,11 @@ Respond ONLY with a JSON object in this exact format (no markdown, no extra text
 }
 If you cannot identify any lab equipment from the description, set name to "Unknown Equipment", condition to "Fair", confidence to 0, and equipmentId to null.`;
   } else if (imageBase64) {
-    // Check if model supports images
-    const modelId = process.env.BEDROCK_MODEL_ID || 'apac.anthropic.claude-3-haiku-20240307-v1:0';
-    hasImageSupport = modelId.includes('sonnet') || modelId.includes('opus');
+    // Currently, no vision-capable models are configured
+    // Always provide text-based guidance for image uploads
+    hasImageSupport = false;
 
-    if (hasImageSupport) {
-      // Strip data URL prefix if present (e.g. "data:image/jpeg;base64,...")
-      const base64Data = imageBase64.includes(',')
-        ? imageBase64.split(',')[1]
-        : imageBase64;
-
-      prompt = `You are a laboratory equipment identification assistant.
-Analyze the image and identify the lab equipment shown.
-
-Here is the list of all registered equipment in the system (including items currently under maintenance or otherwise unavailable):
-${catalogList}
-
-Match the equipment in the image against this list. Return the exact equipment_id from the list above if you find a match, or null if none match. You should identify the equipment regardless of its current availability status.
-Respond ONLY with a JSON object in this exact format (no markdown, no extra text):
-{
-  "name": "<equipment name>",
-  "condition": "<Excellent|Good|Fair|Poor>",
-  "confidence": <0-100 number>,
-  "equipmentId": "<EQ-XXXX from the list above, or null if no match>"
-}
-If you cannot identify any lab equipment, set name to "Unknown Equipment", condition to "Fair", confidence to 0, and equipmentId to null.`;
-    } else {
-      // Fallback for models without image support
-      prompt = `You are a laboratory equipment identification assistant.
+    prompt = `You are a laboratory equipment identification assistant.
 A user has taken a photo of equipment but the system cannot analyze images directly.
 
 Here is the list of all registered equipment in the system (including items currently under maintenance or otherwise unavailable):
@@ -96,7 +73,6 @@ ${catalogList}
 Since I cannot see the image, please provide guidance to the user on how to identify their equipment. Suggest they check the equipment ID tag or describe the equipment characteristics.
 
 Respond with helpful guidance for the user to identify their equipment manually.`;
-    }
   }
 
   const bedrockInput = {
@@ -128,7 +104,7 @@ Respond with helpful guidance for the user to identify their equipment manually.
   let bedrockRaw = null;
   let parsed = null;
 
-  // Handle case where images aren't supported
+  // Handle case where images aren't supported but user sent an image
   if (imageBase64 && !hasImageSupport) {
     // Log the scan attempt
     await logScan({
@@ -140,13 +116,13 @@ Respond with helpful guidance for the user to identify their equipment manually.
       equipmentId: null
     });
 
-    return res.json({
+    return res.status(400).json({
+      error: 'Image processing not supported',
+      message: 'The current AI model does not support image analysis. Please describe the equipment instead or check the equipment ID tag manually.',
       equipmentId: null,
       name: 'Image processing not available',
       condition: 'Unknown',
-      confidence: 0,
-      message: 'The current AI model does not support image analysis. Please describe the equipment instead or check the equipment ID tag manually.',
-      bedrockRaw: { error: 'Model does not support image input' }
+      confidence: 0
     });
   }
 
