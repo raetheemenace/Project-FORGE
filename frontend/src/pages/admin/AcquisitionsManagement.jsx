@@ -606,61 +606,62 @@ function RequestsPanel() {
             </button>
           )}
         </div>
-      ) : (
-        filteredRequests.map((req) => (
-        <div key={req.request_id} className="bg-white rounded-xl border border-[#001254]/10 p-5 space-y-4">
-          {/* Header row */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-[#001254] font-semibold text-sm">{req.equipment_name}</p>
-              <p className="text-[#001254]/40 text-xs font-mono mt-0.5">REQ-{String(req.request_id).padStart(4, '0')}</p>
-              <p className="text-[#001254]/45 text-xs mt-0.5">
-                {req.equipment_id && <span className="font-mono">{req.equipment_id} · </span>}
-                {req.department} · Qty {req.quantity} · {req.requested_by} ({req.student_id})
-              </p>
-              {req.program && <p className="text-[#001254]/35 text-xs">{req.program}</p>}
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${URGENCY_COLORS[req.urgency]}`}>
-                {req.urgency}
-              </span>
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${STATUS_COLORS[req.status]}`}>
-                {req.status}
-              </span>
-            </div>
-          </div>
+       ) : (
+         filteredRequests.map((req) => (
+           <div key={req.request_id} className="bg-white rounded-xl border border-[#001254]/10 p-5 space-y-4">
+             {/* Header row */}
+             <div className="flex items-start justify-between gap-3">
+               <div className="flex-1 min-w-0">
+                 <p className="text-[#001254] font-semibold text-sm">{req.equipment_name}</p>
+                 <p className="text-[#001254]/40 text-xs font-mono mt-0.5">REQ-{String(req.request_id).padStart(4, '0')}</p>
+                 <p className="text-[#001254]/45 text-xs mt-0.5">
+                   {req.equipment_id && <span className="font-mono">{req.equipment_id} · </span>}
+                   {req.department} · Qty {req.quantity} · {req.requested_by} ({req.student_id})
+                 </p>
+                 {req.program && <p className="text-[#001254]/35 text-xs">{req.program}</p>}
+               </div>
+               <div className="flex items-center gap-2 shrink-0">
+                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${URGENCY_COLORS[req.urgency]}`}>
+                   {req.urgency}
+                 </span>
+                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${STATUS_COLORS[req.status]}`}>
+                   {req.status}
+                 </span>
+               </div>
+             </div>
 
-          {/* Reason */}
-          <p className="text-[#001254]/60 text-xs leading-relaxed bg-[#EFEFE9]/60 rounded-lg px-3 py-2">{req.reason}</p>
+             {/* Reason */}
+             <p className="text-[#001254]/60 text-xs leading-relaxed bg-[#EFEFE9]/60 rounded-lg px-3 py-2">{req.reason}</p>
 
-          {/* Admin notes input + status buttons */}
-          <div className="space-y-2">
-            <input
-              type="text"
-              placeholder="Admin notes (optional)…"
-              value={adminNotes[req.request_id] ?? req.admin_notes ?? ''}
-              onChange={(e) => setAdminNotes((p) => ({ ...p, [req.request_id]: e.target.value }))}
-              className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-xs text-[#001254] focus:outline-none focus:border-[#0B4EA2]/40"
-            />
-            <div className="flex gap-2 flex-wrap">
-              {STATUS_OPTIONS.filter((s) => s !== req.status).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => handleStatusChange(req.request_id, s)}
-                  disabled={updating === req.request_id}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all disabled:opacity-50 ${STATUS_COLORS[s]}`}
-                >
-                  {updating === req.request_id ? <Loader2 className="w-3 h-3 animate-spin inline" /> : `Mark ${s}`}
-                </button>
-              ))}
-            </div>
-          </div>
+             {/* Admin notes input + status buttons */}
+             <div className="space-y-2">
+               <input
+                 type="text"
+                 placeholder="Admin notes (optional)…"
+                 value={adminNotes[req.request_id] ?? req.admin_notes ?? ''}
+                 onChange={(e) => setAdminNotes((p) => ({ ...p, [req.request_id]: e.target.value }))}
+                 className="w-full border border-[#001254]/15 rounded-lg px-3 py-2 text-xs text-[#001254] focus:outline-none focus:border-[#0B4EA2]/40"
+               />
+               <div className="flex gap-2 flex-wrap">
+                 {STATUS_OPTIONS.filter((s) => s !== req.status).map((s) => (
+                   <button
+                     key={s}
+                     onClick={() => handleStatusChange(req.request_id, s)}
+                     disabled={updating === req.request_id}
+                     className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all disabled:opacity-50 ${STATUS_COLORS[s]}`}
+                   >
+                     {updating === req.request_id ? <Loader2 className="w-3 h-3 animate-spin inline" /> : `Mark ${s}`}
+                   </button>
+                 ))}
+               </div>
+             </div>
 
-          <p className="text-[#001254]/30 text-xs">
-            Submitted {new Date(req.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
-          </p>
-        </div>
-      )) : null}
+             <p className="text-[#001254]/30 text-xs">
+               Submitted {new Date(req.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+             </p>
+           </div>
+         ))
+       )}
     </div>
   );
 }
