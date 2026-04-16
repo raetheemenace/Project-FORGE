@@ -131,10 +131,12 @@ CREATE TABLE IF NOT EXISTS forge_user_sessions (
     login_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     logout_timestamp TIMESTAMP,
     ip_address VARCHAR(45),
-    user_agent TEXT,
-    session_token VARCHAR(255) UNIQUE,
-    refresh_token VARCHAR(255)
+    user_agent TEXT
 );
+
+-- Ensure additional columns exist even if table was created earlier without them
+ALTER TABLE forge_user_sessions ADD COLUMN IF NOT EXISTS session_token VARCHAR(255) UNIQUE;
+ALTER TABLE forge_user_sessions ADD COLUMN IF NOT EXISTS refresh_token VARCHAR(255);
 
 -- ############################################################################
 -- PHASE 3: Migrate Department Data (Data Migration)
