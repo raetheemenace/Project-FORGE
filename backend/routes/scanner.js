@@ -15,11 +15,11 @@ const bedrock = new BedrockRuntimeClient({ region: process.env.AWS_REGION });
  * Requirements: 6.2, 6.3, 6.6
  */
 router.post('/identify', authenticateToken, async (req, res) => {
-  const { imageBase64, mediaType = 'image/jpeg' } = req.body;
+  const { imageBase64, mediaType = 'image/jpeg', description } = req.body;
   const userId = req.user.userId;
 
-  if (!imageBase64) {
-    return res.status(400).json({ error: 'imageBase64 is required' });
+  if (!imageBase64 && !description) {
+    return res.status(400).json({ error: 'Either imageBase64 or description is required' });
   }
 
   // Step 1 — Fetch AVAILABLE catalog before Bedrock call
@@ -34,17 +34,43 @@ router.post('/identify', authenticateToken, async (req, res) => {
     catalogRows = [];
   }
 
-  // Strip data URL prefix if present (e.g. "data:image/jpeg;base64,...")
-  const base64Data = imageBase64.includes(',')
-    ? imageBase64.split(',')[1]
-    : imageBase64;
-
   // Step 2 — Inject catalog into prompt
   const catalogList = catalogRows.length > 0
     ? catalogRows.map((r, i) => `${i + 1}. ${r.equipment_id} — ${r.name} [${r.status}] (${r.department})`).join('\n')
     : '(no equipment registered)';
 
-  const prompt = `You are a laboratory equipment identification assistant.
+  let prompt;
+  let hasImageSupport = false;
+
+  if (description) {
+    // Text-based identification
+    prompt = `You are a laboratory equipment identification assistant.
+A user has described equipment: "${description}"
+
+Here is the list of all registered equipment in the system (including items currently under maintenance or otherwise unavailable):
+${catalogList}
+
+Match the described equipment against this list. Return the exact equipment_id from the list above if you find a match, or null if none match. You should identify the equipment regardless of its current availability status.
+Respond ONLY with a JSON object in this exact format (no markdown, no extra text):
+{
+  "name": "<equipment name>",
+  "condition": "<Excellent|Good|Fair|Poor>",
+  "confidence": <0-100 number>,
+  "equipmentId": "<EQ-XXXX from the list above, or null if no match>"
+}
+If you cannot identify any lab equipment from the description, set name to "Unknown Equipment", condition to "Fair", confidence to 0, and equipmentId to null.`;
+  } else if (imageBase64) {
+    // Check if model supports images
+    const modelId = process.env.BEDROCK_MODEL_ID || 'apac.anthropic.claude-3-haiku-20240307-v1:0';
+    hasImageSupport = modelId.includes('sonnet') || modelId.includes('opus');
+
+    if (hasImageSupport) {
+      // Strip data URL prefix if present (e.g. "data:image/jpeg;base64,...")
+      const base64Data = imageBase64.includes(',')
+        ? imageBase64.split(',')[1]
+        : imageBase64;
+
+      prompt = `You are a laboratory equipment identification assistant.
 Analyze the image and identify the lab equipment shown.
 
 Here is the list of all registered equipment in the system (including items currently under maintenance or otherwise unavailable):
@@ -59,6 +85,19 @@ Respond ONLY with a JSON object in this exact format (no markdown, no extra text
   "equipmentId": "<EQ-XXXX from the list above, or null if no match>"
 }
 If you cannot identify any lab equipment, set name to "Unknown Equipment", condition to "Fair", confidence to 0, and equipmentId to null.`;
+    } else {
+      // Fallback for models without image support
+      prompt = `You are a laboratory equipment identification assistant.
+A user has taken a photo of equipment but the system cannot analyze images directly.
+
+Here is the list of all registered equipment in the system (including items currently under maintenance or otherwise unavailable):
+${catalogList}
+
+Since I cannot see the image, please provide guidance to the user on how to identify their equipment. Suggest they check the equipment ID tag or describe the equipment characteristics.
+
+Respond with helpful guidance for the user to identify their equipment manually.`;
+    }
+  }
 
   const bedrockInput = {
     modelId: process.env.BEDROCK_MODEL_ID || 'apac.anthropic.claude-3-haiku-20240307-v1:0',
@@ -66,21 +105,21 @@ If you cannot identify any lab equipment, set name to "Unknown Equipment", condi
     accept: 'application/json',
     body: JSON.stringify({
       anthropic_version: 'bedrock-2023-05-31',
-      max_tokens: 256,
+      max_tokens: 512,
       messages: [
         {
           role: 'user',
-          content: [
+          content: hasImageSupport && imageBase64 ? [
             {
               type: 'image',
               source: {
                 type: 'base64',
                 media_type: mediaType,
-                data: base64Data,
+                data: imageBase64.includes(',') ? imageBase64.split(',')[1] : imageBase64,
               },
             },
             { type: 'text', text: prompt },
-          ],
+          ] : [{ type: 'text', text: prompt }],
         },
       ],
     }),
@@ -88,6 +127,28 @@ If you cannot identify any lab equipment, set name to "Unknown Equipment", condi
 
   let bedrockRaw = null;
   let parsed = null;
+
+  // Handle case where images aren't supported
+  if (imageBase64 && !hasImageSupport) {
+    // Log the scan attempt
+    await logScan({
+      userId,
+      s3ImageKey: null,
+      bedrockResponse: JSON.stringify({ error: 'Model does not support image input' }),
+      predictedName: 'Image processing not available',
+      confidenceScore: 0,
+      equipmentId: null
+    });
+
+    return res.json({
+      equipmentId: null,
+      name: 'Image processing not available',
+      condition: 'Unknown',
+      confidence: 0,
+      message: 'The current AI model does not support image analysis. Please describe the equipment instead or check the equipment ID tag manually.',
+      bedrockRaw: { error: 'Model does not support image input' }
+    });
+  }
 
   try {
     const command = new InvokeModelCommand(bedrockInput);
