@@ -178,7 +178,8 @@ JOIN forge_departments d ON d.department_name = e.department
 WHERE NOT EXISTS (
     SELECT 1 FROM forge_equipment_departments ed
     WHERE ed.equipment_id = e.equipment_id
-);
+)
+ON CONFLICT (equipment_id, department_id) DO NOTHING;
 
 -- ############################################################################
 -- PHASE 4: ALTER TABLEs - Modify Existing Schema (Non-breaking additions)

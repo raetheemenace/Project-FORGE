@@ -299,7 +299,7 @@ router.post('/:id/items', authenticateToken, requireRole('LAB_ADMIN'), async (re
         await client.query(
           `INSERT INTO forge_equipment_departments (equipment_id, department_id, is_primary, assigned_date)
            VALUES ($1, $2, TRUE, CURRENT_DATE)
-           ON CONFLICT DO NOTHING`,
+           ON CONFLICT (equipment_id, department_id) DO NOTHING`,
           [equipmentId, departmentId]
         );
       }
