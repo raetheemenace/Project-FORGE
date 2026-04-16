@@ -42,23 +42,39 @@ router.post('/', authenticateToken, async (req, res) => {
       [txnId, userId, department, course, timeSlot, date, labRoom, adviser]
     );
 
-    // Insert each item and mark equipment as BORROWED, decrement available units
+    // Insert each item: update equipment, log borrow, create txn item
     for (const item of items) {
+      if (!item.equipmentId) continue;
+
+      // 1. Insert transaction item
       await client.query(
         `INSERT INTO forge_txn_items (txn_id, equipment_id, condition)
          VALUES ($1, $2, $3)`,
-        [txnId, item.equipmentId || null, item.condition || null]
+        [txnId, item.equipmentId, item.condition || null]
       );
-      if (item.equipmentId) {
-        // Update status and decrement available units atomically
-        await client.query(
-          `UPDATE forge_equipment 
-           SET status = CASE WHEN available_units <= 1 THEN 'BORROWED' ELSE status END,
-               available_units = available_units - 1
-           WHERE equipment_id = $1 AND available_units > 0`,
-          [item.equipmentId]
-        );
-      }
+
+      // 2. Get current condition and status for borrow log
+      const equipResult = await client.query(
+        `SELECT status, total_units, available_units FROM forge_equipment WHERE equipment_id = $1 FOR UPDATE`,
+        [item.equipmentId]
+      );
+      const currentStatus = equipResult.rows[0]?.status || 'AVAILABLE';
+
+      // 3. Insert borrow log entry (before update)
+      await client.query(
+        `INSERT INTO forge_borrow_log (user_id, equipment_id, txn_id, condition_before, borrowed_at)
+         VALUES ($1, $2, $3, $4, NOW())`,
+        [userId, item.equipmentId, txnId, item.condition || null]
+      );
+
+      // 4. Update equipment atomically
+      await client.query(
+        `UPDATE forge_equipment
+         SET status = CASE WHEN available_units <= 1 THEN 'BORROWED' ELSE status END,
+             available_units = available_units - 1
+         WHERE equipment_id = $1 AND available_units > 0`,
+        [item.equipmentId]
+      );
     }
 
     // Notify the student
@@ -144,6 +160,7 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post('/:txnId/return', authenticateToken, async (req, res) => {
   const { txnId } = req.params;
   const userId = req.user.userId;
+  const { conditionAfter, remarks } = req.body;  // Optional fields
 
   let client;
   try {
@@ -168,21 +185,42 @@ router.post('/:txnId/return', authenticateToken, async (req, res) => {
 
     // Get all items in this transaction
     const itemsResult = await client.query(
-      `SELECT equipment_id FROM forge_txn_items WHERE txn_id = $1`,
+      `SELECT item_id, equipment_id FROM forge_txn_items WHERE txn_id = $1`,
       [txnId]
     );
 
-    // Increment available units for each returned item
+    // For each item: find the corresponding borrow_log entry, then create return_log
     for (const item of itemsResult.rows) {
-      if (item.equipment_id) {
+      if (!item.equipment_id) continue;
+
+      // Find the most recent borrow log for this equipment + transaction (should exist)
+      const borrowLogResult = await client.query(
+        `SELECT borrow_id FROM forge_borrow_log
+         WHERE txn_id = $1 AND equipment_id = $2
+         ORDER BY borrowed_at DESC LIMIT 1
+         FOR UPDATE`,
+        [txnId, item.equipment_id]
+      );
+
+      if (borrowLogResult.rows.length > 0) {
+        const borrowId = borrowLogResult.rows[0].borrow_id;
+
+        // Insert return log entry
         await client.query(
-          `UPDATE forge_equipment 
-           SET status = CASE WHEN available_units + 1 >= total_units THEN 'AVAILABLE' ELSE status END,
-               available_units = available_units + 1
-           WHERE equipment_id = $1`,
-          [item.equipment_id]
+          `INSERT INTO forge_return_log (borrow_id, user_id, equipment_id, condition_after, remarks_in)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [borrowId, userId, item.equipment_id, conditionAfter || null, remarks || null]
         );
       }
+
+      // Increment available units for each returned item
+      await client.query(
+        `UPDATE forge_equipment
+         SET status = CASE WHEN available_units + 1 >= total_units THEN 'AVAILABLE' ELSE status END,
+             available_units = available_units + 1
+         WHERE equipment_id = $1`,
+        [item.equipment_id]
+      );
     }
 
     // Update transaction status

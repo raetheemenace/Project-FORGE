@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Bell, X, CheckCheck, Package, Wrench, ShoppingCart, RefreshCw } from 'lucide-react';
+import { getToken } from '../services/authService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -29,7 +30,7 @@ export default function NotificationBell() {
 
   const fetchNotifications = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const res = await axios.get(`${API_URL}/notifications`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -77,15 +78,15 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleOpen = async () => {
-    setOpen((v) => !v);
-    if (!open && unreadCount > 0) {
-      // Mark all as read
-      try {
-        const token = localStorage.getItem('token');
-        await axios.patch(`${API_URL}/notifications/read-all`, {}, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+   const handleOpen = async () => {
+     setOpen((v) => !v);
+     if (!open && unreadCount > 0) {
+       // Mark all as read
+       try {
+         const token = getToken();
+         await axios.patch(`${API_URL}/notifications/read-all`, {}, {
+           headers: { Authorization: `Bearer ${token}` },
+         });
         setUnreadCount(0);
         setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       } catch (_) {}

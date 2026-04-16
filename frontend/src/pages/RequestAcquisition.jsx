@@ -12,6 +12,7 @@ import { useSTT } from '../hooks/useSTT';
 import { useTTS } from '../hooks/useTTS';
 import TTSToggle from '../components/ui/TTSToggle';
 import { unlockAudio } from '../hooks/useCountdownTimer';
+import { getToken } from '../services/authService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -106,7 +107,7 @@ export default function RequestAcquisition() {
   const [highDemandOpen, setHighDemandOpen] = useState(false);
   const [deptEquipment, setDeptEquipment] = useState([]);
 
-  const token = () => localStorage.getItem('token');
+  const token = getToken;
 
   const fetchDeptEquipment = async (dept) => {
     if (!dept) return;

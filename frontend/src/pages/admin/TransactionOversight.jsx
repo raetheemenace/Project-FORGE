@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../hooks/useAuth.jsx';
+import { getToken } from '../../services/authService';
 import logo from '../../assets/logo_landingpage.png';
 import {
   Activity,
@@ -112,13 +113,13 @@ export default function TransactionOversight() {
 
   // UI state
   const [expandedId, setExpandedId]   = useState(null);
-  const [overrideModal, setOverrideModal] = useState(null); // txn object
-  const [newStatus, setNewStatus]     = useState('');
-  const [overrideLoading, setOverrideLoading] = useState(false);
+   const [overrideModal, setOverrideModal] = useState(null); // txn object
+   const [newStatus, setNewStatus]     = useState('');
+   const [overrideLoading, setOverrideLoading] = useState(false);
 
-  const token = () => localStorage.getItem('token');
+   const token = getToken;
 
-  const fetchTransactions = useCallback((activeFilters = applied) => {
+   const fetchTransactions = useCallback((activeFilters = applied) => {
     setLoading(true);
     setError(null);
     const params = {};

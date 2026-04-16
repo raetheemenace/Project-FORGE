@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Zap, X, Send, Loader2, AlertTriangle } from 'lucide-react';
+import { getToken } from '../services/authService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -31,7 +32,7 @@ export default function AIAssistant({ ttsEnabled, speak }) {
     setInput('');
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const res = await axios.post(
         `${API_URL}/ai/chat`,
         { question },

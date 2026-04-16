@@ -11,6 +11,7 @@ export default function SignIn() {
     tipEmail: '',
     studentId: ''
   });
+  const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
 
@@ -44,7 +45,7 @@ export default function SignIn() {
     setLoading(true);
 
     try {
-      const response = await signIn(formData.tipEmail, formData.studentId);
+      const response = await signIn(formData.tipEmail, formData.studentId, rememberMe);
       if (response.user?.role === 'LAB_ADMIN') {
         navigate('/admin');
       } else {
@@ -162,6 +163,24 @@ export default function SignIn() {
                 <p className="text-red-600 text-sm text-center">{errors.submit}</p>
               </div>
             )}
+
+            {/* Remember Me Checkbox */}
+            <div className="flex items-center gap-2.5">
+              <input
+                type="checkbox"
+                id="rememberMe"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 text-[#0B4EA2] border-[#001254]/20 rounded focus:ring-[#0B4EA2] focus:ring-offset-0"
+              />
+              <label
+                htmlFor="rememberMe"
+                className="text-[#001254]/70 cursor-pointer select-none"
+                style={{ fontSize: '0.8rem' }}
+              >
+                Remember me on this device
+              </label>
+            </div>
 
             <button
               type="submit"

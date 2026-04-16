@@ -152,15 +152,43 @@ router.post('/', authenticateToken, requireRole('LAB_ADMIN'), async (req, res) =
       }
     }
 
+    // Insert equipment
     await db.query(
       `INSERT INTO forge_equipment (equipment_id, name, department, s3_image_key, status, total_quantity)
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [equipmentId, name.trim(), department.trim(), s3ImageKey, equipmentStatus, qty]
     );
 
+    // Ensure department exists in forge_departments and link
+    const deptName = department.trim();
+    await db.query(
+      `INSERT INTO forge_departments (department_name) VALUES ($1)
+       ON CONFLICT (department_name) DO NOTHING`,
+      [deptName]
+    );
+    const deptResult = await db.query(
+      `SELECT department_id FROM forge_departments WHERE department_name = $1`,
+      [deptName]
+    );
+    if (deptResult.rows.length > 0) {
+      const departmentId = deptResult.rows[0].department_id;
+      // Update equipment.department_id
+      await db.query(
+        `UPDATE forge_equipment SET department_id = $1 WHERE equipment_id = $2`,
+        [departmentId, equipmentId]
+      );
+      // Link in equipment_departments
+      await db.query(
+        `INSERT INTO forge_equipment_departments (equipment_id, department_id, is_primary, assigned_date)
+         VALUES ($1, $2, TRUE, CURRENT_DATE)
+         ON CONFLICT DO NOTHING`,
+        [equipmentId, departmentId]
+      );
+    }
+
     await logAdminAction(db, adminId, 'EQUIPMENT_CREATED', equipmentId, {
       name: name.trim(),
-      department: department.trim(),
+      department: deptName,
       status: equipmentStatus,
     });
 

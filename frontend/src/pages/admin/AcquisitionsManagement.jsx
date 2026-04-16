@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../hooks/useAuth.jsx';
+import { getToken } from '../../services/authService';
 import logo from '../../assets/logo_landingpage.png';
 import {
   ShoppingCart,
@@ -123,7 +124,7 @@ function AddItemForm({ acquisitionId, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const token = () => localStorage.getItem('token');
+  const token = getToken;
 
   const validate = () => {
     const e = {};
@@ -233,7 +234,7 @@ function DetailView({ acquisitionId, onBack, onFlash, onError }) {
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState(null);
 
-  const token = () => localStorage.getItem('token');
+  const token = getToken;
 
   const fetchDetail = () => {
     setLoading(true);
@@ -400,7 +401,7 @@ function RequestsPanel() {
   const [filterDateTo, setFilterDateTo] = useState('');
   const [sortOrder, setSortOrder] = useState('newest');
 
-  const token = () => localStorage.getItem('token');
+  const token = getToken;
 
   const fetchRequests = () => {
     setLoading(true);
@@ -680,7 +681,7 @@ export default function AcquisitionsManagement() {
   const [selectedId, setSelectedId] = useState(null);
   const [adminTab, setAdminTab] = useState('acquisitions'); // 'acquisitions' | 'requests'
 
-  const token = () => localStorage.getItem('token');
+  const token = getToken;
 
   const fetchAcquisitions = () => {
     setLoading(true);

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../hooks/useAuth.jsx';
+import { getToken } from '../../services/authService';
 import logo from '../../assets/logo_landingpage.png';
 import {
   Activity,
@@ -49,14 +50,14 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchStats = () => {
-    setLoading(true);
-    setError(null);
-    const token = localStorage.getItem('token');
-    axios
-      .get(`${API_URL}/admin/analytics`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+   const fetchStats = () => {
+     setLoading(true);
+     setError(null);
+     const token = getToken();
+     axios
+       .get(`${API_URL}/admin/analytics`, {
+         headers: { Authorization: `Bearer ${token}` },
+       })
       .then((res) => setStats(res.data))
       .catch((err) => {
         if (err.response?.status === 403) {

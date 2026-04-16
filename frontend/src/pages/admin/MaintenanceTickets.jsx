@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../hooks/useAuth.jsx';
+import { getToken } from '../../services/authService';
 import logo from '../../assets/logo_landingpage.png';
 import {
   AlertTriangle,
@@ -206,7 +207,7 @@ export default function MaintenanceTickets() {
   const [updateForm, setUpdateForm] = useState({ status: '', assigned_to: '', resolution: '', priority: '' });
   const [updateLoading, setUpdateLoading] = useState(false);
 
-  const token = () => localStorage.getItem('token');
+  const token = getToken;
 
   const fetchTickets = useCallback(() => {
     setLoading(true);

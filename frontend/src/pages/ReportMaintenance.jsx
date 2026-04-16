@@ -6,6 +6,7 @@ import axios from 'axios';
 import logo from '../assets/logo_landingpage.png';
 import { useQRScanner } from '../hooks/useQRScanner';
 import { useSTT } from '../hooks/useSTT';
+import { getToken } from '../services/authService';
 
 const SEVERITIES = ['Low', 'Medium', 'High', 'Critical'];
 
@@ -101,16 +102,16 @@ export default function ReportMaintenance() {
       setScanning(false);
       setScanError('');
       setEquipmentId(scannedId);
-      setErrors((prev) => ({ ...prev, equipmentId: '' }));
-      if (scanTimeoutRef.current) {
-        clearTimeout(scanTimeoutRef.current);
-        scanTimeoutRef.current = null;
-      }
-      // Fetch equipment name
-      const token = localStorage.getItem('token');
-      axios.get(`${API_URL}/equipment/${scannedId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
+       setErrors((prev) => ({ ...prev, equipmentId: '' }));
+       if (scanTimeoutRef.current) {
+         clearTimeout(scanTimeoutRef.current);
+         scanTimeoutRef.current = null;
+       }
+       // Fetch equipment name
+       const token = getToken();
+       axios.get(`${API_URL}/equipment/${scannedId}`, {
+         headers: { Authorization: `Bearer ${token}` },
+       })
         .then((res) => setEquipmentName(res.data.name || scannedId))
         .catch(() => setEquipmentName(scannedId));
     }, []),
@@ -266,7 +267,7 @@ export default function ReportMaintenance() {
 
     setSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const body = { equipmentId: equipmentId || undefined, severity, description: description.trim() };
       if (capturedImage) body.photoBase64 = capturedImage;
       await axios.post(

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../hooks/useAuth.jsx';
+import { getToken } from '../../services/authService';
 import logo from '../../assets/logo_landingpage.png';
 import {
   ChevronLeft,
@@ -437,7 +438,7 @@ export default function SystemReports() {
   const { user, signOut } = useAuth();
   const [tab, setTab] = useState('analytics');
 
-  const token = localStorage.getItem('token');
+  const token = getToken();
   const displayName = user?.fullName || user?.username || 'Admin';
 
   return (

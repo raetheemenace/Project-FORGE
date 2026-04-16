@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
 import logo from '../assets/logo_landingpage.png';
+import { getToken } from '../services/authService';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -35,7 +36,7 @@ export default function MachineDetail() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     axios
       .get(`${API_URL}/equipment/${id}`, {
         headers: { Authorization: `Bearer ${token}` },

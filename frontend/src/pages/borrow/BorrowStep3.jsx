@@ -12,6 +12,7 @@ import { useSTT } from '../../hooks/useSTT';
 import { useQRScanner } from '../../hooks/useQRScanner';
 import StepIndicator from '../../components/ui/StepIndicator';
 import TTSToggle from '../../components/ui/TTSToggle';
+import { getToken } from '../../services/authService';
 
 const TOTAL_STEPS = 4;
 const CURRENT_STEP = 3;
@@ -62,13 +63,13 @@ export default function BorrowStep3() {
   // QR scan success: fetch equipment details and auto-add to cart
   // speak_ref.current always has the latest speak — no need to list speak as dep
    const handleQRSuccess = useCallback(async (equipmentId) => {
-    setQrLookupError(null);
-    try {
-      const token = localStorage.getItem('token');
-      const { data } = await axios.get(
-        `${API_BASE}/equipment/${equipmentId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+     setQrLookupError(null);
+     try {
+       const token = getToken();
+       const { data } = await axios.get(
+         `${API_BASE}/equipment/${equipmentId}`,
+         { headers: { Authorization: `Bearer ${token}` } }
+       );
       
       if (cartItems.length >= 1) {
         speak_ref.current('Only one item can be borrowed at a time.');
@@ -211,7 +212,7 @@ export default function BorrowStep3() {
       // Use lower quality (0.6) to further reduce payload size
       const imageBase64 = canvas.toDataURL('image/jpeg', 0.6);
 
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const { data } = await axios.post(
         `${API_BASE}/scanner/identify`,
         { imageBase64, mediaType: 'image/jpeg' },

@@ -253,16 +253,56 @@ router.post('/:id/items', authenticateToken, requireRole('LAB_ADMIN'), async (re
 
     const equipmentIds = [];
 
+    // Pre-populate departments for all items (deduplicated)
+    const uniqueDepts = [...new Set(items.map(i => i.department.trim()).filter(Boolean))];
+    const deptIdMap = {};
+    for (const deptName of uniqueDepts) {
+      // Upsert department (ignore if exists)
+      await client.query(
+        `INSERT INTO forge_departments (department_name) VALUES ($1)
+         ON CONFLICT (department_name) DO NOTHING`,
+        [deptName]
+      );
+      // Get department_id
+      const deptResult = await client.query(
+        `SELECT department_id FROM forge_departments WHERE department_name = $1`,
+        [deptName]
+      );
+      if (deptResult.rows.length > 0) {
+        deptIdMap[deptName] = deptResult.rows[0].department_id;
+      }
+    }
+
     for (const item of items) {
       const equipmentId = await getUniqueEquipmentId(client);
       const assignedRoom = item.assigned_room || null;
       const initialCondition = item.initial_condition || null;
+      const deptName = item.department.trim();
+      const departmentId = deptIdMap[deptName] || null;
 
+      // Insert equipment (including department text for legacy compatibility)
       await client.query(
         `INSERT INTO forge_equipment (equipment_id, name, department, status)
          VALUES ($1, $2, $3, 'AVAILABLE')`,
-        [equipmentId, item.name.trim(), item.department.trim()]
+        [equipmentId, item.name.trim(), deptName]
       );
+
+      // If we have a department_id, link via junction and set FK
+      if (departmentId) {
+        // Update equipment.department_id
+        await client.query(
+          `UPDATE forge_equipment SET department_id = $1 WHERE equipment_id = $2`,
+          [departmentId, equipmentId]
+        );
+
+        // Insert into equipment_departments (primary link)
+        await client.query(
+          `INSERT INTO forge_equipment_departments (equipment_id, department_id, is_primary, assigned_date)
+           VALUES ($1, $2, TRUE, CURRENT_DATE)
+           ON CONFLICT DO NOTHING`,
+          [equipmentId, departmentId]
+        );
+      }
 
       await client.query(
         `INSERT INTO forge_acquisition_items (acquisition_id, equipment_id, initial_condition, assigned_room)

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { useAuth } from '../hooks/useAuth.jsx';
+import { getToken } from '../services/authService';
 import { useClock } from '../hooks/useClock.js';
 import { useTTS } from '../hooks/useTTS.js';
 import logo from '../assets/logo_landingpage.png';
@@ -127,7 +128,7 @@ export default function Dashboard() {
 
   // Fetch dashboard data
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = getToken();
     axios
       .get(`${API_URL}/dashboard`, {
         headers: { Authorization: `Bearer ${token}` },

@@ -10,6 +10,7 @@ import logo from '../../assets/logo_landingpage.png';
 import { useTTS } from '../../hooks/useTTS';
 import StepIndicator from '../../components/ui/StepIndicator';
 import TTSToggle from '../../components/ui/TTSToggle';
+import { getToken } from '../../services/authService';
 
 const TOTAL_STEPS = 4;
 const CURRENT_STEP = 4;
@@ -90,7 +91,7 @@ export default function BorrowStep4() {
     speak('Submitting your borrowing transaction. Please wait.');
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const { data } = await axios.post(
         `${API_BASE}/transactions`,
         {

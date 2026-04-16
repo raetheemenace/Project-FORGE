@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../hooks/useAuth.jsx';
+import { getToken } from '../../services/authService';
 import logo from '../../assets/logo_landingpage.png';
 import {
   Package,
@@ -191,7 +192,7 @@ export default function EquipmentManagement() {
   const [showQRCode, setShowQRCode] = useState(null); // { equipmentId, equipmentName, qrCode }
   const [actionLoading, setActionLoading] = useState(false);
 
-  const token = () => localStorage.getItem('token');
+  const token = getToken;
 
   const fetchEquipment = () => {
     setLoading(true);
