@@ -1,6 +1,7 @@
 node_modules/
 .env
 .env.local
+.env.*
 *.test.js
 vitest.config.js
 .git/
@@ -8,3 +9,5 @@ vitest.config.js
 *.md
 __tests__/
 coverage/
+test/
+*.test.jsx
