@@ -65,15 +65,17 @@ CREATE TABLE IF NOT EXISTS forge_system_settings (
 CREATE TABLE IF NOT EXISTS forge_equipment_departments (
     equipment_id VARCHAR(20) NOT NULL,
     department_id INTEGER NOT NULL,
-    is_primary BOOLEAN DEFAULT TRUE,  -- For equipment that primarily belongs to one department
-    assigned_date DATE DEFAULT CURRENT_DATE,
-    notes TEXT,
     PRIMARY KEY (equipment_id, department_id),
     CONSTRAINT forge_equipment_departments_equipment_id_fkey FOREIGN KEY (equipment_id)
         REFERENCES public.forge_equipment(equipment_id) ON DELETE CASCADE,
     CONSTRAINT forge_equipment_departments_department_id_fkey FOREIGN KEY (department_id)
         REFERENCES public.forge_departments(department_id) ON DELETE CASCADE
 );
+
+-- Ensure additional columns exist even if table was created earlier without them
+ALTER TABLE forge_equipment_departments ADD COLUMN IF NOT EXISTS is_primary BOOLEAN DEFAULT TRUE;
+ALTER TABLE forge_equipment_departments ADD COLUMN IF NOT EXISTS assigned_date DATE DEFAULT CURRENT_DATE;
+ALTER TABLE forge_equipment_departments ADD COLUMN IF NOT EXISTS notes TEXT;
 
 -- Table: forge_borrow_log
 CREATE TABLE IF NOT EXISTS forge_borrow_log (
@@ -189,12 +191,11 @@ WHERE notes IS NULL
 
 -- Step 3.2: Populate forge_equipment_departments from existing equipment.department
 -- This establishes the many-to-many relationship (1-to-1 initially)
-INSERT INTO forge_equipment_departments (equipment_id, department_id, is_primary, assigned_date)
+-- Note: Insert only basic columns first, then update additional columns
+INSERT INTO forge_equipment_departments (equipment_id, department_id)
 SELECT
     e.equipment_id,
-    d.department_id,
-    TRUE as is_primary,
-    CURRENT_DATE as assigned_date
+    d.department_id
 FROM forge_equipment e
 JOIN forge_departments d ON d.department_name = e.department
 WHERE NOT EXISTS (
@@ -202,6 +203,15 @@ WHERE NOT EXISTS (
     WHERE ed.equipment_id = e.equipment_id
 )
 ON CONFLICT (equipment_id, department_id) DO NOTHING;
+
+-- Update additional columns after ensuring they exist
+UPDATE forge_equipment_departments
+SET is_primary = TRUE
+WHERE is_primary IS NULL;
+
+UPDATE forge_equipment_departments
+SET assigned_date = CURRENT_DATE
+WHERE assigned_date IS NULL;
 
 -- ############################################################################
 -- PHASE 4: ALTER TABLEs - Modify Existing Schema (Non-breaking additions)

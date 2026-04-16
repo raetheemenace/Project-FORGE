@@ -297,9 +297,18 @@ router.post('/:id/items', authenticateToken, requireRole('LAB_ADMIN'), async (re
 
         // Insert into equipment_departments (primary link)
         await client.query(
-          `INSERT INTO forge_equipment_departments (equipment_id, department_id, is_primary, assigned_date)
-           VALUES ($1, $2, TRUE, CURRENT_DATE)
+          `INSERT INTO forge_equipment_departments (equipment_id, department_id)
+           VALUES ($1, $2)
            ON CONFLICT (equipment_id, department_id) DO NOTHING`,
+          [equipmentId, departmentId]
+        );
+
+        // Update additional columns if they exist
+        await client.query(
+          `UPDATE forge_equipment_departments
+           SET is_primary = TRUE, assigned_date = CURRENT_DATE
+           WHERE equipment_id = $1 AND department_id = $2
+             AND (is_primary IS NULL OR assigned_date IS NULL)`,
           [equipmentId, departmentId]
         );
       }
