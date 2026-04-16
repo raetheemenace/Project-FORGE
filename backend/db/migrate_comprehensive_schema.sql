@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS forge_departments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Ensure columns exist even if table was created earlier without them
+ALTER TABLE forge_departments ADD COLUMN IF NOT EXISTS default_lab_room VARCHAR(20);
+ALTER TABLE forge_departments ADD COLUMN IF NOT EXISTS notes TEXT;
+
 -- Table: forge_suppliers
 CREATE TABLE IF NOT EXISTS forge_suppliers (
     supplier_id SERIAL PRIMARY KEY,
