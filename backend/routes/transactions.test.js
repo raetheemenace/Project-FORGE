@@ -211,7 +211,7 @@ describe('Property 14: Transaction creation is atomic', function() {
       fc.asyncProperty(
         fc.array(
           fc.record({
-            equipmentId: fc.string(),
+            equipmentId: fc.string({ minLength: 1 }), // Ensure non-empty
             condition: fc.constantFrom('Excellent', 'Good', 'Fair', 'Poor'),
           }),
           { minLength: 1, maxLength: 10 }

@@ -21,6 +21,17 @@ router.post('/', authenticateToken, async (req, res) => {
     return res.status(400).json({ error: 'At least one equipment item is required.' });
   }
 
+  // Validate each item has required fields
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    if (!item.equipmentId || typeof item.equipmentId !== 'string' || item.equipmentId.trim() === '') {
+      return res.status(400).json({ error: `Item ${i + 1}: equipmentId is required and cannot be empty.` });
+    }
+    if (!['Excellent', 'Good', 'Fair', 'Poor'].includes(item.condition)) {
+      return res.status(400).json({ error: `Item ${i + 1}: condition must be one of Excellent, Good, Fair, Poor.` });
+    }
+  }
+
   const userId = req.user.userId;
   const txnDate = new Date(date);
 

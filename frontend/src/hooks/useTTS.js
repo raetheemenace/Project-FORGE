@@ -25,7 +25,7 @@ export function useTTS(initialEnabled = false) {
   // Persist TTS state in localStorage
   const [ttsEnabled, setTtsEnabled] = useState(() => {
     const saved = localStorage.getItem('ttsEnabled');
-    return saved !== null ? saved === 'true' : initialEnabled;
+    return saved !== null ? saved === 'true' : false; // Disable TTS by default
   });
   const [speaking, setSpeaking] = useState(false);
   const audioRef = useRef(null);

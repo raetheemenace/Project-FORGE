@@ -2,19 +2,20 @@
 -- Run this after schema.sql to populate the database with test data
 
 -- Clear existing data (optional - comment out if you want to keep existing data)
-TRUNCATE TABLE forge_analytics_daily, forge_maintenance_tickets, forge_admin_actions, 
-                forge_equipment_events, forge_scan_log, forge_maintenance, 
-                forge_txn_items, forge_transactions, forge_equipment, 
-                forge_lab_rooms, forge_users CASCADE;
+-- WARNING: This will delete ALL existing data. Use with caution.
+-- TRUNCATE TABLE forge_analytics_daily, forge_maintenance_tickets, forge_admin_actions,
+--                 forge_equipment_events, forge_scan_log, forge_maintenance,
+--                 forge_txn_items, forge_transactions, forge_equipment,
+--                 forge_lab_rooms, forge_users CASCADE;
 
 -- Insert sample users
-INSERT INTO forge_users (student_id, username, password_hash, full_name, program, role) VALUES
-('2024001', 'juan.cruz', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Juan Dela Cruz', 'BS Computer Engineering', 'STUDENT'),
-('2024002', 'maria.santos', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Maria Santos', 'BS Electronics Engineering', 'STUDENT'),
-('2024003', 'pedro.reyes', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Pedro Reyes', 'BS Mechanical Engineering', 'STUDENT'),
-('2024004', 'ana.garcia', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Ana Garcia', 'BS Civil Engineering', 'STUDENT'),
-('2024005', 'jose.lopez', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Jose Lopez', 'BS Computer Engineering', 'STUDENT'),
-('ADMIN01', 'admin', '$2b$10$abcdefghijklmnopqrstuvwxyz123456', 'Lab Administrator', 'Lab Management', 'LAB_ADMIN');
+INSERT INTO forge_users (student_id, full_name, tip_email, program, role) VALUES
+('2024001', 'Juan Dela Cruz', 'mjdelacruz@tip.edu.ph', 'BS Computer Engineering', 'STUDENT'),
+('2024002', 'Maria Santos', 'msantos@tip.edu.ph', 'BS Electronics Engineering', 'STUDENT'),
+('2024003', 'Pedro Reyes', 'preyes@tip.edu.ph', 'BS Mechanical Engineering', 'STUDENT'),
+('2024004', 'Ana Garcia', 'agarcia@tip.edu.ph', 'BS Civil Engineering', 'STUDENT'),
+('2024005', 'Jose Lopez', 'jlopez@tip.edu.ph', 'BS Computer Engineering', 'STUDENT'),
+('ADMIN01', 'Lab Administrator', 'admin@tip.edu.ph', 'Lab Management', 'LAB_ADMIN');
 
 -- Insert lab rooms
 INSERT INTO forge_lab_rooms (room_id, room_name, department, capacity, status) VALUES

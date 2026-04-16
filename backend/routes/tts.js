@@ -55,6 +55,7 @@ router.post('/synthesize', authenticateToken, async (req, res) => {
     }
   } catch (err) {
     console.error('Polly error:', err);
+    console.error('Polly error details:', err.message, err.code, err.statusCode);
     res.status(502).json({ error: 'TTS service temporarily unavailable.' });
   }
 });
