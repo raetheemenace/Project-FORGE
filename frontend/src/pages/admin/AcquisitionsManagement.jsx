@@ -382,13 +382,23 @@ const STATUS_COLORS = {
 };
 
 const STATUS_OPTIONS = ['PENDING', 'APPROVED', 'REJECTED', 'FULFILLED'];
+const URGENCY_OPTIONS = ['Low', 'Medium', 'High', 'Critical'];
 
 function RequestsPanel() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [updating, setUpdating] = useState(null); // request_id being updated
+  const [updating, setUpdating] = useState(null);
   const [adminNotes, setAdminNotes] = useState({});
+
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [filterUrgency, setFilterUrgency] = useState('ALL');
+  const [filterDepartment, setFilterDepartment] = useState('ALL');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [sortOrder, setSortOrder] = useState('newest');
 
   const token = () => localStorage.getItem('token');
 
@@ -422,6 +432,64 @@ function RequestsPanel() {
     }
   };
 
+  // Get unique departments for filter dropdown
+  const departments = [...new Set(requests.map(r => r.department).filter(Boolean))].sort();
+
+  // Filter and sort requests
+  const filteredRequests = requests
+    .filter(req => {
+      // Search filter
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const matchSearch =
+          req.equipment_name?.toLowerCase().includes(q) ||
+          req.requested_by?.toLowerCase().includes(q) ||
+          req.student_id?.toLowerCase().includes(q) ||
+          req.department?.toLowerCase().includes(q) ||
+          `REQ-${req.request_id}`.toLowerCase().includes(q);
+        if (!matchSearch) return false;
+      }
+      // Status filter
+      if (filterStatus !== 'ALL' && req.status !== filterStatus) return false;
+      // Urgency filter
+      if (filterUrgency !== 'ALL' && req.urgency !== filterUrgency) return false;
+      // Department filter
+      if (filterDepartment !== 'ALL' && req.department !== filterDepartment) return false;
+      // Date range filter
+      if (filterDateFrom) {
+        const reqDate = new Date(req.created_at).toISOString().slice(0, 10);
+        if (reqDate < filterDateFrom) return false;
+      }
+      if (filterDateTo) {
+        const reqDate = new Date(req.created_at).toISOString().slice(0, 10);
+        if (reqDate > filterDateTo) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortOrder === 'newest') {
+        return new Date(b.created_at) - new Date(a.created_at);
+      } else if (sortOrder === 'oldest') {
+        return new Date(a.created_at) - new Date(b.created_at);
+      } else if (sortOrder === 'urgency') {
+        const urgencyOrder = { Critical: 0, High: 1, Medium: 2, Low: 3 };
+        return (urgencyOrder[a.urgency] ?? 4) - (urgencyOrder[b.urgency] ?? 4);
+      }
+      return 0;
+    });
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setFilterStatus('ALL');
+    setFilterUrgency('ALL');
+    setFilterDepartment('ALL');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+    setSortOrder('newest');
+  };
+
+  const hasActiveFilters = searchQuery || filterStatus !== 'ALL' || filterUrgency !== 'ALL' || filterDepartment !== 'ALL' || filterDateFrom || filterDateTo;
+
   if (loading) return <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 text-[#0B4EA2] animate-spin" /></div>;
   if (error) return <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm"><AlertTriangle className="w-4 h-4 shrink-0" />{error}</div>;
   if (requests.length === 0) return (
@@ -433,7 +501,113 @@ function RequestsPanel() {
 
   return (
     <div className="space-y-4">
-      {requests.map((req) => (
+      {/* Search and Filter Bar */}
+      <div className="bg-white rounded-xl border border-[#001254]/10 p-4 space-y-3">
+        {/* Search input */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search equipment, student, request ID..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full border border-[#001254]/15 rounded-lg px-4 py-2.5 pl-10 text-sm text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
+          />
+          <svg className="w-4 h-4 text-[#001254]/30 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+
+        {/* Filter row */}
+        <div className="flex gap-2 flex-wrap">
+          {/* Status filter */}
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="border border-[#001254]/15 rounded-lg px-3 py-2 text-xs text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50 bg-white"
+          >
+            <option value="ALL">All Status</option>
+            {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+
+          {/* Urgency filter */}
+          <select
+            value={filterUrgency}
+            onChange={(e) => setFilterUrgency(e.target.value)}
+            className="border border-[#001254]/15 rounded-lg px-3 py-2 text-xs text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50 bg-white"
+          >
+            <option value="ALL">All Urgency</option>
+            {URGENCY_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
+          </select>
+
+          {/* Department filter */}
+          <select
+            value={filterDepartment}
+            onChange={(e) => setFilterDepartment(e.target.value)}
+            className="border border-[#001254]/15 rounded-lg px-3 py-2 text-xs text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50 bg-white"
+          >
+            <option value="ALL">All Departments</option>
+            {departments.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+
+          {/* Date from */}
+          <input
+            type="date"
+            value={filterDateFrom}
+            onChange={(e) => setFilterDateFrom(e.target.value)}
+            className="border border-[#001254]/15 rounded-lg px-3 py-2 text-xs text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
+            placeholder="From"
+          />
+
+          {/* Date to */}
+          <input
+            type="date"
+            value={filterDateTo}
+            onChange={(e) => setFilterDateTo(e.target.value)}
+            className="border border-[#001254]/15 rounded-lg px-3 py-2 text-xs text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
+            placeholder="To"
+          />
+
+          {/* Sort */}
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            className="border border-[#001254]/15 rounded-lg px-3 py-2 text-xs text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50 bg-white"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="urgency">By Urgency</option>
+          </select>
+
+          {/* Clear filters button */}
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-xs text-[#0B4EA2] hover:underline px-2 py-2"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        {/* Results count */}
+        <p className="text-xs text-[#001254]/40">
+          Showing {filteredRequests.length} of {requests.length} requests
+        </p>
+      </div>
+
+      {/* Requests list */}
+      {filteredRequests.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 gap-3 bg-white rounded-xl border border-[#001254]/10">
+          <Inbox className="w-8 h-8 text-[#001254]/20" />
+          <p className="text-[#001254]/40 text-sm">No requests match your filters.</p>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="text-[#0B4EA2] text-xs hover:underline">
+              Clear filters
+            </button>
+          )}
+        </div>
+      ) : (
+        filteredRequests.map((req) => (
         <div key={req.request_id} className="bg-white rounded-xl border border-[#001254]/10 p-5 space-y-4">
           {/* Header row */}
           <div className="flex items-start justify-between gap-3">
@@ -486,7 +660,7 @@ function RequestsPanel() {
             Submitted {new Date(req.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
           </p>
         </div>
-      ))}
+      )) : null}
     </div>
   );
 }
