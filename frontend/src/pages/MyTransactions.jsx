@@ -80,18 +80,17 @@ function formatDate(dateStr) {
  * Parse a time slot string like "11:00-13:00" and return minutes remaining
  * relative to now. Returns null if unparseable or time expired.
  */
-const MAX_COUNTDOWN_MINUTES = 240; // 4 hours max
-
 function minutesRemainingInSlot(timeSlot) {
   if (!timeSlot) return null;
   const match = timeSlot.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
   if (!match) return null;
   const [, sh, sm, eh, em] = match.map(Number);
   const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sh, sm);
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), eh, em);
   const diff = Math.round((end - now) / 60000);
-  const capped = diff > 0 ? Math.min(diff, MAX_COUNTDOWN_MINUTES) : 0;
-  return capped;
+  if (diff <= 0) return 0;
+  return diff;
 }
 
 /**
@@ -164,12 +163,12 @@ function TransactionRow({ txn, index }) {
       const minsLeft = minutesRemainingInSlot(timeSlot);
       setCountdownKey(prev => prev + 1);
       
-      // Play alarm when time expires (1 minute left warning + at 0)
-      if (minsLeft !== null && minsLeft <= 1 && !alarmPlayed) {
+      // Play alarm at 10 seconds remaining (≈0.167 minutes) or when time expires
+      if (minsLeft !== null && minsLeft <= 0.167 && !alarmPlayed) {
         playAlarmSound();
         setAlarmPlayed(true);
       }
-    }, 10000); // Check every 10 seconds
+    }, 1000); // Check every second for accurate 10-second warning
     
     return () => clearInterval(interval);
   }, [isActive, timeSlot, alarmPlayed]);
