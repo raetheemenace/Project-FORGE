@@ -131,7 +131,7 @@ router.get('/', authenticateToken, async (req, res) => {
                 'item_id',      i.item_id,
                 'equipment_id', i.equipment_id,
                 'condition',    i.condition,
-                'name',         COALESCE(e.name, 'Equipment ' || i.equipment_id)
+                'name',         COALESCE(e.name, i.equipment_id)
               )
             ) FILTER (WHERE i.item_id IS NOT NULL),
             '[]'
