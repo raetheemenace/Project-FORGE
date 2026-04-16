@@ -23,6 +23,49 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'];
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
+const PRIORITY_CRITERIA = {
+  CRITICAL: {
+    description: 'Immediate safety hazard or complete equipment failure that could cause injury or major damage.',
+    examples: [
+      'Electrical shock or fire risk',
+      'Exposed wires or burning smell',
+      'Structural collapse risk',
+      'Chemical leak or spill',
+      'Equipment completely inoperable with safety implications',
+    ],
+  },
+  HIGH: {
+    description: 'Major functional issue that prevents proper use but does not pose immediate safety risk.',
+    examples: [
+      'Equipment completely non-functional',
+      'Major component broken or missing',
+      'Significant accuracy issues affecting results',
+      'Interlock or safety feature disabled',
+      'Major calibration required',
+    ],
+  },
+  MEDIUM: {
+    description: 'Noticeable problem that affects performance but equipment is still usable with limitations.',
+    examples: [
+      'Intermittent functionality issues',
+      'Minor calibration drift',
+      'Display or indicator malfunction',
+      'Noisy operation or vibrations',
+      'Minor parts worn but not critical',
+    ],
+  },
+  LOW: {
+    description: 'Minor issue, cosmetic damage, or preventative maintenance that does not affect functionality.',
+    examples: [
+      'Scratches or cosmetic wear',
+      'Loose knobs or covers (no safety impact)',
+      'Cleaning or lubrication needed',
+      'Replace consumables or accessories',
+      'General maintenance check',
+    ],
+  },
+};
+
 const STATUS_STYLES = {
   OPEN:        'bg-amber-50 text-amber-700 border-amber-200',
   IN_PROGRESS: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -617,16 +660,16 @@ export default function MaintenanceTickets() {
               >
                 <option value="">— Select priority —</option>
                 {PRIORITIES.map((p) => <option key={p}>{p}</option>)}
-              </select>
-              
-              {/* Priority Criteria Explanation */}
-              <div className="mt-2 p-3 bg-[#EFEFE9]/50 rounded-lg space-y-1.5">
-                <p className="text-xs font-semibold text-[#001254]/50 uppercase tracking-wide">Priority Criteria</p>
-                <p className="text-xs text-[#001254]/60"><span className="font-medium text-slate-600">LOW:</span> Minor issue, non-critical, can be scheduled</p>
-                <p className="text-xs text-[#001254]/60"><span className="font-medium text-blue-600">MEDIUM:</span> Affects functionality but workarounds exist</p>
-                <p className="text-xs text-[#001254]/60"><span className="font-medium text-orange-600">HIGH:</span> Impacts critical lab operations, urgent</p>
-                <p className="text-xs text-[#001254]/60"><span className="font-medium text-red-600">CRITICAL:</span> Safety hazard, immediate attention required</p>
-              </div>
+                </select>
+
+               {/* Priority Criteria Explanation - static reference */}
+               <div className="mt-2 p-3 bg-[#EFEFE9]/50 rounded-lg space-y-1.5">
+                 <p className="text-xs font-semibold text-[#001254]/50 uppercase tracking-wide">Priority Guidelines</p>
+                 <p className="text-xs text-[#001254]/60"><span className="font-medium text-slate-600">LOW:</span> Minor, non-critical, can be scheduled</p>
+                 <p className="text-xs text-[#001254]/60"><span className="font-medium text-blue-600">MEDIUM:</span> Affects functionality but workarounds exist</p>
+                 <p className="text-xs text-[#001254]/60"><span className="font-medium text-orange-600">HIGH:</span> Impacts critical lab operations, urgent</p>
+                 <p className="text-xs text-[#001254]/60"><span className="font-medium text-red-600">CRITICAL:</span> Safety hazard, immediate attention required</p>
+               </div>
             </div>
             <div>
               <label className="block text-[#001254]/60 mb-1" style={{ fontSize: '0.78rem' }}>Assign To</label>

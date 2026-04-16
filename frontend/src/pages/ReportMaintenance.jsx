@@ -16,6 +16,53 @@ const SEVERITY_COLORS = {
   Critical: 'bg-red-100 text-red-700 border-red-200',
 };
 
+const SEVERITY_CRITERIA = {
+  Critical: {
+    title: 'Critical',
+    description: 'Immediate safety hazard or complete equipment failure that could cause injury or major damage.',
+    examples: [
+      'Electrical shock or fire risk',
+      'Exposed wires or burning smell',
+      'Structural collapse risk',
+      'Chemical leak or spill',
+      'Equipment completely inoperable with safety implications',
+    ],
+  },
+  High: {
+    title: 'High',
+    description: 'Major functional issue that prevents proper use but does not pose immediate safety risk.',
+    examples: [
+      'Equipment completely non-functional',
+      'Major component broken or missing',
+      'Significant accuracy issues affecting results',
+      'Interlock or safety feature disabled',
+      'Major calibration required',
+    ],
+  },
+  Medium: {
+    title: 'Medium',
+    description: 'Noticeable problem that affects performance but equipment is still usable with limitations.',
+    examples: [
+      'Intermittent functionality issues',
+      'Minor calibration drift',
+      'Display or indicator malfunction',
+      'Noisy operation or vibrations',
+      'Minor parts worn but not critical',
+    ],
+  },
+  Low: {
+    title: 'Low',
+    description: 'Minor issue, cosmetic damage, or preventative maintenance that does not affect functionality.',
+    examples: [
+      'Scratches or cosmetic wear',
+      'Loose knobs or covers (no safety impact)',
+      'Cleaning or lubrication needed',
+      'Replace consumables or accessories',
+      'General maintenance check',
+    ],
+  },
+};
+
 export default function ReportMaintenance() {
   const navigate = useNavigate();
 
@@ -598,6 +645,37 @@ export default function ReportMaintenance() {
                 <p id="severity-error" className="mt-1 text-xs text-red-500">{errors.severity}</p>
               )}
             </div>
+
+            {/* Severity criteria help */}
+            {severity && SEVERITY_CRITERIA[severity] && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className={`p-4 rounded-xl border ${SEVERITY_COLORS[severity]}`}>
+                  <p className="text-xs font-semibold mb-2 uppercase tracking-wide opacity-70">
+                    Severity Guidance
+                  </p>
+                  <p className="text-sm font-medium mb-2">
+                    {SEVERITY_CRITERIA[severity].description}
+                  </p>
+                  <p className="text-xs opacity-80 mb-1.5 uppercase tracking-wide">
+                    Examples:
+                  </p>
+                  <ul className="text-xs opacity-80 space-y-1">
+                    {SEVERITY_CRITERIA[severity].examples.map((ex, i) => (
+                      <li key={i} className="flex items-start gap-1.5">
+                        <span className="text-[10px] mt-0.5">•</span>
+                        <span>{ex}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </motion.div>
+            )}
 
             {/* Description textarea */}
             <div>
