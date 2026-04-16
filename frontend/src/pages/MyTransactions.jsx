@@ -120,10 +120,6 @@ function playAlarmSound() {
     console.error('Alarm sound error:', err);
   }
 }
-  } catch (err) {
-    console.error('Alarm sound error:', err);
-  }
-}
 
 // ── Transaction row (expandable) ─────────────────────────────────────────────
 
@@ -131,6 +127,10 @@ function TransactionRow({ txn, index }) {
   const [expanded, setExpanded] = useState(false);
   const [countdownKey, setCountdownKey] = useState(0);
   const [alarmPlayed, setAlarmPlayed] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnCondition, setReturnCondition] = useState('Excellent');
+  const [returnRemarks, setReturnRemarks] = useState('');
+  const [returning, setReturning] = useState(false);
   const items = txn.items || [];
   const isActive = txn.status === 'ACTIVE';
   const timeSlot = txn.time_slot;
@@ -157,6 +157,31 @@ function TransactionRow({ txn, index }) {
   const minsLeft = isActive && timeSlot ? minutesRemainingInSlot(timeSlot) : null;
   const isExpiringSoon = minsLeft !== null && minsLeft <= 15 && minsLeft > 0;
   const isExpired = minsLeft !== null && minsLeft === 0;
+
+  // Handle return
+  const handleReturn = async () => {
+    if (returning) return;
+    setReturning(true);
+
+    try {
+      const token = getToken();
+      await axios.post(
+        `${API_URL}/transactions/${txn.txn_id}/return`,
+        {
+          conditionAfter: returnCondition,
+          remarks: returnRemarks.trim() || null,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Refresh the page to show updated status
+      window.location.reload();
+    } catch (err) {
+      alert('Failed to process return. Please try again.');
+    } finally {
+      setReturning(false);
+    }
+  };
 
   return (
     <motion.div
@@ -243,7 +268,95 @@ function TransactionRow({ txn, index }) {
                   </div>
                 </div>
               )}
+
+              {/* Return button for ACTIVE transactions */}
+              {isActive && (
+                <div className="pt-2 border-t border-[#001254]/6">
+                  <button
+                    onClick={() => setShowReturnModal(true)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#0B4EA2] text-white rounded-lg hover:bg-[#0B4EA2]/90 active:scale-[0.98] transition-all font-medium text-sm"
+                  >
+                    <Package className="w-4 h-4" />
+                    Return Equipment
+                  </button>
+                </div>
+              )}
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Return Modal */}
+      <AnimatePresence>
+        {showReturnModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowReturnModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl max-w-md w-full mx-4 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-[#001254] mb-4">Return Equipment</h3>
+                <p className="text-[#001254]/60 text-sm mb-4">
+                  Please confirm the return details for transaction <span className="font-mono font-semibold">{txn.txn_id}</span>
+                </p>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-[#001254]/70 mb-2">
+                      Condition After Return
+                    </label>
+                    <select
+                      value={returnCondition}
+                      onChange={(e) => setReturnCondition(e.target.value)}
+                      className="w-full border border-[#001254]/20 rounded-lg px-3 py-2 text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50"
+                    >
+                      <option value="Excellent">Excellent</option>
+                      <option value="Good">Good</option>
+                      <option value="Fair">Fair</option>
+                      <option value="Poor">Poor</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-[#001254]/70 mb-2">
+                      Remarks (Optional)
+                    </label>
+                    <textarea
+                      value={returnRemarks}
+                      onChange={(e) => setReturnRemarks(e.target.value)}
+                      placeholder="Any notes about the equipment condition or return..."
+                      rows={3}
+                      className="w-full border border-[#001254]/20 rounded-lg px-3 py-2 text-[#001254] focus:outline-none focus:border-[#0B4EA2]/50 resize-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => setShowReturnModal(false)}
+                    className="flex-1 py-2.5 border border-[#001254]/20 text-[#001254]/70 rounded-lg hover:bg-[#001254]/5 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleReturn}
+                    disabled={returning}
+                    className="flex-1 py-2.5 bg-[#0B4EA2] text-white rounded-lg hover:bg-[#0B4EA2]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {returning ? 'Processing...' : 'Confirm Return'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
