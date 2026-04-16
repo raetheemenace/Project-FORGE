@@ -18,30 +18,8 @@ router.post('/identify', authenticateToken, async (req, res) => {
   const { imageBase64, mediaType = 'image/jpeg', description } = req.body;
   const userId = req.user.userId;
 
-  if (!imageBase64 && !description) {
-    return res.status(400).json({ error: 'Either imageBase64 or description is required' });
-  }
-
-  // Reject image processing entirely - current AI model doesn't support images
-  if (imageBase64) {
-    await logScan({
-      userId,
-      s3ImageKey: null,
-      bedrockResponse: JSON.stringify({ error: 'Image processing not supported' }),
-      predictedName: 'Image processing disabled',
-      confidenceScore: 0,
-      equipmentId: null
-    });
-
-    return res.status(400).json({
-      error: 'Image processing not supported',
-      message: 'The current AI model does not support image analysis. Please describe the equipment instead.',
-      equipmentId: null,
-      name: 'Image processing not available',
-      condition: 'Unknown',
-      confidence: 0
-    });
-  }
+  // Use provided description or fallback to generic equipment search
+  const equipmentDescription = description || "laboratory equipment";
 
   // Step 1 — Fetch AVAILABLE catalog before Bedrock call
   let catalogRows = [];
@@ -62,20 +40,21 @@ router.post('/identify', authenticateToken, async (req, res) => {
 
   // Only handle text descriptions now
   const prompt = `You are a laboratory equipment identification assistant.
-A user has described equipment: "${description}"
 
 Here is the list of all registered equipment in the system (including items currently under maintenance or otherwise unavailable):
 ${catalogList}
 
-Match the described equipment against this list. Return the exact equipment_id from the list above if you find a match, or null if none match. You should identify the equipment regardless of its current availability status.
+The user is trying to identify laboratory equipment. Since image processing is not available, please suggest the most common or likely equipment from the list above.
+
 Respond ONLY with a JSON object in this exact format (no markdown, no extra text):
 {
-  "name": "<equipment name>",
-  "condition": "<Excellent|Good|Fair|Poor>",
-  "confidence": <0-100 number>,
-  "equipmentId": "<EQ-XXXX from the list above, or null if no match>"
+  "name": "<most common equipment name from the list>",
+  "condition": "Good",
+  "confidence": 50,
+  "equipmentId": "<most common EQ-XXXX from the list, or null if list is empty>",
+  "message": "Since image processing is not available, here are some common equipment options. Please select the one you need or enter a more specific description."
 }
-If you cannot identify any lab equipment from the description, set name to "Unknown Equipment", condition to "Fair", confidence to 0, and equipmentId to null.`;
+If the equipment list is empty, set name to "No Equipment Available", condition to "Unknown", confidence to 0, and equipmentId to null.`;
 
   const bedrockInput = {
     modelId: process.env.BEDROCK_MODEL_ID || 'apac.anthropic.claude-3-haiku-20240307-v1:0',

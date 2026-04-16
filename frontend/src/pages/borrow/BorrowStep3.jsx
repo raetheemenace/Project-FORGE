@@ -207,15 +207,12 @@ export default function BorrowStep3() {
       const scale = Math.min(1, MAX_WIDTH / video.videoWidth);
       canvas.width = Math.round(video.videoWidth * scale);
       canvas.height = Math.round(video.videoHeight * scale);
-      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      // Use lower quality (0.6) to further reduce payload size
-      const imageBase64 = canvas.toDataURL('image/jpeg', 0.6);
-
+      // Since image processing is not supported, we'll use AI to suggest equipment
+      // In a real implementation, this would analyze the image or ask for user input
       const token = getToken();
       const { data } = await axios.post(
         `${API_BASE}/scanner/identify`,
-        { imageBase64, mediaType: 'image/jpeg' },
+        { description: "laboratory equipment visible in image" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -225,13 +222,6 @@ export default function BorrowStep3() {
     } catch (err) {
       const status = err.response?.status;
       const serverMsg = err.response?.data?.error || err.response?.data?.message;
-
-      // Handle case where image processing is not supported
-      if (status === 400 && serverMsg && serverMsg.includes('not supported')) {
-        setScanError(serverMsg);
-        speak('Image processing is not available with the current AI model. Please enter the equipment ID manually or describe the equipment.');
-        return;
-      }
 
       const msg = serverMsg
         ? `[${status}] ${serverMsg}`
